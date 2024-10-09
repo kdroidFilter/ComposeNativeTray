@@ -4,7 +4,10 @@ import com.kdroid.callbacks.linux.GCallback
 import com.kdroid.lib.linux.GObject
 import com.kdroid.lib.linux.Gtk
 import com.kdroid.state.TrayState
+import com.kdroid.utils.OperatingSystem
+import com.kdroid.utils.PlatformUtils
 import com.sun.jna.Pointer
+import java.awt.SystemTray
 
 class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState) : TrayMenu {
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
@@ -63,5 +66,9 @@ class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState)
     override fun Divider() {
         val separator = Gtk.INSTANCE.gtk_separator_menu_item_new()
         Gtk.INSTANCE.gtk_menu_shell_append(menu, separator)
+    }
+
+    override fun dispose() {
+        Gtk.INSTANCE.gtk_main_quit()
     }
 }

@@ -13,7 +13,7 @@ class TrayIntegrationTest {
         val trayIconPath = "/home/elyahou/Images/avatar.jpeg"
 
         // Lancer le tray dans un thread séparé car gtk_main est bloquant
-        val thread = Thread {
+
             Tray(
                 state = trayState,
                 icon = trayIconPath,
@@ -46,9 +46,7 @@ class TrayIntegrationTest {
                     }
                 }
             )
-        }
-        thread.start()
 
-        Thread.sleep(10000)
+
     }
 }

@@ -93,17 +93,4 @@ class Tray(
         }
     }
 
-    fun dispose() {
-        when (PlatformUtils.currentOS) {
-            OperatingSystem.LINUX -> {
-                // Arrêter la boucle GTK
-                Gtk.INSTANCE.gtk_main_quit()
-            }
-
-            OperatingSystem.WINDOWS, OperatingSystem.MAC, OperatingSystem.UNKNOWN -> {
-                // Retirer l'icône du système
-                SystemTray.getSystemTray().remove(trayIcon)
-            }
-        }
-    }
 }

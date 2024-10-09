@@ -41,4 +41,8 @@ class SwingTrayMenuImpl(private val popupMenu: JPopupMenu) : TrayMenu {
     override fun Divider() {
         popupMenu.addSeparator()
     }
+
+    override fun dispose() {
+        TODO("Not yet implemented")
+    }
 }

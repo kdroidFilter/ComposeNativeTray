@@ -38,6 +38,10 @@ class AwtTrayMenuImpl(private val popupMenu: PopupMenu) : TrayMenu {
         popupMenu.addSeparator()
     }
 
+    override fun dispose() {
+        TODO("Not yet implemented")
+    }
+
     private fun getCheckableLabel(label: String, isChecked: Boolean): String {
         return if (isChecked) "[✔] $label" else "[ ] $label"
     }
