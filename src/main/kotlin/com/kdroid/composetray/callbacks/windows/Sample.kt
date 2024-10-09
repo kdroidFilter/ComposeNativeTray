@@ -3,6 +3,8 @@ import com.sun.jna.Structure
 import com.sun.jna.platform.win32.*
 import com.sun.jna.platform.win32.WinDef.*
 import com.sun.jna.win32.StdCallLibrary
+import javax.swing.JOptionPane
+import javax.swing.SwingUtilities
 
 // Define constants at the top level
 const val IMAGE_ICON = 1          // From WinUser.h
@@ -28,7 +30,6 @@ interface ExtendedShell32 : Shell32 {
     fun Shell_NotifyIcon(dwMessage: Int, lpData: NOTIFYICONDATA): BOOL
 }
 
-// Implement the rest of your code
 fun main() {
     // Initialize COM library
     Ole32.INSTANCE.CoInitializeEx(null, Ole32.COINIT_MULTITHREADED)
@@ -44,18 +45,22 @@ fun main() {
                     User32.INSTANCE.PostQuitMessage(0)
                     return LRESULT(0)
                 }
+
                 callbackMessage -> {
                     val lParamInt = lParam.toInt()
                     when (lParamInt) {
                         WinAPI.WM_LBUTTONUP -> {
                             println("Tray icon clicked")
                         }
+
                         WinAPI.WM_RBUTTONUP -> {
-                            println("Tray icon right-clicked")
+                            println("Right menu clicked")
+
                         }
                     }
                     return LRESULT(0)
                 }
+
                 else -> return User32.INSTANCE.DefWindowProc(hWnd, uMsgInt, wParam, lParam)
             }
         }
@@ -93,23 +98,16 @@ fun main() {
         return
     }
 
-    val User32Ex = Native.load("user32", ExtendedUser32::class.java)
-
-    // Load the icon
-    val hIconHandle = User32Ex.LoadImage(
+    val hIcon = User32.INSTANCE.LoadImage(
         null,
-        "path_to_your_icon.ico",
+        "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon2-24px.png",
         IMAGE_ICON,
         16,
         16,
         LR_LOADFROMFILE
     )
 
-    val hIcon = if (hIconHandle != null) {
-        hIconHandle as HICON
-    } else {
-        User32Ex.LoadIcon(null, IDI_APPLICATION.toString())
-    }
+    val iconHandle = hIcon as? HICON ?: User32.INSTANCE.LoadIcon(null, IDI_APPLICATION.toString())
 
     // Set up NOTIFYICONDATA
     val nid = NOTIFYICONDATA().apply {
@@ -117,7 +115,7 @@ fun main() {
         this.uID = UINT(1)
         this.uFlags = UINT((WinAPI.NIF_MESSAGE or WinAPI.NIF_ICON or WinAPI.NIF_TIP).toLong())
         this.uCallbackMessage = UINT(callbackMessage.toLong())
-        this.hIcon = hIcon
+        this.hIcon = iconHandle
         val tooltip = "My Kotlin Tray Icon"
         System.arraycopy(tooltip.toCharArray(), 0, this.szTip, 0, tooltip.length)
     }
@@ -136,12 +134,14 @@ fun main() {
 
     // Clean up
     Shell32Ex.Shell_NotifyIcon(WinAPI.NIM_DELETE, nid)
-    User32.INSTANCE.DestroyIcon(hIcon)
+    User32.INSTANCE.DestroyIcon(iconHandle)
     User32.INSTANCE.DestroyWindow(hWnd)
     User32.INSTANCE.UnregisterClass(wndClass.lpszClassName, hInstance)
 
     Ole32.INSTANCE.CoUninitialize()
 }
+
+
 
 object WinAPI {
     const val WM_DESTROY = 0x0002
@@ -156,13 +156,20 @@ object WinAPI {
 }
 
 class NOTIFYICONDATA : Structure() {
-    @JvmField var cbSize: DWORD = DWORD(size().toLong())
-    @JvmField var hWnd: HWND? = null
-    @JvmField var uID: UINT = UINT(0)
-    @JvmField var uFlags: UINT = UINT(0)
-    @JvmField var uCallbackMessage: UINT = UINT(0)
-    @JvmField var hIcon: HICON? = null
-    @JvmField var szTip = CharArray(128)
+    @JvmField
+    var hWnd: HWND? = null
+    @JvmField
+    var uID: UINT = UINT(0)
+    @JvmField
+    var uFlags: UINT = UINT(0)
+    @JvmField
+    var uCallbackMessage: UINT = UINT(0)
+    @JvmField
+    var hIcon: HICON? = null
+    @JvmField
+    var szTip = CharArray(128)
+    @JvmField
+    var cbSize: DWORD = DWORD(size().toLong())
 
     override fun getFieldOrder() = listOf(
         "cbSize", "hWnd", "uID", "uFlags", "uCallbackMessage", "hIcon", "szTip"
