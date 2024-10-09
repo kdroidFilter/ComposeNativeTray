@@ -7,9 +7,10 @@ import com.kdroid.state.TrayState
 import com.sun.jna.Pointer
 
 class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState) : TrayMenu {
-    override fun Item(label: String, onClick: () -> Unit) {
+    override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
+        Gtk.INSTANCE.gtk_widget_set_sensitive(menuItem, if (isEnabled) 1 else 0)
 
         val callback = object : GCallback {
             override fun callback(widget: Pointer, data: Pointer?) {
@@ -26,9 +27,11 @@ class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState)
             0
         )
     }
-    override fun CheckableItem(label: String, onToggle: (Boolean) -> Unit) {
+
+    override fun CheckableItem(label: String, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
         val checkMenuItem = Gtk.INSTANCE.gtk_check_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, checkMenuItem)
+        Gtk.INSTANCE.gtk_widget_set_sensitive(checkMenuItem, if (isEnabled) 1 else 0)
 
         val callback = object : GCallback {
             override fun callback(widget: Pointer, data: Pointer?) {
@@ -47,15 +50,17 @@ class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState)
         )
     }
 
-   override fun SubMenu(label: String, submenuContent: TrayMenu.() -> Unit) {
+    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenu.() -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
+        Gtk.INSTANCE.gtk_widget_set_sensitive(menuItem, if (isEnabled) 1 else 0)
+
         val subMenu = Gtk.INSTANCE.gtk_menu_new()
         LinuxTrayMenuImpl(subMenu, state).apply(submenuContent)
         Gtk.INSTANCE.gtk_menu_item_set_submenu(menuItem, subMenu)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
     }
 
-   override fun Divider() {
+    override fun Divider() {
         val separator = Gtk.INSTANCE.gtk_separator_menu_item_new()
         Gtk.INSTANCE.gtk_menu_shell_append(menu, separator)
     }

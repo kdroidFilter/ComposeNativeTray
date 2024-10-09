@@ -20,4 +20,6 @@ interface Gtk : Library {
     fun gtk_separator_menu_item_new(): Pointer
     fun gtk_check_menu_item_new_with_label(label: String): Pointer
     fun gtk_check_menu_item_get_active(checkMenuItem: Pointer): Any
+    fun gtk_widget_set_sensitive(widget: Pointer, sensitive: Int)
+
 }

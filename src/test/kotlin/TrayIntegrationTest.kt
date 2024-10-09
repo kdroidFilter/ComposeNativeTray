@@ -24,6 +24,7 @@ class TrayIntegrationTest {
                     Item("Send notification") {
                         trayState.sendNotification(notification)
                     }
+                    Item("Disabled Item", isEnabled = false) {}
                     CheckableItem("Toggle me") {
                         println("Toggle me clicked")
                     }
