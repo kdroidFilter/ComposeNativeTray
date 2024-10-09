@@ -43,6 +43,7 @@ class SwingTrayMenuImpl(private val popupMenu: JPopupMenu) : TrayMenu {
     }
 
     override fun dispose() {
-        TODO("Not yet implemented")
+        popupMenu.removeAll()
+        popupMenu.isVisible = false
     }
 }
