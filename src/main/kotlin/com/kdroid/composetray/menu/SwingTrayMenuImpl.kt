@@ -1,4 +1,4 @@
-package com.kdroid.menu
+package com.kdroid.composetray.menu
 
 import javax.swing.JMenuItem
 import javax.swing.JCheckBoxMenuItem

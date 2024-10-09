@@ -1,4 +1,4 @@
-package com.kdroid.menu
+package com.kdroid.composetray.menu
 
 interface TrayMenu {
     fun Item(label: String, isEnabled: Boolean = true, onClick: () -> Unit)

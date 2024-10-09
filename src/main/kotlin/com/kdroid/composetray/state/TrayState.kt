@@ -1,4 +1,4 @@
-package com.kdroid.state
+package com.kdroid.composetray.state
 
 class TrayState {
     fun sendNotification(notification: Notification) {

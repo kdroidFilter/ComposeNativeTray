@@ -1,16 +1,16 @@
-package com.kdroid.tray
+package com.kdroid.composetray.tray
 
-import com.kdroid.lib.linux.AppIndicator
-import com.kdroid.lib.linux.AppIndicatorCategory
-import com.kdroid.lib.linux.AppIndicatorStatus
-import com.kdroid.lib.linux.Gtk
-import com.kdroid.menu.AwtTrayMenuImpl
-import com.kdroid.menu.LinuxTrayMenuImpl
-import com.kdroid.menu.SwingTrayMenuImpl
-import com.kdroid.menu.TrayMenu
-import com.kdroid.state.TrayState
-import com.kdroid.utils.PlatformUtils
-import com.kdroid.utils.OperatingSystem
+import com.kdroid.composetray.lib.linux.AppIndicator
+import com.kdroid.composetray.lib.linux.AppIndicatorCategory
+import com.kdroid.composetray.lib.linux.AppIndicatorStatus
+import com.kdroid.composetray.lib.linux.Gtk
+import com.kdroid.composetray.menu.AwtTrayMenuImpl
+import com.kdroid.composetray.menu.LinuxTrayMenuImpl
+import com.kdroid.composetray.menu.SwingTrayMenuImpl
+import com.kdroid.composetray.menu.TrayMenu
+import com.kdroid.composetray.state.TrayState
+import com.kdroid.composetray.utils.PlatformUtils
+import com.kdroid.composetray.utils.OperatingSystem
 import com.sun.jna.Pointer
 import java.awt.*
 import javax.swing.ImageIcon
@@ -57,10 +57,11 @@ class Tray(
                 // Utiliser AWT pour les autres plateformes
                 val systemTray = SystemTray.getSystemTray()
                 val popupMenu = PopupMenu()
-                AwtTrayMenuImpl(popupMenu).apply(menuContent)
 
                 trayIcon = TrayIcon(Toolkit.getDefaultToolkit().getImage(icon), "Custom Tray", popupMenu)
                 trayIcon.isImageAutoSize = true
+                AwtTrayMenuImpl(popupMenu, trayIcon).apply(menuContent)
+
                 systemTray.add(trayIcon)
 
                 indicator = null
@@ -82,8 +83,8 @@ class Tray(
                 // Ajouter un listener pour afficher le menu contextuel
                 trayIcon.addActionListener {
                     // Assurer que le menu est montré en cliquant sur l'icône de la barre de tâche
-                    val mouseX = java.awt.MouseInfo.getPointerInfo().location.x
-                    val mouseY = java.awt.MouseInfo.getPointerInfo().location.y
+                    val mouseX = MouseInfo.getPointerInfo().location.x
+                    val mouseY = MouseInfo.getPointerInfo().location.y
                     popupMenu.show(null, mouseX, mouseY)
                 }
 

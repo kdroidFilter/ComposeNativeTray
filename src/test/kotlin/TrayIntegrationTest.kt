@@ -1,6 +1,6 @@
-import com.kdroid.lib.linux.Gtk
-import com.kdroid.state.rememberNotification
-import com.kdroid.state.rememberTrayState
+import com.kdroid.composetray.lib.linux.Gtk
+import com.kdroid.composetray.state.rememberNotification
+import com.kdroid.composetray.state.rememberTrayState
 import com.kdroid.tray.Tray
 import kotlin.test.Test
 

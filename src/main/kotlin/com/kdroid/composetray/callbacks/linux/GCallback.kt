@@ -1,4 +1,4 @@
-package com.kdroid.callbacks.linux
+package com.kdroid.composetray.callbacks.linux
 
 import com.sun.jna.Callback
 import com.sun.jna.Pointer

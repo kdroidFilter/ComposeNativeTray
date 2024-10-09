@@ -1,4 +1,4 @@
-package com.kdroid.utils
+package com.kdroid.composetray.utils
 
 import java.util.*
 

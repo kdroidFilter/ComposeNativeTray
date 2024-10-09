@@ -1,13 +1,10 @@
-package com.kdroid.menu
+package com.kdroid.composetray.menu
 
-import com.kdroid.callbacks.linux.GCallback
-import com.kdroid.lib.linux.GObject
-import com.kdroid.lib.linux.Gtk
-import com.kdroid.state.TrayState
-import com.kdroid.utils.OperatingSystem
-import com.kdroid.utils.PlatformUtils
+import com.kdroid.composetray.callbacks.linux.GCallback
+import com.kdroid.composetray.lib.linux.GObject
+import com.kdroid.composetray.lib.linux.Gtk
+import com.kdroid.composetray.state.TrayState
 import com.sun.jna.Pointer
-import java.awt.SystemTray
 
 class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState) : TrayMenu {
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {

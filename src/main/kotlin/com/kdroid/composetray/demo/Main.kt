@@ -1,12 +1,10 @@
-package com.kdroid
+package com.kdroid.composetray.demo
 
 import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
-import com.kdroid.lib.linux.Gtk
-import com.kdroid.state.rememberNotification
-import com.kdroid.state.rememberTrayState
-import com.kdroid.tray.Tray
+import com.kdroid.composetray.state.rememberNotification
+import com.kdroid.composetray.state.rememberTrayState
+import com.kdroid.composetray.tray.Tray
 
 fun main() {
     val trayState = rememberTrayState()

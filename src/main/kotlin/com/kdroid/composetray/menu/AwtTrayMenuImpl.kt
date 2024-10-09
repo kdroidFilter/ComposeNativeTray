@@ -1,4 +1,4 @@
-package com.kdroid.menu
+package com.kdroid.composetray.menu
 
 import java.awt.MenuItem
 import java.awt.PopupMenu
