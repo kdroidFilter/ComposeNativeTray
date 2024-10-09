@@ -26,6 +26,27 @@ class LinuxTrayMenuImpl(private val menu: Pointer, private val state: TrayState)
             0
         )
     }
+    override fun CheckableItem(label: String, onToggle: (Boolean) -> Unit) {
+        val checkMenuItem = Gtk.INSTANCE.gtk_check_menu_item_new_with_label(label)
+        Gtk.INSTANCE.gtk_menu_shell_append(menu, checkMenuItem)
+
+        val callback = object : GCallback {
+            override fun callback(widget: Pointer, data: Pointer?) {
+                val active = Gtk.INSTANCE.gtk_check_menu_item_get_active(checkMenuItem)
+                onToggle(active != 0)
+            }
+        }
+
+        GObject.INSTANCE.g_signal_connect_data(
+            checkMenuItem,
+            "toggled",
+            callback,
+            null,
+            null,
+            0
+        )
+    }
+
    override fun SubMenu(label: String, submenuContent: TrayMenu.() -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
         val subMenu = Gtk.INSTANCE.gtk_menu_new()

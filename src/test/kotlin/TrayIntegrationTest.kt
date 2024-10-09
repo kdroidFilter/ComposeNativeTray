@@ -24,6 +24,9 @@ class TrayIntegrationTest {
                     Item("Send notification") {
                         trayState.sendNotification(notification)
                     }
+                    CheckableItem("Toggle me") {
+                        println("Toggle me clicked")
+                    }
                     Divider()
                     SubMenu("SubMenu") {
                         Item("Option 1") {

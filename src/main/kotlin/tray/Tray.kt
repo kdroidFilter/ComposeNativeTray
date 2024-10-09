@@ -6,12 +6,15 @@ import com.kdroid.lib.linux.AppIndicatorStatus
 import com.kdroid.lib.linux.Gtk
 import com.kdroid.menu.AwtTrayMenuImpl
 import com.kdroid.menu.LinuxTrayMenuImpl
+import com.kdroid.menu.SwingTrayMenuImpl
 import com.kdroid.menu.TrayMenu
 import com.kdroid.state.TrayState
 import com.kdroid.utils.PlatformUtils
 import com.kdroid.utils.OperatingSystem
 import com.sun.jna.Pointer
 import java.awt.*
+import javax.swing.ImageIcon
+import javax.swing.JPopupMenu
 
 class Tray(
     state: TrayState,
@@ -23,7 +26,7 @@ class Tray(
 
     init {
         when (PlatformUtils.currentOS) {
-            OperatingSystem.WINDOWS -> {
+            OperatingSystem.LINUX -> {
                 // Initialiser GTK
                 Gtk.INSTANCE.gtk_init(0, Pointer.createConstant(0))
 
@@ -50,7 +53,7 @@ class Tray(
                 trayIcon = null
             }
 
-            OperatingSystem.LINUX, OperatingSystem.MAC, OperatingSystem.UNKNOWN -> {
+            OperatingSystem.WINDOWS, OperatingSystem.MAC -> {
                 // Utiliser AWT pour les autres plateformes
                 val systemTray = SystemTray.getSystemTray()
                 val popupMenu = PopupMenu()
@@ -60,6 +63,31 @@ class Tray(
                 trayIcon.isImageAutoSize = true
                 systemTray.add(trayIcon)
 
+                indicator = null
+            }
+
+            OperatingSystem.UNKNOWN -> {
+                // Utiliser Swing pour les autres plateformes
+                val systemTray = java.awt.SystemTray.getSystemTray()
+                val popupMenu = JPopupMenu()
+                SwingTrayMenuImpl(popupMenu).apply(menuContent)
+
+                // Créer une icône à partir du chemin du fichier icône
+                val imageIcon = ImageIcon(icon)
+                val awtImage = imageIcon.image
+
+                trayIcon = TrayIcon(awtImage, "Custom Tray")
+                trayIcon.isImageAutoSize = true
+
+                // Ajouter un listener pour afficher le menu contextuel
+                trayIcon.addActionListener {
+                    // Assurer que le menu est montré en cliquant sur l'icône de la barre de tâche
+                    val mouseX = java.awt.MouseInfo.getPointerInfo().location.x
+                    val mouseY = java.awt.MouseInfo.getPointerInfo().location.y
+                    popupMenu.show(null, mouseX, mouseY)
+                }
+
+                systemTray.add(trayIcon)
                 indicator = null
             }
         }
