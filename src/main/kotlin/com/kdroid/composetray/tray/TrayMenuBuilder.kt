@@ -1,6 +1,5 @@
 package com.kdroid.composetray.tray
 
-import WindowsNativeTray
 import com.kdroid.composetray.lib.linux.AppIndicator
 import com.kdroid.composetray.lib.linux.AppIndicatorCategory
 import com.kdroid.composetray.lib.linux.AppIndicatorStatus
@@ -10,22 +9,19 @@ import com.kdroid.composetray.state.TrayState
 import com.kdroid.composetray.utils.OperatingSystem
 import com.kdroid.composetray.utils.PlatformUtils
 import com.sun.jna.Memory
-import com.sun.jna.Native
 import com.sun.jna.Pointer
-import windowsNativeTrayLibrary
 import java.awt.*
 import java.nio.charset.Charset
 import javax.swing.ImageIcon
 import javax.swing.JPopupMenu
 
-class Tray(
+class TrayMenuBuilder(
     state: TrayState,
     icon: String,
     menuContent: TrayMenu.() -> Unit
 ) {
     private val indicator: Pointer?
     private val trayIcon: TrayIcon?
-    private val allocatedMemory = mutableListOf<Any>()
 
 
     init {
@@ -58,57 +54,7 @@ class Tray(
             }
 
             OperatingSystem.WINDOWS -> {
-
-                // Charger la bibliothèque DLL
-                val trayLib = Native.load("tray", windowsNativeTrayLibrary::class.java) as windowsNativeTrayLibrary
-
-                // Fonction pour allouer de la mémoire pour une chaîne de caractères
-                fun allocateString(str: String?): Pointer? {
-                    if (str == null) return null
-                    val charset: Charset = Charset.forName("Windows-1252")
-                    val byteArray = str.toByteArray(charset)
-                    val memory = Memory(byteArray.size.toLong() + 1) // +1 pour le terminateur null
-                    memory.write(0, byteArray, 0, byteArray.size)
-                    memory.setByte(byteArray.size.toLong(), 0.toByte()) // Terminateur null
-                    allocatedMemory.add(memory)
-                    return memory
-                }
-
-                // Initialiser le tray natif
-                val tray = WindowsNativeTray().apply {
-                    icon_filepath = allocateString(icon) // Allouer la mémoire pour l'icône
-                    tooltip = allocateString("Mon application Kotlin Tray") // Allouer la mémoire pour le tooltip
-                    allocatedMemory.add(this)
-                }
-
-                // Utiliser WindowsTrayMenuImpl pour gérer le contenu du menu
-                val trayMenu = WindowsTrayMenuImpl().apply(menuContent)
-
-                // Appliquer les éléments du menu
-                tray.menu = trayMenu.build().firstOrNull()?.pointer // Pointeur vers le premier élément du menu principal
-                tray.write()
-
-                // Démarrer le tray
-                try {
-                    val initResult = trayLib.tray_init(tray)
-                    if (initResult != 0) {
-                        throw IllegalStateException("Échec de l'initialisation du tray") // Lever une exception pour signaler l'erreur
-                    }
-
-                    // Boucle du tray
-                    Thread {
-                        while (true) {
-                            val loopResult = trayLib.tray_loop(1)
-                            if (loopResult != 0) {
-                                break
-                            }
-                        }
-                    }.start()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                } finally {
-                    trayLib.tray_exit()
-                }
+                WindowsTrayMenuImpl().apply(menuContent).build()
 
                 indicator = null
                 trayIcon = null

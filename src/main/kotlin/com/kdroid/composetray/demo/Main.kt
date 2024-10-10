@@ -2,7 +2,7 @@ package com.kdroid.composetray.demo
 
 import com.kdroid.composetray.state.rememberNotification
 import com.kdroid.composetray.state.rememberTrayState
-import com.kdroid.composetray.tray.Tray
+import com.kdroid.composetray.tray.TrayMenuBuilder
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
 
@@ -11,7 +11,7 @@ fun main() {
     val notification = rememberNotification("Notification", "Message from MyApp!")
     val trayIconPath = "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon.ico"
 
-     Tray(
+     TrayMenuBuilder(
         state = trayState,
         icon = trayIconPath,
         menuContent = {
@@ -42,5 +42,7 @@ fun main() {
                 dispose()
             }
         }
+
+         
     )
 }
