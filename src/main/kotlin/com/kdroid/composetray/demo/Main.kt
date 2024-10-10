@@ -1,15 +1,15 @@
 package com.kdroid.composetray.demo
 
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.i
 import com.kdroid.composetray.state.rememberNotification
 import com.kdroid.composetray.state.rememberTrayState
 import com.kdroid.composetray.tray.Tray
+import com.kdroid.kmplog.Log
+import com.kdroid.kmplog.i
 
 fun main() {
     val trayState = rememberTrayState()
     val notification = rememberNotification("Notification", "Message from MyApp!")
-    val trayIconPath = "/home/elyahou/Images/avatar.jpeg"
+    val trayIconPath = "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon.ico"
 
      Tray(
         state = trayState,

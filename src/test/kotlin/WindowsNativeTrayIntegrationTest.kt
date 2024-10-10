@@ -1,10 +1,9 @@
 import com.kdroid.composetray.lib.linux.Gtk
 import com.kdroid.composetray.state.rememberNotification
 import com.kdroid.composetray.state.rememberTrayState
-import com.kdroid.tray.Tray
 import kotlin.test.Test
 
-class TrayIntegrationTest {
+class WindowsNativeTrayIntegrationTest {
     @Test
     fun `test Tray integration`() {
         // Arrange
@@ -14,7 +13,7 @@ class TrayIntegrationTest {
 
         // Lancer le tray dans un thread séparé car gtk_main est bloquant
 
-            Tray(
+            WindowsNativeTray(
                 state = trayState,
                 icon = trayIconPath,
                 menuContent = {
