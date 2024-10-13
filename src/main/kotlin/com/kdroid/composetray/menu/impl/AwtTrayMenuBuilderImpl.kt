@@ -46,6 +46,6 @@ internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private 
     }
 
     private fun getCheckableLabel(label: String, isChecked: Boolean): String {
-        return if (isChecked) "[✔] $label" else "[ ] $label"
+        return if (isChecked) "✔ $label" else label
     }
 }
