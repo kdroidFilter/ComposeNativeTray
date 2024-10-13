@@ -1,15 +1,11 @@
 
-import com.kdroid.composetray.state.rememberTrayState
 import com.kdroid.composetray.tray.NativeTray
 
 fun main() {
-
-    val trayState = rememberTrayState()
     val trayIconPath = "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon2.ico"
 
      NativeTray(
-        state = trayState,
-        icon = trayIconPath,
+        iconPath = trayIconPath,
         menuContent = {
             SubMenu(label = "Element 1") {
                 Item(label = "Sous Element 1" ) {

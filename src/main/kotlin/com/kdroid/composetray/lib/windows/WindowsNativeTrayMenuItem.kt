@@ -3,7 +3,6 @@ import com.kdroid.composetray.callbacks.windows.MenuItemCallback
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 
-// Structure représentant un élément de menu dans le tray
 @Structure.FieldOrder("text", "disabled", "checked", "cb", "submenu")
 open class WindowsNativeTrayMenuItem : Structure() {
     @JvmField
