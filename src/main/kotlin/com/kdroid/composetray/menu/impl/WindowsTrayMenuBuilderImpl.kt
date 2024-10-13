@@ -26,11 +26,11 @@ internal class WindowsTrayMenuBuilderImpl(val iconPath : String, val tooltip : S
                 isCheckable = true,
                 isChecked = isChecked,
                 onClick = {
-                    // Inverse l'état checked
+                    // Inverts the checked state
                     isChecked = !isChecked
                     onToggle(isChecked)
 
-                    // Met à jour l'élément dans la liste des menuItems
+                    // Updates the item in the menuItems list
                     val itemIndex = menuItems.indexOfFirst { it.text == label }
                     if (itemIndex != -1) {
                         menuItems[itemIndex] = menuItems[itemIndex].copy(isChecked = isChecked)

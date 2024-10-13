@@ -4,7 +4,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 
-interface AppIndicator : Library {
+internal interface AppIndicator : Library {
     companion object {
         val INSTANCE: AppIndicator = Native.load("appindicator3", AppIndicator::class.java)
     }

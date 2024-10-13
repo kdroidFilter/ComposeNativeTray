@@ -7,7 +7,7 @@ import com.kdroid.composetray.callbacks.windows.StdCallCallback
 import com.sun.jna.Native
 import java.util.concurrent.atomic.AtomicBoolean
 
-class WindowsTrayManager(iconPath : String, tooltip : String = "") {
+internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
     private val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
     private val tray: WindowsNativeTray = WindowsNativeTray()
     private val menuItems: MutableList<MenuItem> = mutableListOf()

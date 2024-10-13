@@ -4,7 +4,7 @@ import com.sun.jna.Pointer
 import com.sun.jna.Structure
 
 @Structure.FieldOrder("text", "disabled", "checked", "cb", "submenu")
-open class WindowsNativeTrayMenuItem : Structure() {
+internal open class WindowsNativeTrayMenuItem : Structure() {
     @JvmField
     var text: String? = null
 

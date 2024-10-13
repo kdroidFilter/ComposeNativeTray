@@ -1,5 +1,5 @@
 package com.kdroid.composetray.lib.linux
 
-object AppIndicatorStatus {
+internal object AppIndicatorStatus {
     const val ACTIVE = 1
 }

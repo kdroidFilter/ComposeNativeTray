@@ -4,7 +4,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 
-interface Gtk : Library {
+internal interface Gtk : Library {
     companion object {
 
         val INSTANCE: Gtk = Native.load("gtk-3", Gtk::class.java)

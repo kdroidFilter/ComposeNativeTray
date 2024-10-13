@@ -5,7 +5,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 
-interface GObject : Library {
+internal interface GObject : Library {
     companion object {
         val INSTANCE: GObject = Native.load("gobject-2.0", GObject::class.java)
     }

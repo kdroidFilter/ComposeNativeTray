@@ -3,7 +3,7 @@ import com.sun.jna.Structure
 import com.sun.jna.win32.StdCallLibrary
 
 @Structure.FieldOrder("icon_filepath", "tooltip", "cb", "menu")
-class WindowsNativeTray : Structure() {
+internal class WindowsNativeTray : Structure() {
     @JvmField
     var icon_filepath: String? = null
 
