@@ -3,7 +3,7 @@ import com.kdroid.composetray.state.rememberNotification
 import com.kdroid.composetray.state.rememberTrayState
 import kotlin.test.Test
 
-class WindowsNativeTrayMenuBuilderIntegrationTest {
+class WindowsNativeNativeTrayIntegrationTest {
     @Test
     fun `test Tray integration`() {
         // Arrange

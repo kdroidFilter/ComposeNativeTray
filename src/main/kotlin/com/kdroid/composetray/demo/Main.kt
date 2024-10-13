@@ -1,48 +1,52 @@
-package com.kdroid.composetray.demo
 
-import com.kdroid.composetray.state.rememberNotification
 import com.kdroid.composetray.state.rememberTrayState
-import com.kdroid.composetray.tray.TrayMenuBuilder
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.i
+import com.kdroid.composetray.tray.NativeTray
 
 fun main() {
-    val trayState = rememberTrayState()
-    val notification = rememberNotification("Notification", "Message from MyApp!")
-    val trayIconPath = "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon.ico"
 
-     TrayMenuBuilder(
+    val trayState = rememberTrayState()
+    val trayIconPath = "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon2.ico"
+
+     NativeTray(
         state = trayState,
         icon = trayIconPath,
         menuContent = {
-            Item("Increment value") {
-                Log.i("Increment","Increment clicked")
+            SubMenu(label = "Element 1") {
+                Item(label = "Sous Element 1" ) {
+                    println("Sous-élément 1 cliqué\n")
+                }
             }
-            Item("Send notification") {
-                trayState.sendNotification(notification)
-            }
-            Item("Disabled Item", isEnabled = false) {}
-            CheckableItem("Toggle me") {
-                println("Toggle me clicked")
+            SubMenu("Élément avec autre sous-menu") {
+               Item("Autre Sous-élément 1") {
+                   println("Autre sous-élément 1 cliqué\n")
+               }
+                SubMenu("Autre Sous-élément avec Sous-sous-menu") {
+                    Item("Sous-sous-élément 1") {
+                        println("Sous-sous-élément 1 cliqué\n")
+                    }
+                    Item("Sous-sous-élément 2") {
+                        println("Sous-sous-élément 2 cliqué\n")
+                    }
+                    Item("Sous-sous-élément 3") {
+                        println("Sous-sous-élément 3 cliqué\n")
+                    }
+                }
             }
             Divider()
-            SubMenu("SubMenu") {
-                Item("Option 1") {
-                    // Action
-                }
-                Item("Option 2") {
-                    // Action
-                }
-                SubMenu("SubSubMenu") {
-                    Item("Option 3") {}
-                }
+            Item("Élément désactivé", isEnabled = false) {}
+            CheckableItem("Élément cochable") {
+                println("Élément cochable cliqué, nouvel état: ${it}")
             }
-            Item("Exit") {
-                println("Exit clicked")
+            Item("Élément 2") {
+                println("Élément 2 cliqué\n")
+            }
+
+            Item("Quitter") {
+                println("Quitter l'application")
                 dispose()
+                System.exit(0)
             }
         }
 
-         
     )
 }

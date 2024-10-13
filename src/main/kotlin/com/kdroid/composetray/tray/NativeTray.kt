@@ -4,25 +4,24 @@ import com.kdroid.composetray.lib.linux.AppIndicator
 import com.kdroid.composetray.lib.linux.AppIndicatorCategory
 import com.kdroid.composetray.lib.linux.AppIndicatorStatus
 import com.kdroid.composetray.lib.linux.Gtk
+import com.kdroid.composetray.lib.windows.WindowsTrayManager
 import com.kdroid.composetray.menu.*
 import com.kdroid.composetray.state.TrayState
 import com.kdroid.composetray.utils.OperatingSystem
 import com.kdroid.composetray.utils.PlatformUtils
-import com.sun.jna.Memory
 import com.sun.jna.Pointer
 import java.awt.*
-import java.nio.charset.Charset
 import javax.swing.ImageIcon
 import javax.swing.JPopupMenu
 
-class TrayMenuBuilder(
+class NativeTray(
     state: TrayState,
     icon: String,
     menuContent: TrayMenu.() -> Unit
 ) {
     private val indicator: Pointer?
     private val trayIcon: TrayIcon?
-
+    private val allocatedMemory = mutableListOf<Any>()
 
     init {
         when (PlatformUtils.currentOS) {
@@ -54,11 +53,21 @@ class TrayMenuBuilder(
             }
 
             OperatingSystem.WINDOWS -> {
-                WindowsTrayMenuImpl().apply(menuContent).build()
+                val windowsTrayManager = WindowsTrayManager(icon)
+                // Créer une instance de WindowsTrayMenuImpl et appliquer le contenu du menu
+                val trayMenuImpl = WindowsTrayMenuImpl(icon).apply(menuContent)
+                val menuItems = trayMenuImpl.build()
 
-                indicator = null
+                // Ajouter chaque élément de menu à WindowsTrayManager
+                menuItems.forEach { windowsTrayManager.addMenuItem(it) }
+
+                // Démarrer le tray Windows
+                windowsTrayManager.startTray()
+
                 trayIcon = null
+                indicator = null
             }
+
 
             OperatingSystem.MAC -> {
                 // Utiliser AWT pour les autres plateformes
@@ -101,14 +110,6 @@ class TrayMenuBuilder(
         }
     }
 
-    private fun allocateString(str: String?): Pointer? {
-        if (str == null) return null
-        val charset: Charset = Charset.forName("Windows-1252")
-        val byteArray = str.toByteArray(charset)
-        val memory = Memory(byteArray.size.toLong() + 1) // +1 pour le terminateur null
-        memory.write(0, byteArray, 0, byteArray.size)
-        memory.setByte(byteArray.size.toLong(), 0.toByte()) // Terminateur null
-        return memory
-    }
 
 }
+

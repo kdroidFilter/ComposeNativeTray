@@ -2,13 +2,15 @@ import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.win32.StdCallLibrary
 
+
+// Structure représentant le tray Windows
 @Structure.FieldOrder("icon_filepath", "tooltip", "cb", "menu")
 class WindowsNativeTray : Structure() {
     @JvmField
-    var icon_filepath: Pointer? = null
+    var icon_filepath: String? = null
 
     @JvmField
-    var tooltip: Pointer? = null
+    var tooltip: String? = null
 
     @JvmField
     var cb: TrayCallback? = null
