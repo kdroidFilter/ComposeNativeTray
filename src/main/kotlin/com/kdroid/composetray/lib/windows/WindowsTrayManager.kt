@@ -3,7 +3,7 @@ package com.kdroid.composetray.lib.windows
 import WindowsNativeTray
 import WindowsNativeTrayLibrary
 import WindowsNativeTrayMenuItem
-import com.kdroid.composetray.callbacks.windows.MenuItemCallback
+import com.kdroid.composetray.callbacks.windows.StdCallCallback
 import com.sun.jna.Native
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,7 +66,7 @@ class WindowsTrayManager(iconPath : String, tooltip : String = "") {
 
         // Création du callback de l'élément de menu
         menuItem.onClick?.let { onClick ->
-            val callback = MenuItemCallback { item ->
+            val callback = StdCallCallback { item ->
                 onClick()
                 if (menuItem.isCheckable) {
                     item.checked = if (item.checked == 0) 1 else 0

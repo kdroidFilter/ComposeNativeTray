@@ -1,5 +1,5 @@
 
-import com.kdroid.composetray.callbacks.windows.MenuItemCallback
+import com.kdroid.composetray.callbacks.windows.StdCallCallback
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 
@@ -15,7 +15,7 @@ open class WindowsNativeTrayMenuItem : Structure() {
     var checked: Int = 0
 
     @JvmField
-    var cb: MenuItemCallback? = null
+    var cb: StdCallCallback? = null
 
     @JvmField
     var submenu: Pointer? = null
