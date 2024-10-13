@@ -10,6 +10,7 @@ import com.kdroid.composetray.utils.PlatformUtils
 
 class NativeTray(
     iconPath: String,
+    windowsIconPath: String = iconPath,
     tooltip: String = "",
     menuContent: TrayMenuBuilder.() -> Unit
 ) {
@@ -17,7 +18,7 @@ class NativeTray(
     init {
         when (PlatformUtils.currentOS) {
             OperatingSystem.LINUX -> LinuxTrayInitializer.initialize(iconPath, menuContent)
-            OperatingSystem.WINDOWS -> WindowsTrayInitializer.initialize(iconPath, tooltip, menuContent)
+            OperatingSystem.WINDOWS -> WindowsTrayInitializer.initialize(windowsIconPath, tooltip, menuContent)
             OperatingSystem.MAC -> AwtTrayInitializer.initialize(iconPath, tooltip, menuContent)
             OperatingSystem.UNKNOWN -> SwingTrayInitializer.initialize(iconPath, tooltip, menuContent)
         }

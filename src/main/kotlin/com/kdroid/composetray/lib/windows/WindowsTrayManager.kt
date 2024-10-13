@@ -28,7 +28,6 @@ class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         val subMenuItems: List<MenuItem> = emptyList()
     )
 
-    // Ajouter un élément de menu au tray
     fun addMenuItem(menuItem: MenuItem) {
         menuItems.add(menuItem)
     }
@@ -40,7 +39,6 @@ class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         runTrayLoop()
     }
 
-    // Initialisation des éléments de menu
     private fun initializeTrayMenu() {
         val menuItemPrototype = WindowsNativeTrayMenuItem()
         val nativeMenuItems = menuItemPrototype.toArray(menuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
@@ -58,7 +56,6 @@ class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         tray.menu = nativeMenuItems[0].pointer
     }
 
-    // Initialisation d'un élément de menu natif
     private fun initializeNativeMenuItem(nativeItem: WindowsNativeTrayMenuItem, menuItem: MenuItem) {
         nativeItem.text = menuItem.text
         nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
@@ -106,7 +103,6 @@ class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         }
     }
 
-    // Arrêter le tray
     fun stopTray() {
         running.set(false)
     }
