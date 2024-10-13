@@ -1,8 +1,9 @@
-package com.kdroid.composetray.menu
+package com.kdroid.composetray.menu.impl
 
 import com.kdroid.composetray.lib.windows.WindowsTrayManager
+import com.kdroid.composetray.menu.TrayMenu
 
-class WindowsTrayMenuImpl(val iconPath : String, val tooltip : String = "") : TrayMenu {
+internal class WindowsTrayMenuImpl(val iconPath : String, val tooltip : String = "") : TrayMenu {
     private val menuItems = mutableListOf<WindowsTrayManager.MenuItem>()
 
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {

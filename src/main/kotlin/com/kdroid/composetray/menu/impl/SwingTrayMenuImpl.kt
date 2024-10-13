@@ -1,11 +1,12 @@
-package com.kdroid.composetray.menu
+package com.kdroid.composetray.menu.impl
 
+import com.kdroid.composetray.menu.TrayMenu
 import javax.swing.JMenuItem
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JMenu
 import javax.swing.JPopupMenu
 
-class SwingTrayMenuImpl(private val popupMenu: JPopupMenu) : TrayMenu {
+internal class SwingTrayMenuImpl(private val popupMenu: JPopupMenu) : TrayMenu {
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         val menuItem = JMenuItem(label)
         menuItem.isEnabled = isEnabled

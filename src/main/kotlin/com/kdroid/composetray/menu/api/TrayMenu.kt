@@ -1,7 +1,7 @@
-package com.kdroid.composetray.menu
+package com.kdroid.composetray.menu.api
 
-interface TrayMenu {
-    fun Item(label: String, isEnabled: Boolean = true, onClick: () -> Unit = {})
+internal interface TrayMenu {
+    fun Item(label: String, isEnabled: Boolean = true, onClick: () -> Unit)
     fun CheckableItem(label: String, isEnabled: Boolean = true, onToggle: (Boolean) -> Unit)
     fun SubMenu(label: String, isEnabled: Boolean = true, submenuContent: TrayMenu.() -> Unit)
     fun Divider()

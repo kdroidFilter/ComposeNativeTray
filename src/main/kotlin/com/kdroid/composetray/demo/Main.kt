@@ -1,48 +1,59 @@
 
-import com.kdroid.composetray.tray.NativeTray
+import com.kdroid.composetray.tray.api.NativeTray
+import kotlin.system.exitProcess
 
 fun main() {
-    val trayIconPath = "C:\\Users\\Eyahou Gambache\\CLionProjects\\tray\\icon2.ico"
+    val trayIconPath = "/home/elyahou/CLionProjects/tray2/icon.png"
 
-     NativeTray(
+    NativeTray(
         iconPath = trayIconPath,
+        tooltip = "My Application",
         menuContent = {
-            SubMenu(label = "Element 1") {
-                Item(label = "Sous Element 1" ) {
-                    println("Sous-élément 1 cliqué\n")
+            SubMenu(label = "Options") {
+                Item(label = "Setting 1") {
+                    println("Setting 1 selected")
                 }
-            }
-            SubMenu("Élément avec autre sous-menu") {
-               Item("Autre Sous-élément 1") {
-                   println("Autre sous-élément 1 cliqué\n")
-               }
-                SubMenu("Autre Sous-élément avec Sous-sous-menu") {
-                    Item("Sous-sous-élément 1") {
-                        println("Sous-sous-élément 1 cliqué\n")
+                SubMenu(label = "Advanced Sub-options") {
+                    Item(label = "Advanced Option 1") {
+                        println("Advanced Option 1 selected")
                     }
-                    Item("Sous-sous-élément 2") {
-                        println("Sous-sous-élément 2 cliqué\n")
-                    }
-                    Item("Sous-sous-élément 3") {
-                        println("Sous-sous-élément 3 cliqué\n")
+                    Item(label = "Advanced Option 2") {
+                        println("Advanced Option 2 selected")
                     }
                 }
             }
+
             Divider()
-            Item("Élément désactivé", isEnabled = false) {}
-            CheckableItem("Élément cochable") {
-                println("Élément cochable cliqué, nouvel état: ${it}")
-            }
-            Item("Élément 2") {
-                println("Élément 2 cliqué\n")
+
+            SubMenu(label = "Tools") {
+                Item(label = "Calculator") {
+                    println("Calculator launched")
+                }
+                Item(label = "Notepad") {
+                    println("Notepad opened")
+                }
             }
 
-            Item("Quitter") {
-                println("Quitter l'application")
+            Divider()
+
+            CheckableItem(label = "Enable notifications") { isChecked ->
+                println("Notifications ${if (isChecked) "enabled" else "disabled"}")
+            }
+
+            Divider()
+
+            Item(label = "About") {
+                println("Application v1.0 - Developed by Elyahou")
+            }
+
+            Divider()
+
+            Item(label = "Exit", isEnabled = true) {
+                println("Exiting the application")
                 dispose()
-                System.exit(0)
+                exitProcess(0)
             }
+            Item(label = "Version 1.0.0", isEnabled = false)
         }
-
     )
 }

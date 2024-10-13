@@ -1,11 +1,12 @@
-package com.kdroid.composetray.menu
+package com.kdroid.composetray.menu.impl
 
+import com.kdroid.composetray.menu.TrayMenu
 import java.awt.MenuItem
 import java.awt.PopupMenu
 import java.awt.SystemTray
 import java.awt.TrayIcon
 
-class AwtTrayMenuImpl(private val popupMenu: PopupMenu, private val trayIcon: TrayIcon) : TrayMenu {
+internal class AwtTrayMenuImpl(private val popupMenu: PopupMenu, private val trayIcon: TrayIcon) : TrayMenu {
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         val menuItem = MenuItem(label)
         menuItem.isEnabled = isEnabled
