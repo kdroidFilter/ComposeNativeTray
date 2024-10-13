@@ -7,7 +7,7 @@
 - DSL-style syntax to define tray menus with ease.
 - Supports standard items, submenus, dividers, and checkable items.
 - Ability to enable/disable menu items dynamically.
-- Corrects issues with the Compose for Desktop tray, particularly HDPI support on Windows and Linux.
+- Corrects issues with the [Compose for Desktop tray](https://github.com/JetBrains/compose-multiplatform/blob/master/tutorials/Tray_Notifications_MenuBar_new), particularly HDPI support on Windows and Linux.
 - Improves the appearance of the tray on Linux, which previously resembled Windows 95.
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 
