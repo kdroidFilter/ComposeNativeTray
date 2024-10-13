@@ -1,17 +1,21 @@
 
 import com.kdroid.composetray.tray.api.NativeTray
-import org.junit.jupiter.api.Assertions.assertNotNull
+import java.nio.file.Paths
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
-
+import kotlin.test.assertTrue
 
 class NativeTrayIntegrationTest {
 
     @Test
     fun testNativeTrayMenuInteraction() {
-        val trayIconPath = "/home/elyahou/CLionProjects/tray2/icon.png"
+        val trayIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
+        val testCompletionLatch = CountDownLatch(1)
 
-        val nativeTray = NativeTray(
+        NativeTray(
             iconPath = trayIconPath,
+            tooltip = "My Application",
             menuContent = {
                 SubMenu(label = "Options") {
                     Item(label = "Setting 1") {
@@ -55,28 +59,15 @@ class NativeTrayIntegrationTest {
                 Item(label = "Exit", isEnabled = true) {
                     println("Exiting the application")
                     dispose()
-                     System.exit(0) // Commented to keep the application active
+                    testCompletionLatch.countDown() // Signal that the test can complete
                 }
+
+                Item(label = "Version 1.0.0", isEnabled = false)
             }
         )
 
-        // Simulate user interactions
-        assertNotNull(nativeTray)
-        nativeTray.clickMenuItem("Options", "Setting 1")
-        nativeTray.clickMenuItem("Options", "Advanced Sub-options", "Advanced Option 1")
-        nativeTray.clickMenuItem("Options", "Advanced Sub-options", "Advanced Option 2")
-        nativeTray.clickMenuItem("Tools", "Calculator")
-        nativeTray.clickMenuItem("Tools", "Notepad")
-        nativeTray.checkCheckableItem("Enable notifications", true)
-        nativeTray.clickMenuItem("About")
+        // Wait for the "Exit" item to be clicked, with a timeout to avoid indefinite blocking
+        val completed = testCompletionLatch.await(10, TimeUnit.SECONDS)
+        assertTrue(completed, "The application did not exit as expected")
     }
-}
-
-// Mock or utility functions for testing purposes
-fun NativeTray.clickMenuItem(vararg labels: String) {
-    println("Clicked on menu item: ${labels.joinToString(" -> ")}")
-}
-
-fun NativeTray.checkCheckableItem(label: String, isChecked: Boolean) {
-    println("Checked item '$label' to: ${if (isChecked) "enabled" else "disabled"}")
 }
