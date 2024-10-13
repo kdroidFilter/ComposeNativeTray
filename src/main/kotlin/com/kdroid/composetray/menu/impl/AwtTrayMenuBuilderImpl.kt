@@ -1,12 +1,12 @@
 package com.kdroid.composetray.menu.impl
 
-import com.kdroid.composetray.menu.TrayMenu
+import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import java.awt.MenuItem
 import java.awt.PopupMenu
 import java.awt.SystemTray
 import java.awt.TrayIcon
 
-internal class AwtTrayMenuImpl(private val popupMenu: PopupMenu, private val trayIcon: TrayIcon) : TrayMenu {
+internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private val trayIcon: TrayIcon) : TrayMenuBuilder {
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         val menuItem = MenuItem(label)
         menuItem.isEnabled = isEnabled
@@ -30,10 +30,10 @@ internal class AwtTrayMenuImpl(private val popupMenu: PopupMenu, private val tra
         popupMenu.add(checkableMenuItem)
     }
 
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenu.() -> Unit) {
+    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
         val subMenu = PopupMenu(label)
         subMenu.isEnabled = isEnabled
-        AwtTrayMenuImpl(subMenu, trayIcon).apply(submenuContent)
+        AwtTrayMenuBuilderImpl(subMenu, trayIcon).apply(submenuContent)
         popupMenu.add(subMenu)
     }
 

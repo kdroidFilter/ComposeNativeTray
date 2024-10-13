@@ -1,16 +1,16 @@
 package com.kdroid.composetray.tray.impl
 
-import com.kdroid.composetray.menu.impl.SwingTrayMenuImpl
-import com.kdroid.composetray.menu.TrayMenu
+import com.kdroid.composetray.menu.impl.SwingTrayMenuBuilderImpl
+import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import javax.swing.ImageIcon
 import javax.swing.JPopupMenu
 import java.awt.*
 
 object SwingTrayInitializer {
-    fun initialize(iconPath: String, tooltip: String, menuContent: TrayMenu.() -> Unit) {
+    fun initialize(iconPath: String, tooltip: String, menuContent: TrayMenuBuilder.() -> Unit) {
         val systemTray = SystemTray.getSystemTray()
         val popupMenu = JPopupMenu()
-        SwingTrayMenuImpl(popupMenu).apply(menuContent)
+        SwingTrayMenuBuilderImpl(popupMenu).apply(menuContent)
 
         // Create an icon from the icon file path
         val imageIcon = ImageIcon(iconPath)

@@ -3,10 +3,10 @@ package com.kdroid.composetray.menu.impl
 import com.kdroid.composetray.callbacks.linux.GCallback
 import com.kdroid.composetray.lib.linux.GObject
 import com.kdroid.composetray.lib.linux.Gtk
-import com.kdroid.composetray.menu.TrayMenu
+import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.sun.jna.Pointer
 
-internal class LinuxTrayMenuImpl(private val menu: Pointer) : TrayMenu {
+internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
@@ -50,12 +50,12 @@ internal class LinuxTrayMenuImpl(private val menu: Pointer) : TrayMenu {
         )
     }
 
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenu.() -> Unit) {
+    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_widget_set_sensitive(menuItem, if (isEnabled) 1 else 0)
 
         val subMenu = Gtk.INSTANCE.gtk_menu_new()
-        LinuxTrayMenuImpl(subMenu).apply(submenuContent)
+        LinuxTrayMenuBuilderImpl(subMenu).apply(submenuContent)
         Gtk.INSTANCE.gtk_menu_item_set_submenu(menuItem, subMenu)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
     }

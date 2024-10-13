@@ -1,6 +1,6 @@
 package com.kdroid.composetray.tray.api
 
-import com.kdroid.composetray.menu.TrayMenu
+import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
 import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.SwingTrayInitializer
@@ -11,7 +11,7 @@ import com.kdroid.composetray.utils.PlatformUtils
 class NativeTray(
     iconPath: String,
     tooltip: String = "",
-    menuContent: TrayMenu.() -> Unit
+    menuContent: TrayMenuBuilder.() -> Unit
 ) {
 
     init {
