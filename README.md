@@ -1,12 +1,15 @@
 # ComposeTray Library
 
-**ComposeTray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
+**ComposeTray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
 
 ## Features
 - Cross-platform support for Linux, Windows, and macOS.
 - DSL-style syntax to define tray menus with ease.
 - Supports standard items, submenus, dividers, and checkable items.
 - Ability to enable/disable menu items dynamically.
+- Corrects issues with the Compose for Desktop tray, particularly HDPI support on Windows and Linux.
+- Improves the appearance of the tray on Linux, which previously resembled Windows 95.
+- Adds support for checkable items, dividers, and submenus, including nested submenus.
 
 ## Getting Started
 
@@ -102,6 +105,12 @@ The `NativeTray` class automatically detects the operating system and initialize
 
 > Note: For Windows, you must use an `.ico` file for the tray icon, while for Linux and macOS, a `.png` file is required.
 
+### Windows DLL Generation
+To generate the Windows DLL, execute the following command:
+```bash
+gcc -shared -o ../resources/win32-x86-64/tray.dll tray_windows.c
+```
+
 ### Logging
 This example uses the `kmplog` library for logging, which allows you to log messages when certain items are selected or toggled.
 
@@ -122,4 +131,3 @@ Feel free to open issues or pull requests if you find any bugs or have suggestio
 
 ## Acknowledgements
 This library is developed and maintained by Elyahou, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
-
