@@ -1,6 +1,6 @@
 # ComposeTray Library
 
-**ComposeTray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
+**ComposeTray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. The Linux implementation uses GTK, while macOS uses AWT, and the Windows implementation is based on native system calls. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
 
 ## Features
 - Cross-platform support for Linux, Windows, and macOS.
@@ -99,9 +99,9 @@ fun main() {
 
 ### Platform-Specific Implementation
 The `NativeTray` class automatically detects the operating system and initializes the appropriate tray implementation:
-- **Linux**: Uses `LinuxTrayInitializer`.
-- **Windows**: Uses `WindowsTrayInitializer`.
-- **macOS**: Uses `AwtTrayInitializer`.
+- **Linux**: Uses `LinuxTrayInitializer`, which is implemented using GTK via JNA.
+- **Windows**: Uses `WindowsTrayInitializer`, which is based on the [tray library by dmikushin](https://github.com/dmikushin/tray).
+- **macOS**: Uses `AwtTrayInitializer`, which is implemented using AWT.
 
 > Note: For Windows, you must use an `.ico` file for the tray icon, while for Linux and macOS, a `.png` file is required.
 
