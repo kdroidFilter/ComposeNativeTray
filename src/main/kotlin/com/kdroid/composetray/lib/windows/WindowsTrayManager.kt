@@ -18,7 +18,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         tray.tooltip = tooltip
     }
 
-    // Classe MenuItem de haut niveau
+    // Top level MenuItem class
     data class MenuItem(
         val text: String,
         val isEnabled: Boolean = true,
@@ -32,7 +32,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         menuItems.add(menuItem)
     }
 
-    // Démarrer le tray
+    // Start the tray
     fun startTray() {
         initializeTrayMenu()
         require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray" }
@@ -49,7 +49,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
             nativeItem.write()
         }
 
-        // Dernier élément pour marquer la fin du menu
+        // Last element to mark the end of the menu
         nativeMenuItems[menuItems.size].text = null
         nativeMenuItems[menuItems.size].write()
 
@@ -61,7 +61,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
         nativeItem.checked = if (menuItem.isChecked) 1 else 0
 
-        // Création du callback de l'élément de menu
+        // Create the menu item callback
         menuItem.onClick?.let { onClick ->
             val callback = StdCallCallback { item ->
                 onClick()
@@ -74,7 +74,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
             nativeItem.cb = callback
         }
 
-        // Si l'élément a des sous-éléments
+        // If the element has child elements
         if (menuItem.subMenuItems.isNotEmpty()) {
             val subMenuPrototype = WindowsNativeTrayMenuItem()
             val subMenuItemsArray = subMenuPrototype.toArray(menuItem.subMenuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
@@ -82,14 +82,14 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
                 initializeNativeMenuItem(subMenuItemsArray[index], subItem)
                 subMenuItemsArray[index].write()
             }
-            // Marqueur de fin
+            // End marker
             subMenuItemsArray[menuItem.subMenuItems.size].text = null
             subMenuItemsArray[menuItem.subMenuItems.size].write()
             nativeItem.submenu = subMenuItemsArray[0].pointer
         }
     }
 
-    // Boucle du tray
+    //Tray loop
     private fun runTrayLoop() {
         try {
             while (running.get()) {
