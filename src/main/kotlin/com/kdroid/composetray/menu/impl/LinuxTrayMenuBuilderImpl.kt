@@ -1,5 +1,8 @@
 package com.kdroid.composetray.menu.impl
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.kdroid.composetray.callbacks.linux.GCallback
 import com.kdroid.composetray.lib.linux.GObject
 import com.kdroid.composetray.lib.linux.Gtk
@@ -8,18 +11,16 @@ import com.sun.jna.Pointer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
-    private val _itemClickFlow = MutableSharedFlow<String>()
-    val itemClickFlow: SharedFlow<String> get() = _itemClickFlow
+class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
+    var itemClickLabel by mutableStateOf("")
+        private set
 
-    private val _checkableToggleFlow = MutableSharedFlow<Pair<String, Boolean>>()
-    val checkableToggleFlow: SharedFlow<Pair<String, Boolean>> get() = _checkableToggleFlow
+    var checkableToggleState by mutableStateOf<Pair<String, Boolean>?>(null)
+        private set
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -37,9 +38,7 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
 
         val callback = object : GCallback {
             override fun callback(widget: Pointer, data: Pointer?) {
-                scope.launch {
-                    _itemClickFlow.emit(label)
-                }
+                itemClickLabel = label
                 onClick()
             }
         }
@@ -71,9 +70,7 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
             override fun callback(widget: Pointer, data: Pointer?) {
                 val active = Gtk.INSTANCE.gtk_check_menu_item_get_active(checkMenuItem)
                 val isActive = active != 0
-                scope.launch {
-                    _checkableToggleFlow.emit(label to isActive)
-                }
+                checkableToggleState = label to isActive
                 onToggle(isActive)
             }
         }
@@ -104,16 +101,18 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
         val submenu = Gtk.INSTANCE.gtk_menu_new()
         val submenuBuilder = LinuxTrayMenuBuilderImpl(submenu).apply(submenuContent)
 
-        // Propagation des flows des sous-menus
+        // Propagation des états des sous-menus
         scope.launch {
-            submenuBuilder.itemClickFlow.collect { label ->
-                _itemClickFlow.emit(label)
+            submenuBuilder.itemClickLabel.let { label ->
+                if (label.isNotEmpty()) {
+                    itemClickLabel = label
+                }
             }
         }
 
         scope.launch {
-            submenuBuilder.checkableToggleFlow.collect { (label, state) ->
-                _checkableToggleFlow.emit(label to state)
+            submenuBuilder.checkableToggleState?.let { state ->
+                checkableToggleState = state
             }
         }
 

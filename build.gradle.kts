@@ -2,14 +2,19 @@ import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     kotlin("jvm") version "2.0.20"
+    id("org.jetbrains.compose") version "1.6.11"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
     id("com.vanniktech.maven.publish") version "0.29.0"
 }
 
 group = "com.kdroid.composenativetray"
-version = "0.1.3"
+version = "0.1.5"
 
 repositories {
     mavenCentral()
+    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+    google()
+
 }
 
 dependencies {
@@ -17,6 +22,7 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.15.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("io.github.kdroidfilter:kmplog:0.1.0")
+    implementation(compose.desktop.currentOs)
     testImplementation(kotlin("test"))
 }
 
@@ -69,4 +75,10 @@ mavenPublishing {
 
     // Enable GPG signing for all publications
     signAllPublications()
+}
+
+compose.desktop {
+    application {
+        mainClass = "com.kdroid.composetray.demo.ComposeAppKt"
+    }
 }
