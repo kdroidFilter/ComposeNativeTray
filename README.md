@@ -2,6 +2,8 @@
 
 **Compose Native Tray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. The Linux implementation uses GTK, while macOS uses AWT, and the Windows implementation is based on native system calls. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
 
+> **Warning**: This library is highly experimental, and its APIs are subject to change.
+
 ## Features
 
 - Cross-platform support for Linux, Windows, and macOS.
@@ -92,6 +94,7 @@ application {
     }
 }
 ````
+
 #### For a Swing application
 In a Swing application, the application must be executed first, like this:
 
@@ -99,7 +102,6 @@ In a Swing application, the application must be executed first, like this:
 SwingUtilities.invokeLater {
     SwingAppDemo()
 }
-
 
 NativeTray(
     iconPath = iconPath,
