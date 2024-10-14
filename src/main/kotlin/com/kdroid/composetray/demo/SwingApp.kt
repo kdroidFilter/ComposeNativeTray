@@ -15,7 +15,9 @@ fun main() {
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
     val logTag = "NativeTrayTest"
 
-    SwingAppDemo()
+    SwingUtilities.invokeLater {
+        SwingAppDemo()
+    }
 
     NativeTray(
         iconPath = iconPath,
