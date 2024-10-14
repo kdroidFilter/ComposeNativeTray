@@ -14,11 +14,10 @@ import kotlin.system.exitProcess
 fun main() {
     val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
-    val logTag = "NativeTrayTest"
+    val logTag = "NativeTray"
 
-    SwingUtilities.invokeLater {
-        SwingAppDemo()
-    }
+    SwingAppDemo()
+
 
     NativeTray(
         iconPath = iconPath,
