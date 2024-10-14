@@ -3,6 +3,7 @@
 **Compose Native Tray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. The Linux implementation uses GTK, while macOS uses AWT, and the Windows implementation is based on native system calls. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
 
 ## Features
+
 - Cross-platform support for Linux, Windows, and macOS.
 - DSL-style syntax to define tray menus with ease.
 - Supports standard items, submenus, dividers, and checkable items.
@@ -24,75 +25,85 @@ dependencies {
 ```
 
 ### Usage
+
 Here's a basic example of how to use the ComposeTray library to create a system tray icon with a menu:
 
-```kotlin
-package com.kdroid.composetray.demo
+#### For a Compose application
 
-import com.kdroid.composetray.tray.api.NativeTray
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.i
-import java.nio.file.Paths
-import kotlin.system.exitProcess
+In a Compose application, the `NativeTray` must be executed inside a `LaunchedEffect` block, like this:
 
-fun main() {
+````kotlin
+application {
     val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
-
-    val logTag = "NativeTrayTest"
-
-    NativeTray(
-        iconPath = iconPath,
-        windowsIconPath = windowsIconPath,
-        tooltip = "My Application"
-    ) {
-        SubMenu(label = "Options") {
-            Item(label = "Setting 1") {
-                Log.i(logTag, "Setting 1 selected")
-            }
-            SubMenu(label = "Advanced Sub-options") {
-                Item(label = "Advanced Option 1") {
-                    Log.i(logTag, "Advanced Option 1 selected")
+    LaunchedEffect(Unit) {
+        NativeTray(
+            iconPath = iconPath,
+            windowsIconPath = windowsIconPath,
+            tooltip = "My Application"
+        ) {
+            SubMenu(label = "Options") {
+                Item(label = "Setting 1") {
+                    Log.i(logTag, "Setting 1 selected")
                 }
-                Item(label = "Advanced Option 2") {
-                    Log.i(logTag, "Advanced Option 2 selected")
+                SubMenu(label = "Advanced Sub-options") {
+                    Item(label = "Advanced Option 1") {
+                        Log.i(logTag, "Advanced Option 1 selected")
+                    }
+                    Item(label = "Advanced Option 2") {
+                        Log.i(logTag, "Advanced Option 2 selected")
+                    }
                 }
             }
-        }
 
-        Divider()
+            Divider()
 
-        SubMenu(label = "Tools") {
-            Item(label = "Calculator") {
-                Log.i(logTag, "Calculator launched")
+            SubMenu(label = "Tools") {
+                Item(label = "Calculator") {
+                    Log.i(logTag, "Calculator launched")
+                }
+                Item(label = "Notepad") {
+                    Log.i(logTag, "Notepad opened")
+                }
             }
-            Item(label = "Notepad") {
-                Log.i(logTag, "Notepad opened")
+
+            Divider()
+
+            CheckableItem(label = "Enable notifications") { isChecked ->
+                Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
             }
+
+            Divider()
+
+            Item(label = "About") {
+                Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+            }
+
+            Divider()
+
+            Item(label = "Exit", isEnabled = true) {
+                Log.i(logTag, "Exiting the application")
+                dispose()
+                exitProcess(0)
+            }
+
+            Item(label = "Version 1.0.0", isEnabled = false)
         }
-
-        Divider()
-
-        CheckableItem(label = "Enable notifications") { isChecked ->
-            Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
-        }
-
-        Divider()
-
-        Item(label = "About") {
-            Log.i(logTag, "Application v1.0 - Developed by Elyahou")
-        }
-
-        Divider()
-
-        Item(label = "Exit", isEnabled = true) {
-            Log.i(logTag, "Exiting the application")
-            dispose()
-            exitProcess(0)
-        }
-
-        Item(label = "Version 1.0.0", isEnabled = false)
     }
+}
+````
+#### For a Swing application
+In a Swing application, the application must be executed first, like this:
+
+```kotlin
+SwingAppDemo()
+
+NativeTray(
+    iconPath = iconPath,
+    windowsIconPath = windowsIconPath,
+    tooltip = "My Application"
+) {
+    // Tray items definition
 }
 ```
 
@@ -115,25 +126,33 @@ The `NativeTray` class automatically detects the operating system and initialize
 To generate the Windows DLL, execute the following command:
 ```bash
 gcc -shared -o ../resources/win32-x86-64/tray.dll tray_windows.c
-```
+````
 
 ### Logging
+
 This example uses the `kmplog` library for logging, which allows you to log messages when certain items are selected or toggled.
 
 ## Screenshots
+
 Here are some screenshots of ComposeTray running on different platforms:
 
 ### Ubuntu
-![Ubuntu Screenshot](screenshots/ubuntu.png)
+
+
 
 ### Windows
-![Windows Screenshot](screenshots/windows.png)
+
+
 
 ## License
+
 This library is licensed under the MIT License.
 
 ## Contributing
+
 Feel free to open issues or pull requests if you find any bugs or have suggestions for new features.
 
 ## Acknowledgements
+
 This library is developed and maintained by Elyahou, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
+
