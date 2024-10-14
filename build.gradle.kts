@@ -5,8 +5,8 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.29.0"
 }
 
-group = "com.kdroid"
-version = "0.1.0"
+group = "com.kdroid.composenativetray"
+version = "0.1.3"
 
 repositories {
     mavenCentral()
@@ -15,6 +15,7 @@ repositories {
 dependencies {
     implementation("net.java.dev.jna:jna:5.15.0")
     implementation("net.java.dev.jna:jna-platform:5.15.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 
     implementation("io.github.kdroidfilter:kmplog:0.1.0")
     testImplementation(kotlin("test"))

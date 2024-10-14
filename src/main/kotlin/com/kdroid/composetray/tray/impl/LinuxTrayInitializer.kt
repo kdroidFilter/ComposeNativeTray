@@ -7,6 +7,11 @@ import com.kdroid.composetray.lib.linux.Gtk
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.sun.jna.Pointer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.runBlocking
 
 object LinuxTrayInitializer {
     fun initialize(iconPath: String, menuContent: TrayMenuBuilder.() -> Unit) {
@@ -24,13 +29,14 @@ object LinuxTrayInitializer {
 
         // Build the menu
         val menu = Gtk.INSTANCE.gtk_menu_new()
-        LinuxTrayMenuBuilderImpl(menu).apply(menuContent)
+        val trayMenuBuilder = LinuxTrayMenuBuilderImpl(menu)
+        trayMenuBuilder.apply(menuContent)
         AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
         Gtk.INSTANCE.gtk_widget_show_all(menu)
 
-        // Start the GTK loop in a separate thread
-        Thread {
+        CoroutineScope(Dispatchers.Default).launch {
             Gtk.INSTANCE.gtk_main()
-        }.start()
+        }
     }
+
 }
