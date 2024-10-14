@@ -2,6 +2,7 @@ package com.kdroid.composetray.demo
 
 import com.kdroid.composetray.tray.api.NativeTray
 import com.kdroid.kmplog.Log
+import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
 import java.awt.*
 import java.awt.event.ComponentAdapter
@@ -71,6 +72,7 @@ fun main() {
 
         Item(label = "Version 1.0.0", isEnabled = false)
     }
+    MemoryLogger.logMemoryUsage()
 
 
 }
@@ -152,3 +154,18 @@ private fun SwingAppDemo() {
     frame.isVisible = true
 }
 
+object MemoryLogger {
+    fun logMemoryUsage() {
+        val runtime = Runtime.getRuntime()
+
+        val maxMemory = runtime.maxMemory() / (1024 * 1024) // Convert to MB
+        val allocatedMemory = runtime.totalMemory() / (1024 * 1024) // Convert to MB
+        val freeMemory = runtime.freeMemory() / (1024 * 1024) // Convert to MB
+        val usedMemory = allocatedMemory - freeMemory
+
+        Log.d("MemoryLogger", "Max memory: ${maxMemory} MB")
+        Log.d("MemoryLogger", "Allocated memory: ${allocatedMemory} MB")
+        Log.d("MemoryLogger", "Used memory: ${usedMemory} MB")
+        Log.d("MemoryLogger", "Free memory: ${freeMemory} MB")
+    }
+}
