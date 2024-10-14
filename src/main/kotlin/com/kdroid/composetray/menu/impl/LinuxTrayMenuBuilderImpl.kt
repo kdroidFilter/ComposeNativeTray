@@ -7,9 +7,12 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.sun.jna.Pointer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
     private val _itemClickFlow = MutableSharedFlow<String>()
@@ -18,6 +21,14 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
     private val _checkableToggleFlow = MutableSharedFlow<Pair<String, Boolean>>()
     val checkableToggleFlow: SharedFlow<Pair<String, Boolean>> get() = _checkableToggleFlow
 
+    private val scope = CoroutineScope(Dispatchers.Default)
+
+    private val callbacks = mutableListOf<GCallback>()
+    private val menuItems = mutableListOf<Pointer>()
+    private val subMenuBuilders = mutableListOf<LinuxTrayMenuBuilderImpl>()
+
+    // Mutex to ensure thread safety when adding callbacks and menu items
+    private val mutex = Mutex()
 
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
@@ -26,15 +37,20 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
 
         val callback = object : GCallback {
             override fun callback(widget: Pointer, data: Pointer?) {
-                CoroutineScope(Dispatchers.Default).launch {
+                scope.launch {
                     _itemClickFlow.emit(label)
                 }
                 onClick()
             }
         }
 
-        // Conserver une référence au callback pour éviter la collecte par le GC
-        callbacks.add(callback)
+        scope.launch {
+            mutex.withLock {
+                // Conserver une référence au callback pour éviter la collecte par le GC
+                callbacks.add(callback)
+                menuItems.add(menuItem)
+            }
+        }
 
         GObject.INSTANCE.g_signal_connect_data(
             menuItem,
@@ -46,10 +62,6 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
         )
     }
 
-    // Ajouter une collection pour conserver les callbacks
-    private val callbacks = mutableListOf<GCallback>()
-
-
     override fun CheckableItem(label: String, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
         val checkMenuItem = Gtk.INSTANCE.gtk_check_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, checkMenuItem)
@@ -59,15 +71,20 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
             override fun callback(widget: Pointer, data: Pointer?) {
                 val active = Gtk.INSTANCE.gtk_check_menu_item_get_active(checkMenuItem)
                 val isActive = active != 0
-                CoroutineScope(Dispatchers.Default).launch {
+                scope.launch {
                     _checkableToggleFlow.emit(label to isActive)
                 }
                 onToggle(isActive)
             }
         }
 
-        // Conserver une référence au callback pour éviter la collecte par le GC
-        callbacks.add(callback)
+        scope.launch {
+            mutex.withLock {
+                // Conserver une référence au callback pour éviter la collecte par le GC
+                callbacks.add(callback)
+                menuItems.add(checkMenuItem)
+            }
+        }
 
         GObject.INSTANCE.g_signal_connect_data(
             checkMenuItem,
@@ -79,7 +96,6 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
         )
     }
 
-
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
@@ -89,32 +105,39 @@ internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBui
         val submenuBuilder = LinuxTrayMenuBuilderImpl(submenu).apply(submenuContent)
 
         // Propagation des flows des sous-menus
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             submenuBuilder.itemClickFlow.collect { label ->
                 _itemClickFlow.emit(label)
             }
         }
 
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             submenuBuilder.checkableToggleFlow.collect { (label, state) ->
                 _checkableToggleFlow.emit(label to state)
             }
         }
 
-        subMenuBuilders.add(submenuBuilder)
+        scope.launch {
+            mutex.withLock {
+                subMenuBuilders.add(submenuBuilder)
+                menuItems.add(menuItem)
+            }
+        }
         Gtk.INSTANCE.gtk_menu_item_set_submenu(menuItem, submenu)
     }
-
-    private val subMenuBuilders = mutableListOf<LinuxTrayMenuBuilderImpl>()
-
 
     override fun Divider() {
         val separator = Gtk.INSTANCE.gtk_separator_menu_item_new()
         Gtk.INSTANCE.gtk_menu_shell_append(menu, separator)
+        scope.launch {
+            mutex.withLock {
+                menuItems.add(separator)
+            }
+        }
     }
 
     override fun dispose() {
+        scope.cancel()
         Gtk.INSTANCE.gtk_main_quit()
     }
-
 }

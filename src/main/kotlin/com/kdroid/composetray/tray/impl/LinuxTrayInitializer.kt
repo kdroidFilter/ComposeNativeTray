@@ -32,8 +32,7 @@ object LinuxTrayInitializer {
         AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
         Gtk.INSTANCE.gtk_widget_show_all(menu)
 
-        CoroutineScope(Dispatchers.Default).launch {
-            Gtk.INSTANCE.gtk_main()
-        }
+        Gtk.INSTANCE.gtk_main()
+
     }
 }
