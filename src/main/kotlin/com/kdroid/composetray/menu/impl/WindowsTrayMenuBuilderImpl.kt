@@ -1,32 +1,23 @@
 package com.kdroid.composetray.menu.impl
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.kdroid.composetray.lib.windows.WindowsTrayManager
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 
-internal class WindowsTrayMenuBuilderImpl(private val iconPath: String, val tooltip: String = "") : TrayMenuBuilder {
+internal class WindowsTrayMenuBuilderImpl(val iconPath : String, val tooltip : String = "") : TrayMenuBuilder {
     private val menuItems = mutableListOf<WindowsTrayManager.MenuItem>()
 
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
-        val isEnabledState = mutableStateOf(isEnabled)
-
         menuItems.add(
             WindowsTrayManager.MenuItem(
                 text = label,
-                isEnabled = isEnabledState.value,
-                onClick = {
-                    onClick()
-                    // Recomposition triggered here
-                    isEnabledState.value = isEnabledState.value // Mise à jour pour trigger la recomposition
-                }
+                isEnabled = isEnabled,
+                onClick = onClick
             )
         )
     }
 
     override fun CheckableItem(label: String, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
-        var isChecked by mutableStateOf(false) // Initialise l'état checked comme mutable
+        var isChecked = false // Initialise l'état checked
 
         menuItems.add(
             WindowsTrayManager.MenuItem(
@@ -35,11 +26,11 @@ internal class WindowsTrayMenuBuilderImpl(private val iconPath: String, val tool
                 isCheckable = true,
                 isChecked = isChecked,
                 onClick = {
-                    // Inverse l'état checked et notifie la modification
+                    // Inverts the checked state
                     isChecked = !isChecked
                     onToggle(isChecked)
 
-                    // Mise à jour de l'item dans la liste menuItems
+                    // Updates the item in the menuItems list
                     val itemIndex = menuItems.indexOfFirst { it.text == label }
                     if (itemIndex != -1) {
                         menuItems[itemIndex] = menuItems[itemIndex].copy(isChecked = isChecked)
@@ -54,12 +45,10 @@ internal class WindowsTrayMenuBuilderImpl(private val iconPath: String, val tool
         val subMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip).apply(submenuContent)
         subMenuItems.addAll(subMenuImpl.menuItems)
 
-        val isEnabledState = mutableStateOf(isEnabled)
-
         menuItems.add(
             WindowsTrayManager.MenuItem(
                 text = label,
-                isEnabled = isEnabledState.value,
+                isEnabled = isEnabled,
                 subMenuItems = subMenuItems
             )
         )
