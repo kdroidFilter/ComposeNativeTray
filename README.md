@@ -96,7 +96,10 @@ application {
 In a Swing application, the application must be executed first, like this:
 
 ```kotlin
-SwingAppDemo()
+SwingUtilities.invokeLater {
+    SwingAppDemo()
+}
+
 
 NativeTray(
     iconPath = iconPath,
