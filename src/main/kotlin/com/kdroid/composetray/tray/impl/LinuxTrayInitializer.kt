@@ -4,14 +4,12 @@ import com.kdroid.composetray.lib.linux.AppIndicator
 import com.kdroid.composetray.lib.linux.AppIndicatorCategory
 import com.kdroid.composetray.lib.linux.AppIndicatorStatus
 import com.kdroid.composetray.lib.linux.Gtk
-import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
+import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import com.sun.jna.Pointer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.runBlocking
 
 object LinuxTrayInitializer {
     fun initialize(iconPath: String, menuContent: TrayMenuBuilder.() -> Unit) {
@@ -38,5 +36,4 @@ object LinuxTrayInitializer {
             Gtk.INSTANCE.gtk_main()
         }
     }
-
 }

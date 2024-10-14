@@ -10,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 internal class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
     private val _itemClickFlow = MutableSharedFlow<String>()

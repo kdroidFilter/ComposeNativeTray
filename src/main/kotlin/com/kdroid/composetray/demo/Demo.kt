@@ -3,7 +3,6 @@ package com.kdroid.composetray.demo
 import com.kdroid.composetray.tray.api.NativeTray
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
-import kotlinx.coroutines.*
 import java.awt.*
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -16,10 +15,7 @@ fun main() {
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
     val logTag = "NativeTrayTest"
 
-
-    SwingUtilities.invokeLater {
-        windowsDemo()
-    }
+    SwingAppDemo()
 
     NativeTray(
         iconPath = iconPath,
@@ -77,16 +73,16 @@ fun main() {
 
 }
 
-private fun windowsDemo() {
-    // Crée la fenêtre principale
-    val frame = JFrame("Demo UI Kotlin avec Swing").apply {
+private fun SwingAppDemo() {
+    // Create the main window
+    val frame = JFrame("Swing App with Native System Tray").apply {
         setSize(500, 300)
         minimumSize = Dimension(400, 200)
         defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-        setLocationRelativeTo(null) // Centre la fenêtre
+        setLocationRelativeTo(null) // Center the window
     }
 
-    // Crée le panneau principal avec une bordure vide pour un meilleur espacement
+    // Create the main panel with an empty border for better spacing
     val panel = JPanel().apply {
         layout = GridBagLayout()
         border = BorderFactory.createEmptyBorder(20, 20, 20, 20)
@@ -100,8 +96,8 @@ private fun windowsDemo() {
         weightx = 1.0
     }
 
-    // Ajoute des composants au panneau principal avec des polices et des couleurs personnalisées
-    val label = JLabel("Nom:").apply {
+    // Add components to the main panel with custom fonts and colors
+    val label = JLabel("Name:").apply {
         font = Font("Arial", Font.BOLD, 16)
     }
     panel.add(label, constraints)
@@ -113,7 +109,7 @@ private fun windowsDemo() {
     constraints.gridx = 1
     panel.add(textField, constraints)
 
-    val button = JButton("Valider").apply {
+    val button = JButton("Submit").apply {
         font = Font("Arial", Font.BOLD, 16)
         background = Color(100, 149, 237)
         foreground = Color.WHITE
@@ -124,20 +120,22 @@ private fun windowsDemo() {
     constraints.gridwidth = 2
     panel.add(button, constraints)
 
-    val resultLabel = JLabel("Bonjour!").apply {
+    val resultLabel = JLabel("").apply { // Initially empty
         font = Font("Arial", Font.ITALIC, 16)
         foreground = Color(34, 139, 34)
     }
     constraints.gridy = 2
     panel.add(resultLabel, constraints)
 
-    // Ajoute une action au bouton
+    // Add an action to the button
     button.addActionListener {
         val text = textField.text
-        resultLabel.text = "Bonjour, $text!"
+        if (text.isNotEmpty()) {
+            resultLabel.text = "Hello, $text!"
+        }
     }
 
-    // Ajoute un adaptateur pour redimensionner les composants
+    // Add a listener to resize components
     frame.addComponentListener(object : ComponentAdapter() {
         override fun componentResized(e: ComponentEvent) {
             panel.revalidate()
@@ -145,9 +143,10 @@ private fun windowsDemo() {
         }
     })
 
-    // Ajoute le panneau principal à la fenêtre
+    // Add the main panel to the window
     frame.contentPane.add(panel, BorderLayout.CENTER)
 
-    // Rendre la fenêtre visible
+    // Make the window visible
     frame.isVisible = true
 }
+
