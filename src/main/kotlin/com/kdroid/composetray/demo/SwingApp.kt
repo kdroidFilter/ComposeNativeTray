@@ -168,3 +168,4 @@ object MemoryLogger {
         Log.d("MemoryLogger", "Free memory: ${freeMemory} MB")
     }
 }
+
