@@ -1,4 +1,5 @@
 import com.vanniktech.maven.publish.SonatypeHost
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     kotlin("jvm") version "2.0.20"
@@ -80,5 +81,10 @@ mavenPublishing {
 compose.desktop {
     application {
         mainClass = "com.kdroid.composetray.demo.ComposeAppKt"
+        nativeDistributions {
+            targetFormats(TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "tray-demo"
+            packageVersion = version.toString()
+        }
     }
 }

@@ -16,7 +16,7 @@ internal class WindowsNativeTray : Structure() {
     @JvmField
     var menu: Pointer? = null
 
-    interface TrayCallback : StdCallLibrary.StdCallCallback {
+    fun interface TrayCallback : StdCallLibrary.StdCallCallback {
         fun invoke(tray: WindowsNativeTray)
     }
 }

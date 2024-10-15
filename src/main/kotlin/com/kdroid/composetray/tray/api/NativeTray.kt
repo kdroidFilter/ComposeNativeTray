@@ -14,24 +14,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
 internal class NativeTray(
     iconPath: String,
     windowsIconPath: String = iconPath,
     tooltip: String = "",
+    onLeftClick: (() -> Unit)?,
     menuContent: TrayMenuBuilder.() -> Unit
 ) {
+    val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     init {
         trayScope.launch {
             when (PlatformUtils.currentOS) {
                 OperatingSystem.LINUX -> LinuxTrayInitializer.initialize(iconPath, menuContent)
-                OperatingSystem.WINDOWS -> WindowsTrayInitializer.initialize(windowsIconPath, tooltip, menuContent)
-                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> AwtTrayInitializer.initialize(
-                    iconPath,
+                OperatingSystem.WINDOWS -> WindowsTrayInitializer.initialize(
+                    windowsIconPath,
                     tooltip,
+                    onLeftClick,
                     menuContent
                 )
+
+                OperatingSystem.MAC, OperatingSystem.UNKNOWN ->
+                    AwtTrayInitializer.initialize(iconPath, tooltip, menuContent)
             }
         }
     }
@@ -39,12 +43,19 @@ internal class NativeTray(
 
 
 @Composable
-fun ApplicationScope.Tray(iconPath: String, windowsIconPath: String = iconPath, tooltip : String, menuContent: TrayMenuBuilder.() -> Unit) {
+fun ApplicationScope.Tray(
+    iconPath: String,
+    windowsIconPath: String = iconPath,
+    tooltip: String,
+    onLeftClick: (() -> Unit)? = null,
+    menuContent: TrayMenuBuilder.() -> Unit
+) {
     LaunchedEffect(Unit) {
         NativeTray(
             iconPath = iconPath,
             windowsIconPath = windowsIconPath,
             tooltip = tooltip,
+            onLeftClick = onLeftClick,
             menuContent = menuContent
         )
     }

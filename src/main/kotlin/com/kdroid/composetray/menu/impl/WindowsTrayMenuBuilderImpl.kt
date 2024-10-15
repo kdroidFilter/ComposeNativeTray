@@ -5,7 +5,11 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-internal class WindowsTrayMenuBuilderImpl(val iconPath : String, val tooltip : String = "") : TrayMenuBuilder {
+internal class WindowsTrayMenuBuilderImpl(
+    private val iconPath : String,
+    private val tooltip : String = "",
+    private val onLeftClick: (() -> Unit)?
+) : TrayMenuBuilder {
     private val menuItems = mutableListOf<WindowsTrayManager.MenuItem>()
     private val lock = ReentrantLock()
 
@@ -54,7 +58,7 @@ internal class WindowsTrayMenuBuilderImpl(val iconPath : String, val tooltip : S
 
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
         val subMenuItems = mutableListOf<WindowsTrayManager.MenuItem>()
-        val subMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip).apply(submenuContent)
+        val subMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick = onLeftClick).apply(submenuContent)
         subMenuItems.addAll(subMenuImpl.menuItems)
 
         lock.withLock {
@@ -78,7 +82,7 @@ internal class WindowsTrayMenuBuilderImpl(val iconPath : String, val tooltip : S
 
     override fun dispose() {
         lock.withLock {
-            WindowsTrayManager(iconPath = iconPath, tooltip = tooltip).stopTray()
+            WindowsTrayManager(iconPath = iconPath, tooltip = tooltip, onLeftClick = onLeftClick).stopTray()
             persistentMenuItems.clear() // Clear references when disposing
         }
     }

@@ -9,13 +9,16 @@ import java.nio.file.Paths
 import kotlin.system.exitProcess
 
 @Composable
-fun ApplicationScope.SampleTray() {
+internal fun ApplicationScope.SampleTray() {
     val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
     val logTag = "NativeTray"
     Tray(
         iconPath = iconPath,
         windowsIconPath = windowsIconPath,
+        onLeftClick = {
+            Log.i(logTag, "On Left Clicked")
+        },
         tooltip = "My Application"
     ) {
         SubMenu(label = "Options") {

@@ -3,11 +3,16 @@ package com.kdroid.composetray.lib.windows
 import WindowsNativeTray
 import WindowsNativeTrayLibrary
 import WindowsNativeTrayMenuItem
+import androidx.compose.runtime.mutableStateOf
 import com.kdroid.composetray.callbacks.windows.StdCallCallback
 import com.sun.jna.Native
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
+internal class WindowsTrayManager(
+    iconPath: String,
+    tooltip: String = "",
+    onLeftClick: (() -> Unit)? = null
+) {
     private val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
     private val tray: WindowsNativeTray = WindowsNativeTray()
     private val menuItems: MutableList<MenuItem> = mutableListOf()
@@ -16,7 +21,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
     // Maintain a reference to all callbacks to avoid GC
     private val callbackReferences: MutableList<StdCallCallback> = mutableListOf()
     private val nativeMenuItemsReferences: MutableList<WindowsNativeTrayMenuItem> = mutableListOf()
-
+    private val onLeftClickCallback = mutableStateOf(onLeftClick)
 
     init {
         tray.icon_filepath = iconPath
@@ -42,6 +47,11 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
     // Start the tray
     fun startTray() {
         synchronized(tray) {
+            if (onLeftClickCallback.value != null) {
+                tray.cb = WindowsNativeTray.TrayCallback {
+                    onLeftClickCallback.value?.invoke()
+                }
+            }
             if (tray.menu == null) {
                 initializeTrayMenu()
                 require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray" }
@@ -97,7 +107,8 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         // If the element has child elements
         if (menuItem.subMenuItems.isNotEmpty()) {
             val subMenuPrototype = WindowsNativeTrayMenuItem()
-            val subMenuItemsArray = subMenuPrototype.toArray(menuItem.subMenuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
+            val subMenuItemsArray =
+                subMenuPrototype.toArray(menuItem.subMenuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
             menuItem.subMenuItems.forEachIndexed { index, subItem ->
                 initializeNativeMenuItem(subMenuItemsArray[index], subItem)
                 subMenuItemsArray[index].write()
