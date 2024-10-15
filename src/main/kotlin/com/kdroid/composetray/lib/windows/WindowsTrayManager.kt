@@ -15,6 +15,8 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
 
     // Maintain a reference to all callbacks to avoid GC
     private val callbackReferences: MutableList<StdCallCallback> = mutableListOf()
+    private val nativeMenuItemsReferences: MutableList<WindowsNativeTrayMenuItem> = mutableListOf()
+
 
     init {
         tray.icon_filepath = iconPath
@@ -39,9 +41,13 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
 
     // Start the tray
     fun startTray() {
-        initializeTrayMenu()
-        require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray" }
-        runTrayLoop()
+        synchronized(tray) {
+            if (tray.menu == null) {
+                initializeTrayMenu()
+                require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray" }
+                runTrayLoop()
+            }
+        }
     }
 
     private fun initializeTrayMenu() {
@@ -53,6 +59,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
                 val nativeItem = nativeMenuItems[index]
                 initializeNativeMenuItem(nativeItem, item)
                 nativeItem.write()
+                nativeMenuItemsReferences.add(nativeItem) // Store reference to prevent GC
             }
         }
 
@@ -63,6 +70,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         tray.menu = nativeMenuItems[0].pointer
     }
 
+
     private fun initializeNativeMenuItem(nativeItem: WindowsNativeTrayMenuItem, menuItem: MenuItem) {
         nativeItem.text = menuItem.text
         nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
@@ -72,7 +80,7 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         menuItem.onClick?.let { onClick ->
             val callback = StdCallCallback { item ->
                 synchronized(tray) {
-                    if (running.get()) {
+                    if (running.get() && tray.menu != null) {
                         onClick()
                         if (menuItem.isCheckable) {
                             item.checked = if (item.checked == 0) 1 else 0
@@ -93,12 +101,14 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
             menuItem.subMenuItems.forEachIndexed { index, subItem ->
                 initializeNativeMenuItem(subMenuItemsArray[index], subItem)
                 subMenuItemsArray[index].write()
+                nativeMenuItemsReferences.add(subMenuItemsArray[index]) // Store reference to prevent GC
             }
             // End marker
             subMenuItemsArray[menuItem.subMenuItems.size].text = null
             subMenuItemsArray[menuItem.subMenuItems.size].write()
             nativeItem.submenu = subMenuItemsArray[0].pointer
         }
+
     }
 
     //Tray loop
