@@ -47,15 +47,19 @@ internal class WindowsTrayManager(
     // Start the tray
     fun startTray() {
         synchronized(tray) {
-            if (onLeftClickCallback.value != null) {
-                tray.cb = WindowsNativeTray.TrayCallback {
-                    onLeftClickCallback.value?.invoke()
-                }
-            }
+            initializeOnLeftClickCallback()
             if (tray.menu == null) {
                 initializeTrayMenu()
                 require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray" }
                 runTrayLoop()
+            }
+        }
+    }
+
+    private fun initializeOnLeftClickCallback() {
+        if (onLeftClickCallback.value != null) {
+            tray.cb = WindowsNativeTray.TrayCallback {
+                onLeftClickCallback.value?.invoke()
             }
         }
     }
