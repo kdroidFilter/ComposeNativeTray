@@ -1,17 +1,19 @@
 package com.kdroid.composetray.demo
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.ApplicationScope
-import com.kdroid.composetray.tray.api.NativeTray
+import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
+@Composable
 fun ApplicationScope.SampleTray() {
     val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
     val logTag = "NativeTray"
-    NativeTray(
+    Tray(
         iconPath = iconPath,
         windowsIconPath = windowsIconPath,
         tooltip = "My Application"

@@ -1,7 +1,5 @@
 package com.kdroid.composetray.tray.impl
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import com.kdroid.composetray.lib.linux.AppIndicator
 import com.kdroid.composetray.lib.linux.AppIndicatorCategory
 import com.kdroid.composetray.lib.linux.AppIndicatorStatus
@@ -9,9 +7,6 @@ import com.kdroid.composetray.lib.linux.Gtk
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import com.sun.jna.Pointer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 object LinuxTrayInitializer {
     fun initialize(iconPath: String, menuContent: TrayMenuBuilder.() -> Unit) {
@@ -36,34 +31,5 @@ object LinuxTrayInitializer {
 
         Gtk.INSTANCE.gtk_main()
 
-    }
-}
-
-@Composable
-fun LinuxTray(iconPath: String, menuContent: TrayMenuBuilder.() -> Unit) {
-    // Initialiser GTK seulement une fois
-    remember {
-        Gtk.INSTANCE.gtk_init(0, Pointer.createConstant(0))
-
-        // Créer l'indicateur
-        val indicator = AppIndicator.INSTANCE.app_indicator_new(
-            "compose-tray",
-            iconPath,
-            AppIndicatorCategory.APPLICATION_STATUS
-        )
-
-        AppIndicator.INSTANCE.app_indicator_set_status(indicator, AppIndicatorStatus.ACTIVE)
-
-        // Créer et mémoriser le menu
-        val menu = Gtk.INSTANCE.gtk_menu_new()
-        val trayMenuBuilder = LinuxTrayMenuBuilderImpl(menu)
-        trayMenuBuilder.apply(menuContent)
-
-        // Associer le menu à l'indicateur
-        AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
-        Gtk.INSTANCE.gtk_widget_show_all(menu)
-
-        // Lancer la boucle principale GTK
-        Gtk.INSTANCE.gtk_main()
     }
 }
