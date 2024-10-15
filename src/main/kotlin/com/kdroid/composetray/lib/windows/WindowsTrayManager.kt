@@ -13,6 +13,9 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
     private val menuItems: MutableList<MenuItem> = mutableListOf()
     private val running = AtomicBoolean(true)
 
+    // Maintain a reference to all callbacks to avoid GC
+    private val callbackReferences: MutableList<StdCallCallback> = mutableListOf()
+
     init {
         tray.icon_filepath = iconPath
         tray.tooltip = tooltip
@@ -29,7 +32,9 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
     )
 
     fun addMenuItem(menuItem: MenuItem) {
-        menuItems.add(menuItem)
+        synchronized(menuItems) {
+            menuItems.add(menuItem)
+        }
     }
 
     // Start the tray
@@ -43,10 +48,12 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         val menuItemPrototype = WindowsNativeTrayMenuItem()
         val nativeMenuItems = menuItemPrototype.toArray(menuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
 
-        menuItems.forEachIndexed { index, item ->
-            val nativeItem = nativeMenuItems[index]
-            initializeNativeMenuItem(nativeItem, item)
-            nativeItem.write()
+        synchronized(menuItems) {
+            menuItems.forEachIndexed { index, item ->
+                val nativeItem = nativeMenuItems[index]
+                initializeNativeMenuItem(nativeItem, item)
+                nativeItem.write()
+            }
         }
 
         // Last element to mark the end of the menu
@@ -64,14 +71,19 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         // Create the menu item callback
         menuItem.onClick?.let { onClick ->
             val callback = StdCallCallback { item ->
-                onClick()
-                if (menuItem.isCheckable) {
-                    item.checked = if (item.checked == 0) 1 else 0
-                    item.write()
-                    trayLib.tray_update(tray)
+                synchronized(tray) {
+                    if (running.get()) {
+                        onClick()
+                        if (menuItem.isCheckable) {
+                            item.checked = if (item.checked == 0) 1 else 0
+                            item.write()
+                            trayLib.tray_update(tray)
+                        }
+                    }
                 }
             }
             nativeItem.cb = callback
+            callbackReferences.add(callback) // Store reference to prevent GC
         }
 
         // If the element has child elements
@@ -98,8 +110,10 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            trayLib.tray_exit()
-            tray.menu?.let { trayLib.tray_free_menu(it) }
+            synchronized(tray) {
+                trayLib.tray_exit()
+                tray.menu?.let { trayLib.tray_free_menu(it) }
+            }
         }
     }
 
@@ -107,4 +121,3 @@ internal class WindowsTrayManager(iconPath : String, tooltip : String = "") {
         running.set(false)
     }
 }
-
