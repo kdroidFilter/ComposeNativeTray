@@ -35,7 +35,7 @@ internal class NativeTray(
                 )
 
                 OperatingSystem.MAC, OperatingSystem.UNKNOWN ->
-                    AwtTrayInitializer.initialize(iconPath, tooltip, menuContent)
+                    AwtTrayInitializer.initialize(iconPath, tooltip, onLeftClick, menuContent)
             }
         }
     }
