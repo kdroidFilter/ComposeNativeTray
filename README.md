@@ -30,7 +30,7 @@ To use the ComposeTray library, add it as a dependency in your `build.gradle.kts
 
 ```kotlin
 dependencies {
-    implementation("io.github.kdroidfilter:composenativetray:0.2.0")
+    implementation("io.github.kdroidfilter:composenativetray:0.3.0")
 }
 ```
 
