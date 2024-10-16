@@ -1,4 +1,4 @@
-# Compose Native Tray Library
+# 🛠️ Compose Native Tray Library
 
 <p align="center">
   <img src="screenshots/logo.webp" alt="logo" width="300">
@@ -9,7 +9,7 @@
 
 > **Warning**: This library is highly experimental, and its APIs are subject to change.
 
-## Features
+## ✨ Features
 
 - Cross-platform support for Linux, Windows, and macOS.
 - DSL-style syntax to define tray menus with ease.
@@ -22,9 +22,9 @@
     - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
     - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label).
 
-## Getting Started
+## 🚀 Getting Started
 
-### Installation
+### 📦 Installation
 
 To use the ComposeTray library, add it as a dependency in your `build.gradle.kts` file:
 
@@ -34,7 +34,7 @@ dependencies {
 }
 ```
 
-### Usage
+### 🛠️ Usage
 
 Here's a basic example of how to use the ComposeTray library to create a system tray icon with a menu:
 The `Tray` must be executed inside an Application Scope, like this:
@@ -102,7 +102,7 @@ application {
 }
 ````
 
-### Components of the Tray Menu
+### 📋 Components of the Tray Menu
 - **Item**: A standard clickable item that can be enabled or disabled.
 - **CheckableItem**: A menu item with a checkbox that can be toggled on or off.
 - **SubMenu**: A submenu that can contain multiple items, including other submenus.
@@ -110,7 +110,7 @@ application {
 - **dispose**: Call to remove the system tray icon and exit gracefully.
 - **Primary Action**: An action triggered by a left-click on the tray icon (Windows and macOS) or as a top item in the context menu (Linux).
 
-### Platform-Specific Implementation
+### 🖥️ Platform-Specific Implementation
 The `NativeTray` class automatically detects the operating system and initializes the appropriate tray implementation:
 - **Linux**: Uses `LinuxTrayInitializer`, which is implemented using GTK via JNA.
 - **Windows**: Uses `WindowsTrayInitializer`, which is based on the [tray library by dmikushin](https://github.com/dmikushin/tray).
@@ -118,17 +118,17 @@ The `NativeTray` class automatically detects the operating system and initialize
 
 > Note: For Windows, you must use an `.ico` file for the tray icon, while for Linux and macOS, a `.png` file is required.
 
-### Windows DLL Generation
+### 🗂️ Windows DLL Generation
 To generate the Windows DLL, execute the following command:
 ```bash
 gcc -shared -o ../resources/win32-x86-64/tray.dll tray_windows.c
 ````
 
-### Logging
+### 📜 Logging
 
 This example uses the `kmplog` library for logging, which allows you to log messages when certain items are selected or toggled.
 
-## Screenshots
+## 📸 Screenshots
 
 Here are some screenshots of ComposeTray running on different platforms:
 
@@ -141,14 +141,21 @@ Here are some screenshots of ComposeTray running on different platforms:
 ### Ubuntu KDE
 ![KDE](screenshots/kde.png)
 
-## License
+## 📄 License
 
 This library is licensed under the MIT License.
 
-## Contributing
+## 🤝 Contributing
 
-Feel free to open issues or pull requests if you find any bugs or have suggestions for new features.
+Feel free to open issues or pull requests if you find any bugs or have suggestions for new features. If you have other ideas for improvements or new functionalities, please let me know! If you use this library in your project, I would be happy to link to those projects as well.
 
-## Acknowledgements
+## ✅ Things to Implement
 
-This library is developed and maintained by Elyahou, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
+- Implement a system to check if an instance of the application is already running
+- Add the ability to dynamically change the tray icon
+- Add the ability to locate the position of the systray (top left, top right, etc.)
+
+## 🙏 Acknowledgements
+
+This library is developed and maintained by Elie G, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
+
