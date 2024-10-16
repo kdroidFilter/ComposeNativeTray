@@ -18,7 +18,8 @@ internal class NativeTray(
     iconPath: String,
     windowsIconPath: String = iconPath,
     tooltip: String = "",
-    onLeftClick: (() -> Unit)?,
+    primaryAction: (() -> Unit)?,
+    primaryActionLinuxLabel: String,
     menuContent: TrayMenuBuilder.() -> Unit
 ) {
     val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -26,16 +27,16 @@ internal class NativeTray(
     init {
         trayScope.launch {
             when (PlatformUtils.currentOS) {
-                OperatingSystem.LINUX -> LinuxTrayInitializer.initialize(iconPath, menuContent)
+                OperatingSystem.LINUX -> LinuxTrayInitializer.initialize(iconPath, primaryAction, primaryActionLinuxLabel, menuContent)
                 OperatingSystem.WINDOWS -> WindowsTrayInitializer.initialize(
                     windowsIconPath,
                     tooltip,
-                    onLeftClick,
+                    primaryAction,
                     menuContent
                 )
 
                 OperatingSystem.MAC, OperatingSystem.UNKNOWN ->
-                    AwtTrayInitializer.initialize(iconPath, tooltip, onLeftClick, menuContent)
+                    AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
             }
         }
     }
@@ -47,7 +48,8 @@ fun ApplicationScope.Tray(
     iconPath: String,
     windowsIconPath: String = iconPath,
     tooltip: String,
-    onLeftClick: (() -> Unit)? = null,
+    primaryAction: (() -> Unit)? = null,
+    primaryActionLinuxLabel: String = "Open",
     menuContent: TrayMenuBuilder.() -> Unit
 ) {
     LaunchedEffect(Unit) {
@@ -55,7 +57,8 @@ fun ApplicationScope.Tray(
             iconPath = iconPath,
             windowsIconPath = windowsIconPath,
             tooltip = tooltip,
-            onLeftClick = onLeftClick,
+            primaryAction = primaryAction,
+            primaryActionLinuxLabel = primaryActionLinuxLabel,
             menuContent = menuContent
         )
     }

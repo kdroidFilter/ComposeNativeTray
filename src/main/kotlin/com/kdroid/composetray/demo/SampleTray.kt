@@ -16,8 +16,8 @@ internal fun ApplicationScope.SampleTray() {
     Tray(
         iconPath = iconPath,
         windowsIconPath = windowsIconPath,
-        onLeftClick = {
-            Log.i(logTag, "On Left Clicked")
+        primaryAction = {
+            Log.i(logTag, "On Primary Clicked")
         },
         tooltip = "My Application"
     ) {
