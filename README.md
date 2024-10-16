@@ -18,6 +18,9 @@
 - Corrects issues with the [Compose for Desktop tray](https://github.com/JetBrains/compose-multiplatform/blob/master/tutorials/Tray_Notifications_MenuBar_new), particularly HDPI support on Windows and Linux.
 - Improves the appearance of the tray on Linux, which previously resembled Windows 95.
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
+- Supports primary action for Windows, macOS, and Linux.
+    - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
+    - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label).
 
 ## Getting Started
 
@@ -43,7 +46,11 @@ application {
     Tray(
         iconPath = iconPath,
         windowsIconPath = windowsIconPath,
-        tooltip = "My Application"
+        tooltip = "My Application",
+        primaryAction = {
+            Log.i(logTag, "Primary action triggered")
+        },
+        primaryActionLinuxLabel = "Open Application"
     ) {
         SubMenu(label = "Options") {
             Item(label = "Setting 1") {
@@ -101,6 +108,7 @@ application {
 - **SubMenu**: A submenu that can contain multiple items, including other submenus.
 - **Divider**: A separator used to visually separate menu items.
 - **dispose**: Call to remove the system tray icon and exit gracefully.
+- **Primary Action**: An action triggered by a left-click on the tray icon (Windows and macOS) or as a top item in the context menu (Linux).
 
 ### Platform-Specific Implementation
 The `NativeTray` class automatically detects the operating system and initializes the appropriate tray implementation:
@@ -124,11 +132,14 @@ This example uses the `kmplog` library for logging, which allows you to log mess
 
 Here are some screenshots of ComposeTray running on different platforms:
 
-### Ubuntu
-![Ubuntu](screenshots/ubuntu.png)
-
 ### Windows
 ![Windows](screenshots/windows.png)
+
+### Ubuntu Gnome
+![Gnome](screenshots/gnome.png)
+
+### Ubuntu KDE
+![KDE](screenshots/kde.png)
 
 ## License
 
@@ -141,4 +152,3 @@ Feel free to open issues or pull requests if you find any bugs or have suggestio
 ## Acknowledgements
 
 This library is developed and maintained by Elyahou, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
-
