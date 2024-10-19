@@ -3,13 +3,13 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     kotlin("jvm") version "2.0.20"
-    id("org.jetbrains.compose") version "1.6.11"
+    id("org.jetbrains.compose") version "1.7.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
     id("com.vanniktech.maven.publish") version "0.29.0"
 }
 
 group = "com.kdroid.composenativetray"
-version = "0.3.0"
+version = "0.3.1"
 
 repositories {
     mavenCentral()
