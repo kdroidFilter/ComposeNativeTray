@@ -15,6 +15,10 @@ import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.sun.jna.Pointer
 
+/**
+ * Object responsible for initializing and configuring the tray icon in a Linux environment.
+ * Depending on the provided parameters, it can either create a tray icon with a menu or just a clickable icon.
+ */
 object LinuxTrayInitializer {
     fun initialize(
         iconPath: String,
