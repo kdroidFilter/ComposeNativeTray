@@ -6,8 +6,8 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 internal class WindowsTrayMenuBuilderImpl(
-    private val iconPath : String,
-    private val tooltip : String = "",
+    private val iconPath: String,
+    private val tooltip: String = "",
     private val onLeftClick: (() -> Unit)?
 ) : TrayMenuBuilder {
     private val menuItems = mutableListOf<WindowsTrayManager.MenuItem>()
@@ -56,11 +56,12 @@ internal class WindowsTrayMenuBuilderImpl(
         }
     }
 
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
+    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
         val subMenuItems = mutableListOf<WindowsTrayManager.MenuItem>()
-        val subMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick = onLeftClick).apply(submenuContent)
-        subMenuItems.addAll(subMenuImpl.menuItems)
-
+        if (submenuContent != null) {
+            val subMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick = onLeftClick).apply(submenuContent)
+            subMenuItems.addAll(subMenuImpl.menuItems)
+        }
         lock.withLock {
             val subMenu = WindowsTrayManager.MenuItem(
                 text = label,

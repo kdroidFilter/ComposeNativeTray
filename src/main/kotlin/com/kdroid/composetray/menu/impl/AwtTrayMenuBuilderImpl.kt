@@ -30,10 +30,10 @@ internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private 
         popupMenu.add(checkableMenuItem)
     }
 
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
+    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
         val subMenu = PopupMenu(label)
         subMenu.isEnabled = isEnabled
-        AwtTrayMenuBuilderImpl(subMenu, trayIcon).apply(submenuContent)
+        submenuContent?.let { AwtTrayMenuBuilderImpl(subMenu, trayIcon).apply(it) }
         popupMenu.add(subMenu)
     }
 

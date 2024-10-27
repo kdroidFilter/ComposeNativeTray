@@ -15,7 +15,7 @@ object AwtTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)?,
-        menuContent: TrayMenuBuilder.() -> Unit
+        menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         val systemTray = SystemTray.getSystemTray()
         val popupMenu = PopupMenu()
@@ -23,8 +23,9 @@ object AwtTrayInitializer {
         // Create the tray icon
         val trayIcon = TrayIcon(Toolkit.getDefaultToolkit().getImage(iconPath), tooltip, popupMenu)
         trayIcon.isImageAutoSize = true
-        AwtTrayMenuBuilderImpl(popupMenu, trayIcon).apply(menuContent)
-
+        if (menuContent != null) {
+            AwtTrayMenuBuilderImpl(popupMenu, trayIcon).apply(menuContent)
+        }
         // Handle the left Click
         if (onLeftClick != null) {
             trayIcon.addMouseListener(object : MouseAdapter() {

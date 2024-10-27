@@ -4,14 +4,13 @@ import com.kdroid.composetray.lib.linux.*
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import com.sun.jna.Pointer
-import com.sun.jna.Structure
 
 object LinuxTrayInitializer {
     fun initialize(
         iconPath: String,
         primaryAction: (() -> Unit)?,
         primaryActionLinuxLabel: String,
-        menuContent: TrayMenuBuilder.() -> Unit
+        menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         // Initialiser GTK
         Gtk.INSTANCE.gtk_init(0, Pointer.createConstant(0))
@@ -54,10 +53,13 @@ object LinuxTrayInitializer {
             }
         }
 
-        // Construire le menu contextuel
-        trayMenuBuilder.apply(menuContent)
+        if (menuContent != null) {
+            // Construire le menu contextuel
+            trayMenuBuilder.apply(menuContent)
+        }
         AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
         Gtk.INSTANCE.gtk_widget_show_all(menu)
+
 
         // Démarrer la boucle principale GTK
         Gtk.INSTANCE.gtk_main()

@@ -93,12 +93,13 @@ class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
         )
     }
 
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: TrayMenuBuilder.() -> Unit) {
+    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
         val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
         Gtk.INSTANCE.gtk_widget_set_sensitive(menuItem, if (isEnabled) 1 else 0)
 
         val submenu = Gtk.INSTANCE.gtk_menu_new()
+        if (submenuContent == null) return
         val submenuBuilder = LinuxTrayMenuBuilderImpl(submenu).apply(submenuContent)
 
         // Propagation des états des sous-menus

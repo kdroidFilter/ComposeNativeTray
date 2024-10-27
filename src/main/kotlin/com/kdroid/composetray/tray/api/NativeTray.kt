@@ -20,7 +20,7 @@ internal class NativeTray(
     tooltip: String = "",
     primaryAction: (() -> Unit)?,
     primaryActionLinuxLabel: String,
-    menuContent: TrayMenuBuilder.() -> Unit
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null
 ) {
     val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -50,7 +50,7 @@ fun ApplicationScope.Tray(
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLinuxLabel: String = "Open",
-    menuContent: TrayMenuBuilder.() -> Unit
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null
 ) {
     LaunchedEffect(Unit) {
         NativeTray(
