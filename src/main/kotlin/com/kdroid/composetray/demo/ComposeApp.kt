@@ -16,18 +16,21 @@ import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
-import kotlin.system.exitProcess
 
 fun main() = application {
     Log.setDevelopmentMode(true)
     val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
     val logTag = "NativeTray"
-    var textVisible by mutableStateOf(false)
+    var textVisible by remember{ mutableStateOf(false)}
+
+    var isWindowVisible by remember { mutableStateOf(true) }
+
     Tray(
         iconPath = iconPath,
         windowsIconPath = windowsIconPath,
         primaryAction = {
+            isWindowVisible = true
             Log.i(logTag, "On Primary Clicked")
         },
         tooltip = "My Application"
@@ -76,15 +79,24 @@ fun main() = application {
 
         Divider()
 
+        Item(label = "Hide in tray") {
+            isWindowVisible = false
+        }
+
         Item(label = "Exit", isEnabled = true) {
             Log.i(logTag, "Exiting the application")
             dispose()
-            exitProcess(0)
+            exitApplication()
         }
 
         Item(label = "Version 1.0.0", isEnabled = false)
     }
-    Window(onCloseRequest = ::exitApplication, title = "Compose Desktop Application with Two Screens") {
+
+    Window(
+        onCloseRequest = {isWindowVisible = false},
+        title = "Compose Desktop Application with Two Screens",
+        visible = isWindowVisible
+    ) {
         App(textVisible)
     }
 }
