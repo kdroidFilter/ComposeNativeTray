@@ -4,7 +4,6 @@ import WindowsNativeTray
 import WindowsNativeTrayLibrary
 import WindowsNativeTrayMenuItem
 import androidx.compose.runtime.mutableStateOf
-import com.kdroid.composetray.callbacks.windows.StdCallCallback
 import com.sun.jna.Native
 import java.util.concurrent.atomic.AtomicBoolean
 

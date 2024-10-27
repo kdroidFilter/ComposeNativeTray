@@ -1,4 +1,4 @@
-package com.kdroid.composetray.callbacks.windows
+package com.kdroid.composetray.lib.windows
 
 import WindowsNativeTrayMenuItem
 import com.sun.jna.win32.StdCallLibrary

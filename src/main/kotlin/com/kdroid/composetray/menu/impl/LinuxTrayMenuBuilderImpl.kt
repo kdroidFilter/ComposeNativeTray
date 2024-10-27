@@ -3,7 +3,7 @@ package com.kdroid.composetray.menu.impl
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.kdroid.composetray.callbacks.linux.GCallback
+import com.kdroid.composetray.lib.linux.GCallback
 import com.kdroid.composetray.lib.linux.GObject
 import com.kdroid.composetray.lib.linux.Gtk
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
