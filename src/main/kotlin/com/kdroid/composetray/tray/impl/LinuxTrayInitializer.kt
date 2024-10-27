@@ -22,6 +22,7 @@ import com.sun.jna.Pointer
 object LinuxTrayInitializer {
     fun initialize(
         iconPath: String,
+        tooltip: String,
         primaryAction: (() -> Unit)?,
         primaryActionLinuxLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)?
@@ -61,6 +62,10 @@ object LinuxTrayInitializer {
             }
             // Add provided menu content
             trayMenuBuilder.apply(menuContent)
+
+            //Add a tooltip
+            AppIndicator.INSTANCE.app_indicator_set_title(indicator, tooltip)
+
             // Attach the menu to the indicator
             AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
             Gtk.INSTANCE.gtk_widget_show_all(menu)
@@ -85,7 +90,7 @@ object LinuxTrayInitializer {
                 0
             )
             // Optionally: Set a tooltip or other properties
-            GtkStatusIcon.INSTANCE.gtk_status_icon_set_tooltip_text(statusIcon, "Compose Tray")
+            GtkStatusIcon.INSTANCE.gtk_status_icon_set_tooltip_text(statusIcon, tooltip)
             // Show the icon
             GtkStatusIcon.INSTANCE.gtk_status_icon_set_visible(statusIcon, 1)
             // Start the GTK main loop

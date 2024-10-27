@@ -15,6 +15,7 @@ internal interface AppIndicator : Library {
 
 
     fun app_indicator_set_icon_full(indicator: Pointer, icon_name: String, icon_desc: String?)
+    fun app_indicator_set_title(indicator: Pointer, title: String) // Tooltip
 }
 
 internal object AppIndicatorCategory {

@@ -27,7 +27,7 @@ internal class NativeTray(
     init {
         trayScope.launch {
             when (PlatformUtils.currentOS) {
-                OperatingSystem.LINUX -> LinuxTrayInitializer.initialize(iconPath, primaryAction, primaryActionLinuxLabel, menuContent)
+                OperatingSystem.LINUX -> LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
                 OperatingSystem.WINDOWS -> WindowsTrayInitializer.initialize(
                     windowsIconPath,
                     tooltip,
