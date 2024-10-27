@@ -16,3 +16,11 @@ internal interface AppIndicator : Library {
 
     fun app_indicator_set_icon_full(indicator: Pointer, icon_name: String, icon_desc: String?)
 }
+
+internal object AppIndicatorCategory {
+    const val APPLICATION_STATUS = 0
+}
+
+internal object AppIndicatorStatus {
+    const val ACTIVE = 1
+}
