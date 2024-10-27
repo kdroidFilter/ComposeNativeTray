@@ -13,35 +13,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
-import com.kdroid.composetray.utils.SingleInstanceWithCallbackChecker
+import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
 
 fun main() = application {
     Log.setDevelopmentMode(true)
-    val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
-    val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
     val logTag = "NativeTray"
-    var textVisible by remember{ mutableStateOf(false)}
 
     var isWindowVisible by remember { mutableStateOf(true) }
+    var textVisible by remember { mutableStateOf(false) }
 
-    // Vérifiez l'instance unique avec callback de restauration
-    val isFirstInstance = SingleInstanceWithCallbackChecker.isSingleInstance {
-        isWindowVisible = true
-    }
 
-    // Si une autre instance est déjà en cours, quitter l'application
-    if (!isFirstInstance) {
+    val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = { isWindowVisible = true })
+
+    if (!isSingleInstance) {
         exitApplication()
         return@application
     }
 
-
     Tray(
-        iconPath = iconPath,
-        windowsIconPath = windowsIconPath,
+        iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString(),
+        windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString(),
         primaryAction = {
             isWindowVisible = true
             Log.i(logTag, "On Primary Clicked")
@@ -106,7 +100,7 @@ fun main() = application {
     }
 
     Window(
-        onCloseRequest = {isWindowVisible = false},
+        onCloseRequest = { isWindowVisible = false },
         title = "Compose Desktop Application with Two Screens",
         visible = isWindowVisible
     ) {
@@ -124,8 +118,15 @@ fun App(textVisible: Boolean) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     when (currentScreen) {
-                        Screen.Screen1 -> ScreenOne(onNavigate = { currentScreen = Screen.Screen2 }, textVisible = textVisible)
-                        Screen.Screen2 -> ScreenTwo(onNavigate = { currentScreen = Screen.Screen1 }, textVisible = textVisible)
+                        Screen.Screen1 -> ScreenOne(
+                            onNavigate = { currentScreen = Screen.Screen2 },
+                            textVisible = textVisible
+                        )
+
+                        Screen.Screen2 -> ScreenTwo(
+                            onNavigate = { currentScreen = Screen.Screen1 },
+                            textVisible = textVisible
+                        )
                     }
                 }
             }
@@ -135,7 +136,11 @@ fun App(textVisible: Boolean) {
 
 @Composable
 fun ScreenOne(onNavigate: () -> Unit, textVisible: Boolean) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
         Text("Screen 1")
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onNavigate) {
@@ -150,7 +155,11 @@ fun ScreenOne(onNavigate: () -> Unit, textVisible: Boolean) {
 
 @Composable
 fun ScreenTwo(onNavigate: () -> Unit, textVisible: Boolean) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
         Text("Screen 2")
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onNavigate) {
