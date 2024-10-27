@@ -17,6 +17,7 @@ import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
+import kotlin.system.exitProcess
 
 fun main() = application {
     Log.setDevelopmentMode(true)
@@ -149,6 +150,9 @@ fun ScreenOne(onNavigate: () -> Unit, textVisible: Boolean) {
         Spacer(modifier = Modifier.height(16.dp))
         if (textVisible) {
             Text("This is the additional text displayed based on tray selection.")
+        }
+        Button({ exitProcess(0) }) {
+            Text("Exit")
         }
     }
 }
