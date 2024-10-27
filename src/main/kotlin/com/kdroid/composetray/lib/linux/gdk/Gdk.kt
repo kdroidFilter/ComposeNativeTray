@@ -1,4 +1,4 @@
-package com.kdroid.composetray.lib.linux
+package com.kdroid.composetray.lib.linux.gdk
 
 import com.sun.jna.Library
 import com.sun.jna.Native

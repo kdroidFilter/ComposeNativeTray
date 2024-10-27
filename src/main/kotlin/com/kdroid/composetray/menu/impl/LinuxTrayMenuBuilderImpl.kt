@@ -3,9 +3,9 @@ package com.kdroid.composetray.menu.impl
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.kdroid.composetray.lib.linux.GCallback
-import com.kdroid.composetray.lib.linux.GObject
-import com.kdroid.composetray.lib.linux.Gtk
+import com.kdroid.composetray.lib.linux.appindicator.GCallback
+import com.kdroid.composetray.lib.linux.appindicator.GObject
+import com.kdroid.composetray.lib.linux.appindicator.Gtk
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.sun.jna.Pointer
 import kotlinx.coroutines.CoroutineScope

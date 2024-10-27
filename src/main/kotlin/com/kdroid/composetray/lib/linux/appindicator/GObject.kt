@@ -1,4 +1,4 @@
-package com.kdroid.composetray.lib.linux
+package com.kdroid.composetray.lib.linux.appindicator
 
 import com.sun.jna.Callback
 import com.sun.jna.Library
