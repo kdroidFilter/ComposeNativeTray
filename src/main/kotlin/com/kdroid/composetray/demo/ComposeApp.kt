@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.SingleInstanceWithCallbackChecker
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
@@ -25,6 +26,18 @@ fun main() = application {
     var textVisible by remember{ mutableStateOf(false)}
 
     var isWindowVisible by remember { mutableStateOf(true) }
+
+    // Vérifiez l'instance unique avec callback de restauration
+    val isFirstInstance = SingleInstanceWithCallbackChecker.isSingleInstance {
+        isWindowVisible = true
+    }
+
+    // Si une autre instance est déjà en cours, quitter l'application
+    if (!isFirstInstance) {
+        exitApplication()
+        return@application
+    }
+
 
     Tray(
         iconPath = iconPath,
