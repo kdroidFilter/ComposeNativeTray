@@ -6,7 +6,7 @@ import com.kdroid.composetray.lib.linux.appindicator.AppIndicatorStatus
 import com.kdroid.composetray.lib.linux.appindicator.Gtk
 import com.kdroid.composetray.lib.linux.gdk.Gdk
 import com.kdroid.composetray.lib.linux.gdk.GdkRectangle
-import com.kdroid.composetray.lib.linux.gdk.convertPositionToCorner
+import com.kdroid.composetray.utils.convertPositionToCorner
 import com.kdroid.composetray.lib.linux.gtkstatusicon.GtkStatusIcon
 import com.kdroid.composetray.lib.linux.gtkstatusicon.GtkStatusIconActivateCallback
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
@@ -90,7 +90,6 @@ object LinuxTrayInitializer {
                 0
             )
 
-            GtkStatusIcon.INSTANCE.gtk_status_icon_set_tooltip_text(statusIcon, tooltip)
             // Show the icon
             GtkStatusIcon.INSTANCE.gtk_status_icon_set_visible(statusIcon, 1)
             // Start the GTK main loop
