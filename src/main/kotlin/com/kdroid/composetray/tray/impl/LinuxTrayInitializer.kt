@@ -89,7 +89,7 @@ object LinuxTrayInitializer {
                 null,
                 0
             )
-            // Optionally: Set a tooltip or other properties
+
             GtkStatusIcon.INSTANCE.gtk_status_icon_set_tooltip_text(statusIcon, tooltip)
             // Show the icon
             GtkStatusIcon.INSTANCE.gtk_status_icon_set_visible(statusIcon, 1)
