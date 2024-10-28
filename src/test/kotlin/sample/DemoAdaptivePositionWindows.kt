@@ -4,11 +4,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
+import com.kdroid.composetray.utils.getTrayWindowPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
@@ -50,27 +53,6 @@ fun main() = application {
             primaryActionLinuxLabel = "Open the Application",
             tooltip = "My Application"
         ) {
-            // Options SubMenu
-            SubMenu(label = "Options") {
-                Item(label = "Show Text") {
-                    Log.i(logTag, "Show Text selected")
-                    textVisible = true
-                }
-                Item(label = "Hide Text") {
-                    Log.i(logTag, "Hide Text selected")
-                    textVisible = false
-                }
-                SubMenu(label = "Advanced Sub-options") {
-                    Item(label = "Advanced Option 1") {
-                        Log.i(logTag, "Advanced Option 1 selected")
-                    }
-                    Item(label = "Advanced Option 2") {
-                        Log.i(logTag, "Advanced Option 2 selected")
-                    }
-                }
-            }
-
-            Divider()
 
             // Tools SubMenu
             SubMenu(label = "Tools") {
@@ -109,9 +91,6 @@ fun main() = application {
 
             Divider()
 
-            Item(label = "Hide in tray") {
-                isWindowVisible = false
-            }
 
             Item(label = "Exit", isEnabled = true) {
                 Log.i(logTag, "Exiting the application")
@@ -123,6 +102,10 @@ fun main() = application {
         }
     }
 
+    val windowWidth = 800
+    val windowHeight = 600
+    val windowPosition = getTrayWindowPosition(windowWidth, windowHeight)
+
     Window(
         onCloseRequest = {
             if (hideOnClose) {
@@ -131,6 +114,11 @@ fun main() = application {
                 exitApplication()
             }
         },
+        state = rememberWindowState(
+            width = windowWidth.dp,
+            height = windowHeight.dp,
+            position = windowPosition
+        ),
         title = "Compose Desktop Application with Two Screens",
         visible = isWindowVisible,
         icon = painterResource("icon.png") // Optional: Set window icon
@@ -141,5 +129,3 @@ fun main() = application {
         }
     }
 }
-
-
