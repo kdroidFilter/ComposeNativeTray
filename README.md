@@ -25,7 +25,7 @@
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
   
 
-- ![ComposeDemo](screenshots/demo.gif)
+![ComposeDemo](screenshots/demo.gif)
 
   ```kotlin
   var isWindowVisible by remember { mutableStateOf(true) }
