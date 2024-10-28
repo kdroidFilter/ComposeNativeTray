@@ -138,6 +138,5 @@ class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
 
     override fun dispose() {
         scope.cancel()
-        Gtk.INSTANCE.gtk_main_quit()
     }
 }

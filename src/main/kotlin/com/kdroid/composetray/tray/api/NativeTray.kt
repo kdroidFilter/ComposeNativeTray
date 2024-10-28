@@ -69,7 +69,7 @@ fun ApplicationScope.Tray(
             when (PlatformUtils.currentOS) {
                 OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
                 OperatingSystem.MAC, OperatingSystem.UNKNOWN -> {} //todo
-                OperatingSystem.LINUX -> {} //todo
+                OperatingSystem.LINUX -> LinuxTrayInitializer.dispose()
             }
 
         }

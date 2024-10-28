@@ -23,5 +23,6 @@ internal object AppIndicatorCategory {
 }
 
 internal object AppIndicatorStatus {
+    val PASSIVE: Int = 0
     const val ACTIVE = 1
 }

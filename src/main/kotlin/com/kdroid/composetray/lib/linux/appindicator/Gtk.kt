@@ -6,7 +6,6 @@ import com.sun.jna.Pointer
 
 internal interface Gtk : Library {
     companion object {
-
         val INSTANCE: Gtk = Native.load("gtk-3", Gtk::class.java)
     }
 
@@ -22,5 +21,7 @@ internal interface Gtk : Library {
     fun gtk_check_menu_item_new_with_label(label: String): Pointer
     fun gtk_check_menu_item_get_active(checkMenuItem: Pointer): Int
     fun gtk_widget_set_sensitive(widget: Pointer, sensitive: Int)
+    fun gtk_widget_destroy(menu: Pointer)
+    fun gtk_widget_hide(get: Pointer?)
 
 }

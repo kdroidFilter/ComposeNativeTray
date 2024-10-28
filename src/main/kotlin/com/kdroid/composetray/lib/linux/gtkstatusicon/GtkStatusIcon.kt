@@ -24,4 +24,6 @@ interface GtkStatusIcon : Library {
         destroy_data: Pointer?,
         flags: Int
     ): Pointer
+
+     fun g_signal_handlers_disconnect_matched(statusIcon: Pointer, i: Int, i1: Int, nothing: Nothing?, nothing1: Nothing?, nothing2: Nothing?, nothing3: Nothing?)
 }
