@@ -196,3 +196,60 @@ void tray_exit(void) {
   }
   UnregisterClass(WC_TRAY_CLASS_NAME, GetModuleHandle(NULL));
 }
+
+
+void tray_get_notification_icons_position(int* x, int* y) {
+  RECT rect;
+
+  // Get the handle to the notification icons tray ("TrayNotifyWnd")
+  HWND hwndTray = FindWindow(TEXT("Shell_TrayWnd"), NULL);
+  HWND hwndNotification = FindWindowEx(hwndTray, NULL, TEXT("TrayNotifyWnd"), NULL);
+
+  if (hwndNotification) {
+    GetWindowRect(hwndNotification, &rect);
+    *x = rect.left;
+    *y = rect.top;
+  } else {
+    // If the notification area window was not found, set position to default (0, 0).
+    *x = 0;
+    *y = 0;
+  }
+}
+
+const char* tray_get_notification_icons_region() {
+  RECT rect;
+  POINT trayPosition;
+
+  // Get the handle to the notification icons tray ("TrayNotifyWnd")
+  HWND hwndTray = FindWindow(TEXT("Shell_TrayWnd"), NULL);
+  HWND hwndNotification = FindWindowEx(hwndTray, NULL, TEXT("TrayNotifyWnd"), NULL);
+
+  if (hwndNotification) {
+    GetWindowRect(hwndNotification, &rect);
+    trayPosition.x = rect.left;
+    trayPosition.y = rect.top;
+  } else {
+    // If the notification area window was not found, set position to default (0, 0).
+    trayPosition.x = 0;
+    trayPosition.y = 0;
+  }
+
+  // Determine the position region: top-left, top-right, bottom-left, bottom-right
+  HMONITOR hMonitor = MonitorFromWindow(hwndNotification, MONITOR_DEFAULTTOPRIMARY);
+  MONITORINFO mi;
+  mi.cbSize = sizeof(MONITORINFO);
+  GetMonitorInfo(hMonitor, &mi);
+
+  int midX = (mi.rcMonitor.right - mi.rcMonitor.left) / 2;
+  int midY = (mi.rcMonitor.bottom - mi.rcMonitor.top) / 2;
+
+  if (trayPosition.x < midX && trayPosition.y < midY) {
+    return "top-left";
+  } else if (trayPosition.x >= midX && trayPosition.y < midY) {
+    return "top-right";
+  } else if (trayPosition.x < midX && trayPosition.y >= midY) {
+    return "bottom-left";
+  } else {
+    return "bottom-right";
+  }
+}
