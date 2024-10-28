@@ -136,7 +136,7 @@ internal class WindowsTrayManager(
         } finally {
             synchronized(tray) {
                 trayLib.tray_exit()
-                tray.menu?.let { trayLib.tray_free_menu(it) }
+              //  tray.menu?.let { trayLib.tray_free_menu(it) }
             }
         }
     }
