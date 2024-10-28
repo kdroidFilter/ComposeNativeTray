@@ -1,7 +1,7 @@
 package com.kdroid.composetray.tray.api
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
@@ -9,6 +9,8 @@ import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.OperatingSystem
 import com.kdroid.composetray.utils.PlatformUtils
+import com.kdroid.kmplog.Log
+import com.kdroid.kmplog.d
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,7 +54,7 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null
 ) {
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
         NativeTray(
             iconPath = iconPath,
             windowsIconPath = windowsIconPath,
@@ -61,5 +63,15 @@ fun ApplicationScope.Tray(
             primaryActionLinuxLabel = primaryActionLinuxLabel,
             menuContent = menuContent
         )
+
+        onDispose {
+            Log.d("NativeTray", "onDispose")
+            when (PlatformUtils.currentOS) {
+                OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
+                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> {} //todo
+                OperatingSystem.LINUX -> {} //todo
+            }
+
+        }
     }
 }

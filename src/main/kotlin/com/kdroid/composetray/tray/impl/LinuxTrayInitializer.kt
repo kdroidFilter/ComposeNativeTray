@@ -6,11 +6,11 @@ import com.kdroid.composetray.lib.linux.appindicator.AppIndicatorStatus
 import com.kdroid.composetray.lib.linux.appindicator.Gtk
 import com.kdroid.composetray.lib.linux.gdk.Gdk
 import com.kdroid.composetray.lib.linux.gdk.GdkRectangle
-import com.kdroid.composetray.utils.convertPositionToCorner
 import com.kdroid.composetray.lib.linux.gtkstatusicon.GtkStatusIcon
 import com.kdroid.composetray.lib.linux.gtkstatusicon.GtkStatusIconActivateCallback
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
+import com.kdroid.composetray.utils.convertPositionToCorner
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.sun.jna.Pointer
@@ -54,7 +54,7 @@ object LinuxTrayInitializer {
                     Gdk.INSTANCE.gdk_monitor_get_geometry(monitor, geometry)
                     val width = geometry.width
                     val height = geometry.height
-                    Log.d("LinuxTrayInitializer", convertPositionToCorner(x[0], y[0], width, height))
+                    Log.d("LinuxTrayInitializer", convertPositionToCorner(x[0], y[0], width, height).toString())
                     Log.d("LinuxTrayInitializer", "First menu item clicked at position: x=${x[0]}, y=${y[0]}")
                     // Execute the primary action
                     it.invoke()

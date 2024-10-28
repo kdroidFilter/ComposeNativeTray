@@ -100,18 +100,25 @@ struct tray * tray_get_instance() {
 }
 
 int tray_init(struct tray *tray) {
-    OutputDebugStringA("Init started");
+  OutputDebugStringA("Init started");
   wm_taskbarcreated = RegisterWindowMessage("TaskbarCreated");
-    OutputDebugStringA("Init 2");
+  OutputDebugStringA("Init 2");
+
+  if (exit_was_called) {
+    exit_was_called = FALSE;
+  }
 
   memset(&wc, 0, sizeof(wc));
-    OutputDebugStringA("Memset done");
+  OutputDebugStringA("Memset done");
   wc.cbSize = sizeof(WNDCLASSEX);
   wc.lpfnWndProc = _tray_wnd_proc;
   wc.hInstance = GetModuleHandle(NULL);
   wc.lpszClassName = WC_TRAY_CLASS_NAME;
+
   if (!RegisterClassEx(&wc)) {
-    return -1;
+    if (GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+      return -1;
+    }
   }
 
   hwnd = CreateWindowEx(0, WC_TRAY_CLASS_NAME, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -183,7 +190,9 @@ void tray_exit(void) {
   if (hmenu != 0) {
     DestroyMenu(hmenu);
   }
-  DestroyWindow(hwnd);
+  if (hwnd != NULL) {
+    DestroyWindow(hwnd);
+    hwnd = NULL;
+  }
   UnregisterClass(WC_TRAY_CLASS_NAME, GetModuleHandle(NULL));
 }
-

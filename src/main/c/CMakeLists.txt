@@ -32,7 +32,8 @@ else()
 	endif()
 endif()
 
-add_library(tray SHARED ${SRCS})
+add_library(tray SHARED ${SRCS}
+		tray_windows.c)
 set_property(TARGET tray PROPERTY C_STANDARD 99)
 target_compile_definitions(tray PRIVATE TRAY_EXPORTS)
 set_target_properties(tray PROPERTIES C_VISIBILITY_PRESET hidden)

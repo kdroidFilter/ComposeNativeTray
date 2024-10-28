@@ -49,7 +49,7 @@ internal class WindowsTrayManager(
             initializeOnLeftClickCallback()
             if (tray.menu == null) {
                 initializeTrayMenu()
-                require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray" }
+                require(trayLib.tray_init(tray) == 0) { "Échec de l'initialisation du tray ${trayLib.tray_init(tray)}" }
                 runTrayLoop()
             }
         }
@@ -143,5 +143,6 @@ internal class WindowsTrayManager(
 
     fun stopTray() {
         running.set(false)
+        trayLib.tray_exit()
     }
 }
