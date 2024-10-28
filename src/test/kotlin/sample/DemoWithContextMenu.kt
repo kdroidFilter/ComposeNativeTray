@@ -18,7 +18,7 @@ fun main() = application {
     Log.setDevelopmentMode(true)
     val logTag = "NativeTray"
 
-    Log.d("SavedTrayPosition", getTrayPosition().toString())
+    Log.d("TrayPosition", getTrayPosition().toString())
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
