@@ -11,7 +11,9 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
+import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
+import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
 import kotlin.system.exitProcess
@@ -19,6 +21,8 @@ import kotlin.system.exitProcess
 fun main() = application {
     Log.setDevelopmentMode(true)
     val logTag = "NativeTray"
+
+    Log.d("SavedTrayPosition", getTrayPosition().toString())
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }

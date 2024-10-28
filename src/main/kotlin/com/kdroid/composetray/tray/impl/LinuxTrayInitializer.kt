@@ -11,6 +11,7 @@ import com.kdroid.composetray.lib.linux.gtkstatusicon.GtkStatusIconActivateCallb
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import com.kdroid.composetray.utils.convertPositionToCorner
+import com.kdroid.composetray.utils.saveTrayPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.sun.jna.Pointer
@@ -79,6 +80,7 @@ object LinuxTrayInitializer {
             }
         }
     }
+
     fun initialize(
         iconPath: String,
         tooltip: String,
@@ -86,95 +88,145 @@ object LinuxTrayInitializer {
         primaryActionLinuxLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
-        // Clean the previous instance if it exists
-        if (isInitialized.get()) {
-            dispose()
-            // Wait for the cleaning to be completed
-            Thread.sleep(200)
-        }
-        instanceCount++
-        val currentInstanceId = "compose-tray-${instanceCount}"
-        // Initialize GTK
-        if (!isInitialized.get()) {
-            Gtk.INSTANCE.gtk_init(0, Pointer.createConstant(0))
-        }
+        cleanPreviousInstance()
+        initializeGtk()
+
         if (menuContent != null) {
-            try {
-                // Use AppIndicator with menu
-                val indicator = AppIndicator.INSTANCE.app_indicator_new(
-                    currentInstanceId, iconPath, AppIndicatorCategory.APPLICATION_STATUS
-                )
-                currentIndicator.set(indicator)
-                // Build the menu first
-                val menu = Gtk.INSTANCE.gtk_menu_new()
-                currentMenu.set(menu)
-                val trayMenuBuilder = LinuxTrayMenuBuilderImpl(menu)
-                currentMenuBuilder.set(trayMenuBuilder)
-                // Configure the menu before attaching it to the indicator
-                primaryAction?.let {
-                    trayMenuBuilder.Item(primaryActionLinuxLabel) {
-                        val display = Gdk.INSTANCE.gdk_display_get_default()
-                        val seat = Gdk.INSTANCE.gdk_display_get_default_seat(display)
-                        val pointer = Gdk.INSTANCE.gdk_seat_get_pointer(seat)
-                        val x = IntArray(1)
-                        val y = IntArray(1)
-                        Gdk.INSTANCE.gdk_device_get_position(pointer, null, x, y)
-                        val monitor = Gdk.INSTANCE.gdk_display_get_primary_monitor(display)
-                        val geometry = GdkRectangle()
-                        Gdk.INSTANCE.gdk_monitor_get_geometry(monitor, geometry)
-                        val width = geometry.width
-                        val height = geometry.height
-                        Log.d("LinuxTrayInitializer", convertPositionToCorner(x[0], y[0], width, height).toString())
-                        Log.d("LinuxTrayInitializer", "Menu item clicked at position: x=${x[0]}, y=${y[0]}")
-                        it.invoke()
-                    }
-                }
-                trayMenuBuilder.apply(menuContent)
-                // Show the menu before attaching it to the indicator
-                Gtk.INSTANCE.gtk_widget_show_all(menu)
-                // Set the tooltip
-                AppIndicator.INSTANCE.app_indicator_set_title(indicator, tooltip)
-                // Now attach the menu to the indicator
-                AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
-                // Finally, activate the indicator
-                AppIndicator.INSTANCE.app_indicator_set_status(indicator, AppIndicatorStatus.ACTIVE)
-            } catch (e: Exception) {
-                Log.d("LinuxTrayInitializer", "Error initializing AppIndicator: ${e.message}")
-                dispose()
-                return
-            }
+            initializeWithMenu(
+                currentInstanceId = generateCurrentInstanceId(),
+                iconPath = iconPath,
+                tooltip = tooltip,
+                primaryAction = primaryAction,
+                primaryActionLinuxLabel = primaryActionLinuxLabel,
+                menuContent = menuContent
+            )
         } else if (primaryAction != null) {
-            try {
-                // Use GtkStatusIcon without menu
-                val statusIcon = GtkStatusIcon.INSTANCE.gtk_status_icon_new_from_file(iconPath)
-                currentStatusIcon.set(statusIcon)
-                val callback = object : GtkStatusIconActivateCallback {
-                    override fun invoke(status_icon: Pointer?, event_button: Int, event_time: Int) {
-                        primaryAction.invoke()
-                    }
-                }
-                currentCallback.set(callback)
-                GtkStatusIcon.INSTANCE.g_signal_connect_data(
-                    statusIcon,
-                    "activate",
-                    callback,
-                    null,
-                    null,
-                    0
-                )
-                GtkStatusIcon.INSTANCE.gtk_status_icon_set_visible(statusIcon, 1)
-            } catch (e: Exception) {
-                Log.d("LinuxTrayInitializer", "Error initializing StatusIcon: ${e.message}")
-                dispose()
-                return
-            }
+            initializeWithoutMenu(iconPath, primaryAction)
         } else {
             Log.d("LinuxTrayInitializer", "No menu content or primary action provided for tray icon.")
         }
+
         isInitialized.set(true)
-        // Start the GTK main loop
+        startGtkMainLoopIfInitialized()
+    }
+
+    private fun cleanPreviousInstance() {
+        if (isInitialized.get()) {
+            dispose()
+            // Attendre que le nettoyage soit terminé
+            Thread.sleep(200)
+        }
+        instanceCount++
+    }
+
+    private fun generateCurrentInstanceId(): String {
+        return "compose-tray-$instanceCount"
+    }
+
+    private fun initializeGtk() {
+        if (!isInitialized.get()) {
+            Gtk.INSTANCE.gtk_init(0, Pointer.createConstant(0))
+        }
+    }
+
+    private fun initializeWithMenu(
+        currentInstanceId: String,
+        iconPath: String,
+        tooltip: String,
+        primaryAction: (() -> Unit)?,
+        primaryActionLinuxLabel: String,
+        menuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        try {
+            val indicator = AppIndicator.INSTANCE.app_indicator_new(
+                currentInstanceId,
+                iconPath,
+                AppIndicatorCategory.APPLICATION_STATUS
+            )
+            currentIndicator.set(indicator)
+
+            val menu = Gtk.INSTANCE.gtk_menu_new()
+            currentMenu.set(menu)
+
+            val trayMenuBuilder = LinuxTrayMenuBuilderImpl(menu)
+            currentMenuBuilder.set(trayMenuBuilder)
+
+            primaryAction?.let {
+                addPrimaryActionMenuItem(trayMenuBuilder, it, primaryActionLinuxLabel)
+            }
+
+            trayMenuBuilder.apply(menuContent!!)
+            Gtk.INSTANCE.gtk_widget_show_all(menu)
+
+            AppIndicator.INSTANCE.app_indicator_set_title(indicator, tooltip)
+            AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
+            AppIndicator.INSTANCE.app_indicator_set_status(indicator, AppIndicatorStatus.ACTIVE)
+        } catch (e: Exception) {
+            Log.d("LinuxTrayInitializer", "Error initializing AppIndicator: ${e.message}")
+            dispose()
+        }
+    }
+
+    private fun addPrimaryActionMenuItem(
+        trayMenuBuilder: LinuxTrayMenuBuilderImpl,
+        primaryAction: () -> Unit,
+        primaryActionLinuxLabel: String
+    ) {
+        trayMenuBuilder.Item(primaryActionLinuxLabel) {
+            saveTrayIconPosition()
+            primaryAction.invoke()
+        }
+    }
+
+    private fun saveTrayIconPosition() {
+        val display = Gdk.INSTANCE.gdk_display_get_default()
+        val seat = Gdk.INSTANCE.gdk_display_get_default_seat(display)
+        val pointer = Gdk.INSTANCE.gdk_seat_get_pointer(seat)
+        val x = IntArray(1)
+        val y = IntArray(1)
+        Gdk.INSTANCE.gdk_device_get_position(pointer, null, x, y)
+
+        val monitor = Gdk.INSTANCE.gdk_display_get_primary_monitor(display)
+        val geometry = GdkRectangle()
+        Gdk.INSTANCE.gdk_monitor_get_geometry(monitor, geometry)
+        val width = geometry.width
+        val height = geometry.height
+
+        saveTrayPosition(convertPositionToCorner(x[0], y[0], width, height))
+        Log.d("LinuxTrayInitializer", "TrayPosition : ${convertPositionToCorner(x[0], y[0], width, height)}")
+    }
+
+    private fun initializeWithoutMenu(iconPath: String, primaryAction: () -> Unit) {
+        try {
+            val statusIcon = GtkStatusIcon.INSTANCE.gtk_status_icon_new_from_file(iconPath)
+            currentStatusIcon.set(statusIcon)
+
+            val callback = object : GtkStatusIconActivateCallback {
+                override fun invoke(status_icon: Pointer?, event_button: Int, event_time: Int) {
+                    primaryAction.invoke()
+                }
+            }
+            currentCallback.set(callback)
+
+            GtkStatusIcon.INSTANCE.g_signal_connect_data(
+                statusIcon,
+                "activate",
+                callback,
+                null,
+                null,
+                0
+            )
+            GtkStatusIcon.INSTANCE.gtk_status_icon_set_visible(statusIcon, 1)
+        } catch (e: Exception) {
+            Log.d("LinuxTrayInitializer", "Error initializing StatusIcon: ${e.message}")
+            dispose()
+        }
+    }
+
+    private fun startGtkMainLoopIfInitialized() {
         if (isInitialized.get()) {
             Gtk.INSTANCE.gtk_main()
         }
     }
+
 }
