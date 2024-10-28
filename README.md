@@ -23,6 +23,9 @@
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
+  
+
+- ![ComposeDemo](screenshots/demo.gif)
 
   ```kotlin
   var isWindowVisible by remember { mutableStateOf(true) }
