@@ -24,6 +24,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("io.github.kdroidfilter:kmplog:0.3.0")
     implementation(compose.desktop.currentOs)
+    testImplementation("org.jetbrains.compose.material3:material3-desktop:1.7.0")
     testImplementation(kotlin("test"))
 }
 
