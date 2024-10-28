@@ -68,7 +68,7 @@ fun ApplicationScope.Tray(
             Log.d("NativeTray", "onDispose")
             when (PlatformUtils.currentOS) {
                 OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
-                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> {} //todo
+                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
                 OperatingSystem.LINUX -> LinuxTrayInitializer.dispose()
             }
 
