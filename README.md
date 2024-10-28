@@ -4,7 +4,6 @@
   <img src="screenshots/logo.webp" alt="logo" width="300">
 </p>
 
-
 **Compose Native Tray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. The Linux implementation uses GTK, while macOS uses AWT, and the Windows implementation is based on native system calls. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
 
 > **Warning**: This library is highly experimental, and its APIs are subject to change.
@@ -19,8 +18,21 @@
 - Improves the appearance of the tray on Linux, which previously resembled Windows 95.
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
-    - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
-    - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label).
+  - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
+  - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label).
+- **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
+- **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
+- **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
+
+  ```kotlin
+  var isWindowVisible by remember { mutableStateOf(true) }
+
+  if (!isWindowVisible) {
+      Tray(
+          // Tray parameters
+      )
+  }
+  ```
 
 ## 🚀 Getting Started
 
@@ -128,6 +140,56 @@ gcc -shared -o ../resources/win32-x86-64/tray.dll tray_windows.c
 
 This example uses the `kmplog` library for logging, which allows you to log messages when certain items are selected or toggled.
 
+### 🔄 Single Instance Management
+
+The `SingleInstanceManager` ensures that only one instance of the application is running at a time. When a second instance tries to start, it sends a restore request to the existing instance to bring it to the foreground.
+
+#### **Usage**
+To use the `SingleInstanceManager`, include it as follows:
+
+```kotlin
+var isWindowVisible by remember { mutableStateOf(true) }
+
+val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
+    isWindowVisible = true
+})
+
+if (!isSingleInstance) {
+    exitApplication()
+    return@application
+}
+```
+
+In this example, the `SingleInstanceManager` will check if an instance is already running. If not, it will acquire the lock and start watching for restore requests. If an instance is already running, it will send a restore request to bring the existing window to the foreground, allowing you to focus on the already-running application rather than starting a new instance.
+
+### 📌 Tray Position Detection
+
+The `getTrayPosition()` function allows you to determine the current position of the system tray on the screen. This information can be useful for aligning application windows relative to the tray icon.
+
+> **Note**: Currently, on macOS, the `getTrayPosition()` function always returns `TOP_RIGHT`, and the tray position is not dynamically detected. On Windows and Linux, the position is determined dynamically.
+
+Additionally, the `getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition` function can be used to determine the appropriate position for a window of specific dimensions, taking into account the location of the tray.
+
+#### **Usage**
+To use the tray position functions:
+
+```kotlin
+val windowWidth = 800
+val windowHeight = 600
+val windowPosition = getTrayWindowPosition(windowWidth, windowHeight)
+
+Window(
+    state = rememberWindowState(
+        width = windowWidth.dp,
+        height = windowHeight.dp,
+        position = windowPosition
+    ),
+    ...
+)
+```
+
+In this example, `getTrayWindowPosition` is used to determine the ideal position for the window based on the system tray's location. This helps in creating a seamless and user-friendly experience when displaying windows near the tray icon.
+
 ## 📸 Screenshots
 
 Here are some screenshots of ComposeTray running on different platforms:
@@ -151,9 +213,9 @@ Feel free to open issues or pull requests if you find any bugs or have suggestio
 
 ## ✅ Things to Implement
 
-- Implement a system to check if an instance of the application is already running
+- ✅ Implement a system to check if an instance of the application is already running
+- ✅ Add the ability to locate the position of the systray (top left, top right, etc.)
 - Add the ability to dynamically change the tray icon
-- Add the ability to locate the position of the systray (top left, top right, etc.)
 
 ## 🙏 Acknowledgements
 
