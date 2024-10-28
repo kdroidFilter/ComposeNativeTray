@@ -24,8 +24,9 @@
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
   
-
-![ComposeDemo](screenshots/demo.gif)
+<p align="center">
+  <img src="screenshots/demo.gif" alt="demo">
+</p>
 
   ```kotlin
   var isWindowVisible by remember { mutableStateOf(true) }
