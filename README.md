@@ -19,7 +19,7 @@
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
   - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
-  - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label).
+  - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label). If the context menu is empty, the library uses `gtkstatusicon` to capture the primary action without needing to add an item to the context menu.
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
@@ -42,7 +42,7 @@ To use the ComposeTray library, add it as a dependency in your `build.gradle.kts
 
 ```kotlin
 dependencies {
-    implementation("io.github.kdroidfilter:composenativetray:0.4.0")
+  implementation("io.github.kdroidfilter:composenativetray:0.4.0")
 }
 ```
 
@@ -53,64 +53,64 @@ The `Tray` must be executed inside an Application Scope, like this:
 
 ````kotlin
 application {
-    val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
-    val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
-    Tray(
-        iconPath = iconPath,
-        windowsIconPath = windowsIconPath,
-        tooltip = "My Application",
-        primaryAction = {
-            Log.i(logTag, "Primary action triggered")
-        },
-        primaryActionLinuxLabel = "Open Application"
-    ) {
-        SubMenu(label = "Options") {
-            Item(label = "Setting 1") {
-                Log.i(logTag, "Setting 1 selected")
-            }
-            SubMenu(label = "Advanced Sub-options") {
-                Item(label = "Advanced Option 1") {
-                    Log.i(logTag, "Advanced Option 1 selected")
-                }
-                Item(label = "Advanced Option 2") {
-                    Log.i(logTag, "Advanced Option 2 selected")
-                }
-            }
+  val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
+  val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
+  Tray(
+    iconPath = iconPath,
+    windowsIconPath = windowsIconPath,
+    tooltip = "My Application",
+    primaryAction = {
+      Log.i(logTag, "Primary action triggered")
+    },
+    primaryActionLinuxLabel = "Open Application"
+  ) {
+    SubMenu(label = "Options") {
+      Item(label = "Setting 1") {
+        Log.i(logTag, "Setting 1 selected")
+      }
+      SubMenu(label = "Advanced Sub-options") {
+        Item(label = "Advanced Option 1") {
+          Log.i(logTag, "Advanced Option 1 selected")
         }
-
-        Divider()
-
-        SubMenu(label = "Tools") {
-            Item(label = "Calculator") {
-                Log.i(logTag, "Calculator launched")
-            }
-            Item(label = "Notepad") {
-                Log.i(logTag, "Notepad opened")
-            }
+        Item(label = "Advanced Option 2") {
+          Log.i(logTag, "Advanced Option 2 selected")
         }
-
-        Divider()
-
-        CheckableItem(label = "Enable notifications") { isChecked ->
-            Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
-        }
-
-        Divider()
-
-        Item(label = "About") {
-            Log.i(logTag, "Application v1.0 - Developed by Elyahou")
-        }
-
-        Divider()
-
-        Item(label = "Exit", isEnabled = true) {
-            Log.i(logTag, "Exiting the application")
-            dispose()
-            exitProcess(0)
-        }
-
-        Item(label = "Version 1.0.0", isEnabled = false)
+      }
     }
+
+    Divider()
+
+    SubMenu(label = "Tools") {
+      Item(label = "Calculator") {
+        Log.i(logTag, "Calculator launched")
+      }
+      Item(label = "Notepad") {
+        Log.i(logTag, "Notepad opened")
+      }
+    }
+
+    Divider()
+
+    CheckableItem(label = "Enable notifications") { isChecked ->
+      Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
+    }
+
+    Divider()
+
+    Item(label = "About") {
+      Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+    }
+
+    Divider()
+
+    Item(label = "Exit", isEnabled = true) {
+      Log.i(logTag, "Exiting the application")
+      dispose()
+      exitProcess(0)
+    }
+
+    Item(label = "Version 1.0.0", isEnabled = false)
+  }
 }
 ````
 
@@ -151,12 +151,12 @@ To use the `SingleInstanceManager`, include it as follows:
 var isWindowVisible by remember { mutableStateOf(true) }
 
 val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
-    isWindowVisible = true
+  isWindowVisible = true
 })
 
 if (!isSingleInstance) {
-    exitApplication()
-    return@application
+  exitApplication()
+  return@application
 }
 ```
 
@@ -179,12 +179,12 @@ val windowHeight = 600
 val windowPosition = getTrayWindowPosition(windowWidth, windowHeight)
 
 Window(
-    state = rememberWindowState(
-        width = windowWidth.dp,
-        height = windowHeight.dp,
-        position = windowPosition
-    ),
-    ...
+  state = rememberWindowState(
+    width = windowWidth.dp,
+    height = windowHeight.dp,
+    position = windowPosition
+  ),
+  ...
 )
 ```
 
