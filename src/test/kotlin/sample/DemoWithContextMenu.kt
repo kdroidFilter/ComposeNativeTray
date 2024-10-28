@@ -4,11 +4,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
+import com.kdroid.composetray.utils.getTrayWindowPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
@@ -123,6 +126,10 @@ fun main() = application {
         }
     }
 
+    val windowWidth = 800
+    val windowHeight = 600
+    val windowPosition = getTrayWindowPosition(windowWidth, windowHeight)
+
     Window(
         onCloseRequest = {
             if (hideOnClose) {
@@ -131,6 +138,11 @@ fun main() = application {
                 exitApplication()
             }
         },
+        state = rememberWindowState(
+            width = windowWidth.dp,
+            height = windowHeight.dp,
+            position = windowPosition
+        ),
         title = "Compose Desktop Application with Two Screens",
         visible = isWindowVisible,
         icon = painterResource("icon.png") // Optional: Set window icon

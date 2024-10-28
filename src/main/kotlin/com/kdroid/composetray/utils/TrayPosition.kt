@@ -1,7 +1,10 @@
 package com.kdroid.composetray.utils
 
 import WindowsNativeTrayLibrary
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.WindowPosition
 import com.sun.jna.Native
+import java.awt.Toolkit
 import java.io.File
 import java.util.*
 
@@ -43,7 +46,6 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
 }
 
 fun getTrayPosition(): TrayPosition {
-
     when (PlatformUtils.currentOS) {
         OperatingSystem.WINDOWS -> {
             val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
@@ -62,4 +64,18 @@ fun getTrayPosition(): TrayPosition {
         OperatingSystem.UNKNOWN -> return TrayPosition.TOP_RIGHT
     }
     return TrayPosition.TOP_RIGHT
+}
+
+fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
+    val trayPosition = getTrayPosition()
+    val screenSize = Toolkit.getDefaultToolkit().screenSize
+    return when (trayPosition) {
+        TrayPosition.TOP_LEFT -> WindowPosition(x = 0.dp, y = 0.dp)
+        TrayPosition.TOP_RIGHT -> WindowPosition(x = (screenSize.width - windowWidth).dp, y = 0.dp)
+        TrayPosition.BOTTOM_LEFT -> WindowPosition(x = 0.dp, y = (screenSize.height - windowHeight).dp)
+        TrayPosition.BOTTOM_RIGHT -> WindowPosition(
+            x = (screenSize.width - windowWidth).dp,
+            y = (screenSize.height - windowHeight).dp
+        )
+    }
 }
