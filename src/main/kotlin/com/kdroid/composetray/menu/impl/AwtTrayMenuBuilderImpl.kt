@@ -16,8 +16,8 @@ internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private 
         popupMenu.add(menuItem)
     }
 
-    override fun CheckableItem(label: String, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
-        var isChecked = false
+    override fun CheckableItem(label: String, checked:Boolean, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
+        var isChecked = checked
         val checkableMenuItem = MenuItem(getCheckableLabel(label, isChecked))
         checkableMenuItem.isEnabled = isEnabled
 

@@ -70,6 +70,9 @@ fun main() = application {
             CheckableItem(label = "Enable notifications") { isChecked ->
                 Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
             }
+            CheckableItem(label = "Initial Checked", checked = true) { isChecked ->
+                Log.i(logTag, "Initial Checked ${if (isChecked) "enabled" else "disabled"}")
+            }
 
             Divider()
 
