@@ -61,10 +61,11 @@ class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
         )
     }
 
-    override fun CheckableItem(label: String, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
+    override fun CheckableItem(label: String, checked: Boolean, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
         val checkMenuItem = Gtk.INSTANCE.gtk_check_menu_item_new_with_label(label)
         Gtk.INSTANCE.gtk_menu_shell_append(menu, checkMenuItem)
         Gtk.INSTANCE.gtk_widget_set_sensitive(checkMenuItem, if (isEnabled) 1 else 0)
+        Gtk.INSTANCE.gtk_check_menu_item_set_active(checkMenuItem, checked)
 
         val callback = object : GCallback {
             override fun callback(widget: Pointer, data: Pointer?) {

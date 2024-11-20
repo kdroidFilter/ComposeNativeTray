@@ -23,5 +23,6 @@ internal interface Gtk : Library {
     fun gtk_widget_set_sensitive(widget: Pointer, sensitive: Int)
     fun gtk_widget_destroy(menu: Pointer)
     fun gtk_widget_hide(get: Pointer?)
+    fun gtk_check_menu_item_set_active(checkMenuItem: Pointer, active: Boolean)
 
 }
