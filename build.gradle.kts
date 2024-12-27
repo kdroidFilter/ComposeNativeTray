@@ -2,14 +2,14 @@ import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
-    kotlin("jvm") version "2.0.20"
-    id("org.jetbrains.compose") version "1.7.0"
+    kotlin("jvm") version "2.0.21"
+    id("org.jetbrains.compose") version "1.7.3"
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
     id("com.vanniktech.maven.publish") version "0.30.0"
 }
 
 group = "com.kdroid.composenativetray"
-version = "0.5.0"
+version = "0.5.1"
 
 repositories {
     mavenCentral()
@@ -24,7 +24,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("io.github.kdroidfilter:kmplog:0.3.0")
     implementation(compose.desktop.currentOs)
-    testImplementation("org.jetbrains.compose.material3:material3-desktop:1.7.0")
+    testImplementation("org.jetbrains.compose.material3:material3-desktop:1.7.3")
     testImplementation(kotlin("test"))
 }
 
