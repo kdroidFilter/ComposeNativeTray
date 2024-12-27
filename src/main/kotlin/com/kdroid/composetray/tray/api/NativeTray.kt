@@ -54,7 +54,7 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null
 ) {
-    DisposableEffect(Unit) {
+    DisposableEffect(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent) {
         NativeTray(
             iconPath = iconPath,
             windowsIconPath = windowsIconPath,
