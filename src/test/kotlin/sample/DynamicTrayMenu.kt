@@ -41,7 +41,7 @@ fun main() = application {
     }
 
     // Tray Icon Paths
-    val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
+    var iconPath by remember { mutableStateOf( Paths.get("src/test/resources/icon.png").toAbsolutePath().toString())}
     val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
 
     val running = serviceStatus == ServiceStatus.RUNNING
@@ -81,6 +81,11 @@ fun main() = application {
                     Item(label = "Hide Text") {
                         Log.i(logTag, "Hide Text selected")
                         textVisible = false
+                    }
+                    Item("Change icon") {
+                        if (iconPath == Paths.get("src/test/resources/icon.png").toAbsolutePath().toString())
+                        iconPath = Paths.get("src/test/resources/icon2.png").toAbsolutePath().toString()
+                        else iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
                     }
                 }
 
