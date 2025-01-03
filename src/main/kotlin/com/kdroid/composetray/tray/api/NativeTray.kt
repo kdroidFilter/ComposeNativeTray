@@ -2,6 +2,7 @@ package com.kdroid.composetray.tray.api
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
@@ -9,6 +10,7 @@ import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.OperatingSystem
 import com.kdroid.composetray.utils.PlatformUtils
+import com.kdroid.composetray.utils.extractToTempIfDifferent
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import kotlinx.coroutines.CoroutineScope
@@ -54,10 +56,22 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null
 ) {
-    DisposableEffect(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent) {
+    val absoluteIconPath = remember(iconPath) { extractToTempIfDifferent(iconPath)?.absolutePath.orEmpty() }
+    val absoluteWindowsIconPath = remember(iconPath, windowsIconPath) {
+        if (windowsIconPath == iconPath) absoluteIconPath
+        else extractToTempIfDifferent(windowsIconPath)?.absolutePath.orEmpty()
+    }
+    DisposableEffect(
+        absoluteIconPath,
+        absoluteWindowsIconPath,
+        tooltip,
+        primaryAction,
+        primaryActionLinuxLabel,
+        menuContent
+    ) {
         NativeTray(
-            iconPath = iconPath,
-            windowsIconPath = windowsIconPath,
+            iconPath = absoluteIconPath,
+            windowsIconPath = absoluteWindowsIconPath,
             tooltip = tooltip,
             primaryAction = primaryAction,
             primaryActionLinuxLabel = primaryActionLinuxLabel,
