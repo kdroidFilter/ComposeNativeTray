@@ -1,0 +1,65 @@
+name: "Automatic deployment of Dokka doc"
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Prevents multiple simultaneous deployments
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # 1) Build the Dokka documentation
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java (Temurin 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Generate Dokka documentation
+      - name: Generate Dokka documentation
+        run: |
+          ./gradlew dokkaHtml
+
+      # Prepare files for deployment
+      - name: Prepare files for deployment
+        run: |
+          mkdir -p build/final
+          # Copy the documentation to build/final (site root)
+          cp -r zmanim/build/dokka/html/* build/final
+
+      # Upload to the "pages" artifact to make it available for the next job
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/final
+
+  # 2) Deploy to GitHub Pages
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      # The final URL will be output in page_url
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          path: build/final

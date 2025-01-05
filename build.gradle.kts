@@ -1,11 +1,13 @@
 import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
     kotlin("jvm") version "2.1.0"
     id("org.jetbrains.compose") version "1.7.3"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
     id("com.vanniktech.maven.publish") version "0.30.0"
+    id("org.jetbrains.dokka")  version "2.0.0"
 }
 
 group = "com.kdroid.composenativetray"
@@ -16,6 +18,11 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     google()
 
+}
+
+tasks.withType<DokkaTask>().configureEach {
+    moduleName.set("Compose Native Tray Library")
+    offlineMode.set(true)
 }
 
 dependencies {
