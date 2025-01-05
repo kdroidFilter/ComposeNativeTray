@@ -21,7 +21,7 @@ repositories {
 dependencies {
     implementation("net.java.dev.jna:jna:5.15.0")
     implementation("net.java.dev.jna:jna-platform:5.16.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
     implementation("io.github.kdroidfilter:kmplog:0.3.0")
     implementation(compose.desktop.currentOs)
     testImplementation("org.jetbrains.compose.material3:material3-desktop:1.7.3")
