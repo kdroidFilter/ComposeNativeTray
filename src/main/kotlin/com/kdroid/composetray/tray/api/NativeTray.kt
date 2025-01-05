@@ -47,6 +47,16 @@ internal class NativeTray(
 }
 
 
+/**
+ * Configures and displays a system tray icon for the application with platform-specific behavior and menu options.
+ *
+ * @param iconPath The file path to the tray icon. This should be a valid image file compatible with the platform's tray requirements.
+ * @param windowsIconPath The file path to the tray icon specifically for Windows. Defaults to the value of `iconPath`.
+ * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
+ * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
+ * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
+ * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
+ */
 @Composable
 fun ApplicationScope.Tray(
     iconPath: String,

@@ -45,6 +45,17 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
     }
 }
 
+/**
+ * Determines the position of the system tray icons based on the current operating system.
+ *
+ * The method evaluates the operating system in use and retrieves the corresponding tray position.
+ * - On Windows, it uses the platform's native library to determine the tray position.
+ * - On macOS, it defaults to a specific standard position.
+ * - On Linux, the position can be fetched from an application-specific properties file, if available.
+ * - For unknown or unsupported operating systems, a default position is returned.
+ *
+ * @return The computed tray position as a [TrayPosition] enum value.
+ */
 fun getTrayPosition(): TrayPosition {
     when (PlatformUtils.currentOS) {
         OperatingSystem.WINDOWS -> {
@@ -66,6 +77,18 @@ fun getTrayPosition(): TrayPosition {
     return TrayPosition.TOP_RIGHT
 }
 
+/**
+ * Calculates the position of a tray window on the screen based on the current tray position and given window dimensions.
+ *
+ * This method determines the coordinates (x, y) where the tray window should be positioned, ensuring alignment
+ * with the current system tray's placement (top-left, top-right, bottom-left, bottom-right).
+ * The screen dimensions are retrieved using the system's screen size, and the provided window width and height are used
+ * to calculate the appropriate position.
+ *
+ * @param windowWidth The width of the tray window in pixels.
+ * @param windowHeight The height of the tray window in pixels.
+ * @return The calculated position as a [WindowPosition] object containing the x and y coordinates.
+ */
 fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
     val trayPosition = getTrayPosition()
     val screenSize = Toolkit.getDefaultToolkit().screenSize

@@ -12,6 +12,16 @@ import java.util.jar.JarFile
 import kotlin.io.path.createTempFile
 
 
+/**
+ * Extracts a specified file or entry from a JAR archive to a temporary file.
+ * If the specified file or entry is already extracted and matches the content, the existing temporary file is returned.
+ * Otherwise, a new temporary file is created with the extracted content.
+ *
+ * @param jarPath The path to the JAR file and entry to extract. It should be in the format
+ *                "jar:file:/path/to/jarfile.jar!/path/inside/jar".
+ * @return A temporary file containing the extracted content, or null if the entry does not exist in the JAR.
+ * @throws FileNotFoundException If the JAR file does not exist.
+ */
 internal fun extractToTempIfDifferent(jarPath: String): File? {
     // Analyze the path to get the file path and the entry path
     val correctedJarFilePath =
