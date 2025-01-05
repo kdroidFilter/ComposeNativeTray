@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p build/final
           # Copy the documentation to build/final (site root)
-          cp -r zmanim/build/dokka/html/* build/final
+          cp -r build/dokka/html/* build/final
 
       # Upload to the "pages" artifact to make it available for the next job
       - name: Upload artifact for GitHub Pages
