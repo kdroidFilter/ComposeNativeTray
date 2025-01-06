@@ -26,7 +26,7 @@ tasks.withType<DokkaTask>().configureEach {
 }
 
 dependencies {
-    implementation("net.java.dev.jna:jna:5.15.0")
+    implementation("net.java.dev.jna:jna:5.16.0")
     implementation("net.java.dev.jna:jna-platform:5.16.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
     implementation("io.github.kdroidfilter:kmplog:0.3.0")
