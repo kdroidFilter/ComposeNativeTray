@@ -11,7 +11,7 @@ plugins {
 }
 
 group = "com.kdroid.composenativetray"
-version = "0.5.3"
+version = "0.5.4"
 
 repositories {
     mavenCentral()
