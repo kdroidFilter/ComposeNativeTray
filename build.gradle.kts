@@ -4,7 +4,7 @@ import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
     kotlin("jvm") version "2.1.10"
-    id("org.jetbrains.compose") version "1.7.3"
+    id("org.jetbrains.compose") version "1.8.0+dev2072"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.10"
     id("com.vanniktech.maven.publish") version "0.30.0"
     id("org.jetbrains.dokka")  version "2.0.0"
