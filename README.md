@@ -201,6 +201,9 @@ Here are some screenshots of ComposeTray running on different platforms:
 ### Windows
 ![Windows](screenshots/windows.png)
 
+### MacOS
+![Windows](screenshots/mac.png)
+
 ### Ubuntu Gnome
 ![Gnome](screenshots/gnome.png)
 
