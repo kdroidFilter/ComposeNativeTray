@@ -1,6 +1,6 @@
 package com.kdroid.composetray.utils
 
-import WindowsNativeTrayLibrary
+import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.sun.jna.Native
