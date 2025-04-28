@@ -6,7 +6,6 @@
 
 **Compose Native Tray** is a Kotlin library that provides a simple way to create system tray applications with native support for Linux, Windows, and macOS. This library was created to address several issues with the Compose for Desktop tray, including poor HDPI support on Windows and Linux, as well as the outdated appearance of the tray on Linux, which resembled Windows 95. In addition to these fixes, ComposeTray also adds support for checkable items, dividers, submenus, and even nested submenus, offering a more feature-rich and modern solution. The Linux implementation uses GTK, while macOS uses AWT, and the Windows implementation is based on native system calls. Additionally, it allows you to enable or disable individual tray items dynamically. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.
 
-> **Warning**: This library is highly experimental, and its APIs are subject to change.
 
 ## ✨ Features
 
@@ -46,7 +45,7 @@ To use the ComposeTray library, add it as a dependency in your `build.gradle.kts
 
 ```kotlin
 dependencies {
-  implementation("io.github.kdroidfilter:composenativetray:0.5.5")
+  implementation("io.github.kdroidfilter:composenativetray:0.6.0")
 }
 ```
 
@@ -132,24 +131,6 @@ application {
 - **dispose**: Call to remove the system tray icon and exit gracefully.
 - **Primary Action**: An action triggered by a left-click on the tray icon (Windows and macOS) or as a top item in the context menu (Linux).
 
-### 🖥️ Platform-Specific Implementation
-The `NativeTray` class automatically detects the operating system and initializes the appropriate tray implementation:
-- **Linux**: Uses `LinuxTrayInitializer`, which is implemented using GTK via JNA.
-- **Windows**: Uses `WindowsTrayInitializer`, which is based on the [tray library by dmikushin](https://github.com/dmikushin/tray).
-- **macOS**: Uses `AwtTrayInitializer`, which is implemented using AWT.
-
-> Note: The library now accepts a Composable for the tray icon instead of file paths. The Composable is converted to the appropriate image format for each platform automatically.
-
-### 🗂️ Windows DLL Generation
-To generate the Windows DLL, execute the following command:
-```bash
-gcc -shared -o ../resources/win32-x86-64/tray.dll tray_windows.c
-````
-
-### 📜 Logging
-
-This example uses the `kmplog` library for logging, which allows you to log messages when certain items are selected or toggled.
-
 ### 🔄 Single Instance Management
 
 The `SingleInstanceManager` ensures that only one instance of the application is running at a time. When a second instance tries to start, it sends a restore request to the existing instance to bring it to the foreground.
@@ -226,9 +207,9 @@ Feel free to open issues or pull requests if you find any bugs or have suggestio
 
 ## ✅ Things to Implement
 
-- ✅ Implement a system to check if an instance of the application is already running
-- ✅ Add the ability to locate the position of the systray (top left, top right, etc.)
-- Add the ability to dynamically change the tray icon
+- ✅ ~~Implement a system to check if an instance of the application is already running~~
+- ✅ ~~Add the ability to locate the position of the systray (top left, top right, etc.)~~
+- ✅ ~~Add the ability to dynamically change the tray icon~~
 
 ## 🙏 Acknowledgements
 
