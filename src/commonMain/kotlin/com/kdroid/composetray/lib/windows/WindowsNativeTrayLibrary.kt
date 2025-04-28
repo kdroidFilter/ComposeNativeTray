@@ -1,3 +1,5 @@
+package com.kdroid.composetray.lib.windows
+
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.win32.StdCallLibrary

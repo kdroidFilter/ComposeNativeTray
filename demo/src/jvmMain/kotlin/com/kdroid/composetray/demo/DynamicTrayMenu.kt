@@ -1,19 +1,10 @@
 package com.kdroid.composetray.demo
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
@@ -53,7 +44,7 @@ fun main() = application {
     }
 
     val running = serviceStatus == ServiceStatus.RUNNING
-    var icon by mutableStateOf(Res.drawable.icon)
+    var icon by remember {   mutableStateOf(Res.drawable.icon) }
 
     if (alwaysShowTray || !isWindowVisible) {
         Tray(
