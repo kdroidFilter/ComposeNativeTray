@@ -1,29 +1,29 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
-    kotlin("jvm")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.compose")
+    alias(libs.plugins.multiplatform)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.compose)
+
 }
 
 kotlin {
     jvmToolchain(17)
+    jvm()
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":"))
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.desktop.currentOs)
+            implementation(compose.components.resources)
+            implementation(compose.material3)
+            implementation(libs.kmp.log)
+        }
+    }
 }
 
-repositories {
-    mavenCentral()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-    google()
-}
-
-dependencies {
-    implementation(project(":"))
-    implementation(compose.runtime)
-    implementation(compose.foundation)
-    implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
-    implementation("io.github.kdroidfilter:kmplog:0.3.0")
-}
 
 compose.desktop {
     application {
