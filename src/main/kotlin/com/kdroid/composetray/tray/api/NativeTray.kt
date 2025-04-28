@@ -9,11 +9,12 @@ import com.kdroid.composetray.tray.impl.AwtTrayInitializer
 import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.ComposableIconUtils
-import com.kdroid.composetray.utils.OperatingSystem
-import com.kdroid.composetray.utils.PlatformUtils
+
 import com.kdroid.composetray.utils.extractToTempIfDifferent
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
+import io.github.kdroidfilter.platformtools.OperatingSystem
+import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,7 +25,12 @@ internal class NativeTray {
 
     /**
      * Constructor that accepts file paths for icons
+     * @deprecated Use the constructor with composable icon content instead
      */
+    @Deprecated(
+        message = "Use the constructor with composable icon content instead",
+        replaceWith = ReplaceWith("NativeTray(iconContent, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)")
+    )
     constructor(
         iconPath: String,
         windowsIconPath: String = iconPath,
@@ -59,7 +65,7 @@ internal class NativeTray {
         Log.d("NativeTray", "Generated PNG icon path: $pngIconPath")
 
         // For Windows, we need an ICO file
-        val windowsIconPath = if (PlatformUtils.currentOS == OperatingSystem.WINDOWS) {
+        val windowsIconPath = if (getOperatingSystem() == OperatingSystem.WINDOWS) {
             // Create a temporary ICO file
             val tempFile = createTempFile(suffix = ".ico")
             val icoData = ComposableIconUtils.renderComposableToIcoBytes(
@@ -88,7 +94,7 @@ internal class NativeTray {
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         trayScope.launch {
-            when (PlatformUtils.currentOS) {
+            when (getOperatingSystem()) {
                 OperatingSystem.LINUX -> {
                     Log.d("NativeTray", "Initializing Linux tray with icon path: $iconPath")
                     LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
@@ -102,10 +108,12 @@ internal class NativeTray {
                         menuContent
                     )
                 }
-                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> {
+                OperatingSystem.MACOS, OperatingSystem.UNKNOWN -> {
                     Log.d("NativeTray", "Initializing AWT tray with icon path: $iconPath")
                     AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
                 }
+
+                else -> {}
             }
         }
     }
@@ -130,7 +138,13 @@ internal class NativeTray {
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
  * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
+ * 
+ * @deprecated Use the version with composable icon content instead
  */
+@Deprecated(
+    message = "Use the version with composable icon content instead",
+    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)")
+)
 @Composable
 fun ApplicationScope.Tray(
     iconPath: String,
@@ -164,10 +178,11 @@ fun ApplicationScope.Tray(
 
         onDispose {
             Log.d("NativeTray", "onDispose")
-            when (PlatformUtils.currentOS) {
+            when (getOperatingSystem()) {
                 OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
-                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
+                OperatingSystem.MACOS, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
                 OperatingSystem.LINUX -> LinuxTrayInitializer.dispose()
+                else -> {}
             }
         }
     }
@@ -182,9 +197,6 @@ fun ApplicationScope.Tray(
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
  * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
- * @param iconWidth Width of the icon in pixels. Defaults to 200.
- * @param iconHeight Height of the icon in pixels. Defaults to 200.
- * @param density Density factor for rendering. Defaults to 2f.
  */
 @Composable
 fun ApplicationScope.Tray(
@@ -194,12 +206,16 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
+    // Calculate a hash of the rendered composable content to detect changes
+    val contentHash = ComposableIconUtils.calculateContentHash(content = iconContent)
+
     DisposableEffect(
         iconContent,
         tooltip,
         primaryAction,
         primaryActionLinuxLabel,
         menuContent,
+        contentHash, // Use the content hash as an implicit key
     ) {
         NativeTray(
             iconContent = iconContent,
@@ -211,10 +227,11 @@ fun ApplicationScope.Tray(
 
         onDispose {
             Log.d("NativeTray", "onDispose")
-            when (PlatformUtils.currentOS) {
+            when (getOperatingSystem()) {
                 OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
-                OperatingSystem.MAC, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
+                OperatingSystem.MACOS, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
                 OperatingSystem.LINUX -> LinuxTrayInitializer.dispose()
+                else -> {}
             }
         }
     }

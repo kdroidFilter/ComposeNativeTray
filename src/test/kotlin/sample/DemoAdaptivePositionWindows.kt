@@ -123,6 +123,7 @@ fun main() = application {
         }
     }
 
+
     val windowWidth = 800
     val windowHeight = 600
     val windowPosition = getTrayWindowPosition(windowWidth, windowHeight)

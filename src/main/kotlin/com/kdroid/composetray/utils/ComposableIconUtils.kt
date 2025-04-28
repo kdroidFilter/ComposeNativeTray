@@ -1,6 +1,7 @@
 package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.Dispatchers
@@ -8,9 +9,7 @@ import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.absolutePathString
+import java.util.zip.CRC32
 
 /**
  * Utility functions for rendering Composable icons to image files for use in system tray.
@@ -135,5 +134,31 @@ object ComposableIconUtils {
         val tempFile = File.createTempFile(prefix, suffix)
         tempFile.deleteOnExit()
         return tempFile
+    }
+
+    /**
+     * Calculates a hash value for the rendered composable content.
+     * This can be used to detect changes in the composable content without requiring an explicit key.
+     *
+     * @param width Width of the image in pixels
+     * @param height Height of the image in pixels
+     * @param density Density factor for rendering
+     * @param content The Composable content to render
+     * @return A hash value representing the current state of the composable content
+     */
+    @Composable
+    fun calculateContentHash(
+        width: Int = 200,
+        height: Int = 200,
+        density: Float = 2f,
+        content: @Composable () -> Unit
+    ): Long {
+        // Render the composable to PNG bytes
+        val pngBytes = renderComposableToPngBytes(width, height, density, content)
+
+        // Calculate CRC32 hash of the PNG bytes
+        val crc = CRC32()
+        crc.update(pngBytes)
+        return crc.value
     }
 }

@@ -4,6 +4,8 @@ import WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.sun.jna.Native
+import io.github.kdroidfilter.platformtools.OperatingSystem
+import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.Toolkit
 import java.io.File
 import java.util.*
@@ -57,12 +59,12 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
  * @return The computed tray position as a [TrayPosition] enum value.
  */
 fun getTrayPosition(): TrayPosition {
-    when (PlatformUtils.currentOS) {
+    when (getOperatingSystem()) {
         OperatingSystem.WINDOWS -> {
             val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
             return getWindowsTrayPosition(trayLib.tray_get_notification_icons_region())
         }
-        OperatingSystem.MAC -> return TrayPosition.TOP_RIGHT //Todo
+        OperatingSystem.MACOS -> return TrayPosition.TOP_RIGHT //Todo
         OperatingSystem.LINUX -> {
             val properties = Properties()
             val file = File(PROPERTIES_FILE)
@@ -73,6 +75,7 @@ fun getTrayPosition(): TrayPosition {
             }
         }
         OperatingSystem.UNKNOWN -> return TrayPosition.TOP_RIGHT
+        else -> {}
     }
     return TrayPosition.TOP_RIGHT
 }
