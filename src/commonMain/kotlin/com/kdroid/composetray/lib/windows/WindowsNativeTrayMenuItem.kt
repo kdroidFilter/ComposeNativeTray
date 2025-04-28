@@ -1,5 +1,5 @@
+package com.kdroid.composetray.lib.windows
 
-import com.kdroid.composetray.lib.windows.StdCallCallback
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 

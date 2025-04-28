@@ -1,8 +1,4 @@
 package com.kdroid.composetray.lib.windows
-
-import WindowsNativeTray
-import WindowsNativeTrayLibrary
-import WindowsNativeTrayMenuItem
 import androidx.compose.runtime.mutableStateOf
 import com.sun.jna.Native
 import java.util.concurrent.atomic.AtomicBoolean
