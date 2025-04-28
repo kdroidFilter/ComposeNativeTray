@@ -1,4 +1,4 @@
-package sample
+package com.kdroid.composetray.demo
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button

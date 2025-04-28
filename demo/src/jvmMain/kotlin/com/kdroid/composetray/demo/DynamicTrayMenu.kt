@@ -1,10 +1,10 @@
-package sample
+package com.kdroid.composetray.demo
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,7 +22,10 @@ import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
-import java.nio.file.Paths
+import composenativetray.demo.generated.resources.Res
+import composenativetray.demo.generated.resources.icon
+import composenativetray.demo.generated.resources.icon2
+import org.jetbrains.compose.resources.painterResource
 
 private enum class ServiceStatus {
     RUNNING, STOPPED
@@ -48,14 +51,17 @@ fun main() = application {
         exitApplication()
         return@application
     }
-    var iconColor by remember { mutableStateOf(Color.White) }
 
     val running = serviceStatus == ServiceStatus.RUNNING
+    var icon by mutableStateOf(Res.drawable.icon)
 
     if (alwaysShowTray || !isWindowVisible) {
         Tray(
             iconContent = {
-                Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(300.dp)).background(iconColor))
+                Image(
+                    painter = painterResource(icon),
+                    contentDescription = "Application Icon",
+                )
             },
             primaryAction = {
                 isWindowVisible = true
@@ -64,6 +70,9 @@ fun main() = application {
             primaryActionLinuxLabel = "Open the Application",
             tooltip = "My Application",
             menuContent = {
+                Item("Change icon") {
+                    icon = if (icon == Res.drawable.icon) Res.drawable.icon2 else Res.drawable.icon
+                }
                 // Dynamic Service Menu
                 SubMenu(label = "Service Control") {
                     Item(label = "Start Service", isEnabled = !running) {
@@ -88,9 +97,6 @@ fun main() = application {
                     Item(label = "Hide Text") {
                         Log.i(logTag, "Hide Text selected")
                         textVisible = false
-                    }
-                    Item("Change icon") {
-                       iconColor = if (iconColor == Color.White) Color.Red else Color.White
                     }
                 }
 
@@ -121,7 +127,7 @@ fun main() = application {
         },
         title = "Compose Desktop Application with Two Screens",
         visible = isWindowVisible,
-        icon = painterResource("icon.png") // Optional: Set window icon
+        icon = painterResource(Res.drawable.icon) // Optional: Set window icon
     ) {
         App(textVisible, alwaysShowTray, hideOnClose) { alwaysShow, hideOnCloseState ->
             alwaysShowTray = alwaysShow

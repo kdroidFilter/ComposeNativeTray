@@ -1,4 +1,4 @@
-package sample
+package com.kdroid.composetray.demo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +20,6 @@ import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
-import java.nio.file.Paths
 
 fun main() = application {
     Log.setDevelopmentMode(true)
@@ -75,5 +74,3 @@ fun main() = application {
         }
     }
 }
-
-

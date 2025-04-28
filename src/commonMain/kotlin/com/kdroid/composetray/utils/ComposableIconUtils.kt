@@ -1,7 +1,6 @@
 package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.Dispatchers
