@@ -32,5 +32,11 @@ compose.desktop {
             packageName = "tray-demo"
             packageVersion = "1.0.0"
         }
+        buildTypes.release.proguard {
+            isEnabled = true
+            obfuscate.set(false)
+            optimize.set(true)
+            configurationFiles.from(project.file("proguard-rules.pro"))
+        }
     }
 }
