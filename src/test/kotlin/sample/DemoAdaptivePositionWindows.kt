@@ -1,8 +1,22 @@
 package sample
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -16,6 +30,7 @@ import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
 import java.nio.file.Paths
+import javax.swing.ImageIcon
 
 fun main() = application {
     Log.setDevelopmentMode(true)
@@ -37,15 +52,18 @@ fun main() = application {
         return@application
     }
 
-    // Tray Icon Paths
-    val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
-    val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
 
     // Updated condition for Tray visibility
     if (alwaysShowTray || !isWindowVisible) {
         Tray(
-            iconPath = iconPath,
-            windowsIconPath = windowsIconPath,
+           iconContent = {
+               Image(
+                   Icons.Default.Notifications,
+                   contentDescription = "Application Icon",
+                   modifier = Modifier.fillMaxSize(),
+                   colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White)
+               )
+           },
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
