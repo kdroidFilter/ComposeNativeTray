@@ -55,13 +55,19 @@ dependencies {
 Here's a basic example of how to use the ComposeTray library to create a system tray icon with a menu:
 The `Tray` must be executed inside an Application Scope, like this:
 
+> **Important**: When using a Composable for the tray icon, it's crucial to apply the `Modifier.fillMaxSize()` to your Composable. This ensures that the Composable fills the entire image when it's converted to an icon. Without this modifier, your icon may appear smaller than intended or not properly centered.
+
 ````kotlin
 application {
-  val iconPath = Paths.get("src/test/resources/icon.png").toAbsolutePath().toString()
-  val windowsIconPath = Paths.get("src/test/resources/icon.ico").toAbsolutePath().toString()
   Tray(
-    iconPath = iconPath,
-    windowsIconPath = windowsIconPath,
+    iconContent = {
+      Icon(
+        Icons.Default.Favorite,
+        contentDescription = "",
+        tint = Color.White,
+        modifier = Modifier.fillMaxSize() // This is crucial!
+      )
+    },
     tooltip = "My Application",
     primaryAction = {
       Log.i(logTag, "Primary action triggered")
@@ -132,7 +138,7 @@ The `NativeTray` class automatically detects the operating system and initialize
 - **Windows**: Uses `WindowsTrayInitializer`, which is based on the [tray library by dmikushin](https://github.com/dmikushin/tray).
 - **macOS**: Uses `AwtTrayInitializer`, which is implemented using AWT.
 
-> Note: For Windows, you must use an `.ico` file for the tray icon, while for Linux and macOS, a `.png` file is required.
+> Note: The library now accepts a Composable for the tray icon instead of file paths. The Composable is converted to the appropriate image format for each platform automatically.
 
 ### 🗂️ Windows DLL Generation
 To generate the Windows DLL, execute the following command:
@@ -188,7 +194,7 @@ Window(
     height = windowHeight.dp,
     position = windowPosition
   ),
-  ...
+  // other window parameters
 )
 ```
 
@@ -227,4 +233,3 @@ Feel free to open issues or pull requests if you find any bugs or have suggestio
 ## 🙏 Acknowledgements
 
 This library is developed and maintained by Elie G, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
-
