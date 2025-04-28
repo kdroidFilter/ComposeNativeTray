@@ -19,6 +19,8 @@ import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
+import composenativetray.demo.generated.resources.Res
+import composenativetray.demo.generated.resources.icon
 
 fun main() = application {
     Log.setDevelopmentMode(true)
@@ -144,7 +146,7 @@ fun main() = application {
         },
         title = "Compose Desktop Application with Two Screens",
         visible = isWindowVisible,
-        icon = painterResource("icon.png") // Optional: Set window icon
+        icon = org.jetbrains.compose.resources.painterResource(Res.drawable.icon) // Optional: Set window icon
     ) {
         App(textVisible, alwaysShowTray, hideOnClose) { alwaysShow, hideOnCloseState ->
             alwaysShowTray = alwaysShow
