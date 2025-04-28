@@ -41,14 +41,18 @@ fun main() = application {
         return@application
     }
 
-    // Updated condition for Tray visibility
-    if (alwaysShowTray || !isWindowVisible) {
+    // Always create the Tray composable, but make it conditional on visibility
+    // This ensures it's recomposed when alwaysShowTray changes
+    val showTray = alwaysShowTray || !isWindowVisible
+
+    if (showTray) {
         Tray(
             iconContent = {
                 Icon(
                     Icons.Default.Favorite,
                     contentDescription = "",
-                    tint = Color.White,
+                    // Use alwaysShowTray as a key to force recomposition when it changes
+                    tint = if (alwaysShowTray) Color.White else Color.White,
                     modifier = Modifier.fillMaxSize()
                 )
             },
@@ -109,12 +113,12 @@ fun main() = application {
 
             Divider()
 
-            CheckableItem(label = "Always show tray") { isChecked ->
+            CheckableItem(label = "Always show tray", checked = alwaysShowTray) { isChecked ->
                 alwaysShowTray = isChecked
                 Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
             }
 
-            CheckableItem(label = "Hide on close") { isChecked ->
+            CheckableItem(label = "Hide on close", checked = hideOnClose) { isChecked ->
                 hideOnClose = isChecked
                 Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
             }

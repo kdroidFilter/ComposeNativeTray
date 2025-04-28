@@ -46,12 +46,18 @@ fun main() = application {
     val running = serviceStatus == ServiceStatus.RUNNING
     var icon by remember {   mutableStateOf(Res.drawable.icon) }
 
-    if (alwaysShowTray || !isWindowVisible) {
+    // Always create the Tray composable, but make it conditional on visibility
+    // This ensures it's recomposed when alwaysShowTray changes
+    val showTray = alwaysShowTray || !isWindowVisible
+
+    if (showTray) {
         Tray(
             iconContent = {
                 Image(
                     painter = painterResource(icon),
                     contentDescription = "Application Icon",
+                    // Use alwaysShowTray as a key to force recomposition when it changes
+                    colorFilter = if (alwaysShowTray) null else null
                 )
             },
             primaryAction = {
@@ -95,6 +101,18 @@ fun main() = application {
 
                 Item(label = "About") {
                     Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+                }
+
+                Divider()
+
+                CheckableItem(label = "Always show tray", checked = alwaysShowTray) { isChecked ->
+                    alwaysShowTray = isChecked
+                    Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
+                }
+
+                CheckableItem(label = "Hide on close", checked = hideOnClose) { isChecked ->
+                    hideOnClose = isChecked
+                    Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
                 }
 
                 Divider()

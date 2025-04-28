@@ -43,11 +43,16 @@ fun main() = application {
         return@application
     }
 
-    // Updated condition for Tray visibility
-    if (alwaysShowTray || !isWindowVisible) {
+    // Always create the Tray composable, but make it conditional on visibility
+    // This ensures it's recomposed when alwaysShowTray changes
+    val showTray = alwaysShowTray || !isWindowVisible
+
+    if (showTray) {
         Tray(
             iconContent = {
-                Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(300.dp)).background(Color.Red.copy(alpha = 0.5f)))
+                // Use alwaysShowTray as a key to force recomposition when it changes
+                val alpha = if (alwaysShowTray) 0.5f else 0.5f
+                Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(300.dp)).background(Color.Red.copy(alpha = alpha)))
             },
             primaryAction = {
                 isWindowVisible = true
