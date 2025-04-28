@@ -1,21 +1,24 @@
-package sample
-
+package com.kdroid.composetray.demo
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
+import com.kdroid.composetray.utils.getTrayWindowPosition
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
@@ -40,17 +43,18 @@ fun main() = application {
         return@application
     }
 
+
     // Updated condition for Tray visibility
     if (alwaysShowTray || !isWindowVisible) {
         Tray(
-            iconContent = {
-                Icon(
-                    Icons.Default.Favorite,
-                    contentDescription = "",
-                    tint = Color.White,
-                    modifier = Modifier.fillMaxSize()
-                )
-            },
+           iconContent = {
+               Image(
+                   Icons.Default.Notifications,
+                   contentDescription = "Application Icon",
+                   modifier = Modifier.fillMaxSize(),
+                   colorFilter = ColorFilter.tint(Color.White)
+               )
+           },
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
@@ -58,27 +62,6 @@ fun main() = application {
             primaryActionLinuxLabel = "Open the Application",
             tooltip = "My Application"
         ) {
-            // Options SubMenu
-            SubMenu(label = "Options") {
-                Item(label = "Show Text") {
-                    Log.i(logTag, "Show Text selected")
-                    textVisible = true
-                }
-                Item(label = "Hide Text") {
-                    Log.i(logTag, "Hide Text selected")
-                    textVisible = false
-                }
-                SubMenu(label = "Advanced Sub-options") {
-                    Item(label = "Advanced Option 1") {
-                        Log.i(logTag, "Advanced Option 1 selected")
-                    }
-                    Item(label = "Advanced Option 2") {
-                        Log.i(logTag, "Advanced Option 2 selected")
-                    }
-                }
-            }
-
-            Divider()
 
             // Tools SubMenu
             SubMenu(label = "Tools") {
@@ -120,9 +103,6 @@ fun main() = application {
 
             Divider()
 
-            Item(label = "Hide in tray") {
-                isWindowVisible = false
-            }
 
             Item(label = "Exit", isEnabled = true) {
                 Log.i(logTag, "Exiting the application")
@@ -134,6 +114,11 @@ fun main() = application {
         }
     }
 
+
+    val windowWidth = 800
+    val windowHeight = 600
+    val windowPosition = getTrayWindowPosition(windowWidth, windowHeight)
+
     Window(
         onCloseRequest = {
             if (hideOnClose) {
@@ -142,6 +127,11 @@ fun main() = application {
                 exitApplication()
             }
         },
+        state = rememberWindowState(
+            width = windowWidth.dp,
+            height = windowHeight.dp,
+            position = windowPosition
+        ),
         title = "Compose Desktop Application with Two Screens",
         visible = isWindowVisible,
         icon = painterResource("icon.png") // Optional: Set window icon
@@ -152,5 +142,3 @@ fun main() = application {
         }
     }
 }
-
-

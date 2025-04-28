@@ -1,9 +1,8 @@
 import com.vanniktech.maven.publish.SonatypeHost
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
-    kotlin("jvm") version "2.1.20"
+    kotlin("multiplatform") version "2.1.20"
     id("org.jetbrains.compose") version "1.7.3"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"
     id("com.vanniktech.maven.publish") version "0.31.0"
@@ -25,24 +24,25 @@ tasks.withType<DokkaTask>().configureEach {
     offlineMode.set(true)
 }
 
-dependencies {
-    implementation(compose.runtime)
-    implementation(compose.foundation)
-    testImplementation(compose.desktop.currentOs)
-    testImplementation(compose.material3)
-    implementation("net.java.dev.jna:jna:5.17.0")
-    implementation("net.java.dev.jna:jna-platform:5.17.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
-    implementation("io.github.kdroidfilter:kmplog:0.3.0")
-    implementation("io.github.kdroidfilter:platformtools.core:0.2.9")
-    testImplementation(kotlin("test"))
-}
 
-tasks.test {
-    useJUnitPlatform()
-}
+
 kotlin {
     jvmToolchain(17)
+    jvm()
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+
+            implementation("net.java.dev.jna:jna:5.17.0")
+            implementation("net.java.dev.jna:jna-platform:5.17.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+            implementation("io.github.kdroidfilter:kmplog:0.3.0")
+            implementation("io.github.kdroidfilter:platformtools.core:0.2.9")
+        }
+    }
+
 }
 
 mavenPublishing {
@@ -89,13 +89,3 @@ mavenPublishing {
     signAllPublications()
 }
 
-compose.desktop {
-    application {
-        mainClass = "com.kdroid.composetray.demo.ComposeAppKt"
-        nativeDistributions {
-            targetFormats(TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "tray-demo"
-            packageVersion = version.toString()
-        }
-    }
-}

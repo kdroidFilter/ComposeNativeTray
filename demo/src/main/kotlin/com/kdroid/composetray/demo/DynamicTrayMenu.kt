@@ -1,4 +1,5 @@
-package sample
+package com.kdroid.composetray.demo
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,10 @@ import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
 
+private enum class ServiceStatus {
+    RUNNING, STOPPED
+}
+
 fun main() = application {
     Log.setDevelopmentMode(true)
     val logTag = "NativeTray"
@@ -29,8 +34,9 @@ fun main() = application {
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
-    var alwaysShowTray by remember { mutableStateOf(false) }
+    var alwaysShowTray by remember { mutableStateOf(true) }
     var hideOnClose by remember { mutableStateOf(true) }
+    var serviceStatus by remember { mutableStateOf(ServiceStatus.STOPPED) }
 
     val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
         isWindowVisible = true
@@ -40,19 +46,66 @@ fun main() = application {
         exitApplication()
         return@application
     }
+    var iconColor by remember { mutableStateOf(Color.White) }
 
-    // Updated condition for Tray visibility
+    val running = serviceStatus == ServiceStatus.RUNNING
+
     if (alwaysShowTray || !isWindowVisible) {
         Tray(
             iconContent = {
-                Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(300.dp)).background(Color.Red.copy(alpha = 0.5f)))
+                Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(300.dp)).background(iconColor))
             },
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
             },
             primaryActionLinuxLabel = "Open the Application",
-            tooltip = "My Application"
+            tooltip = "My Application",
+            menuContent = {
+                // Dynamic Service Menu
+                SubMenu(label = "Service Control") {
+                    Item(label = "Start Service", isEnabled = !running) {
+                        Log.i(logTag, "Start Service selected")
+                        serviceStatus = ServiceStatus.RUNNING
+                    }
+                    Item(label = "Stop Service", isEnabled = running) {
+                        Log.i(logTag, "Stop Service selected")
+                        serviceStatus = ServiceStatus.STOPPED
+                    }
+                    Item(label = "Service Status: ${if (running) "Running" else "Stopped"}", isEnabled = false)
+                }
+
+                Divider()
+
+                // Options SubMenu
+                SubMenu(label = "Options") {
+                    Item(label = "Show Text") {
+                        Log.i(logTag, "Show Text selected")
+                        textVisible = true
+                    }
+                    Item(label = "Hide Text") {
+                        Log.i(logTag, "Hide Text selected")
+                        textVisible = false
+                    }
+                    Item("Change icon") {
+                       iconColor = if (iconColor == Color.White) Color.Red else Color.White
+                    }
+                }
+
+                Divider()
+
+                Item(label = "About") {
+                    Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+                }
+
+                Divider()
+
+                Item(label = "Exit", isEnabled = true) {
+                    Log.i(logTag, "Exiting the application")
+                    dispose()
+                    exitApplication()
+                }
+            }
         )
     }
 
@@ -74,5 +127,3 @@ fun main() = application {
         }
     }
 }
-
-
