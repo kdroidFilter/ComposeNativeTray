@@ -1,6 +1,6 @@
 package com.kdroid.composetray.demo
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.runtime.getValue
@@ -9,8 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -56,14 +54,13 @@ fun main() = application {
         // Use alwaysShowTray as a key to force recomposition when it changes
         Tray(
            iconContent = {
-               Image(
+               Icon(
                    Icons.Default.Notifications,
                    contentDescription = "Application Icon",
                    modifier = Modifier.fillMaxSize(),
-                   colorFilter = ColorFilter.tint(if (alwaysShowTray) Color.Unspecified else Color.Unspecified)
+                   tint = Color.White,
                )
            },
-            iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")

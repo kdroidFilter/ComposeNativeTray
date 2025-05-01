@@ -58,10 +58,8 @@ fun main() = application {
                     painter = painterResource(icon),
                     contentDescription = "Application Icon",
                     // Use alwaysShowTray as a key to force recomposition when it changes
-                    colorFilter = if (alwaysShowTray) null else null
                 )
             },
-            iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")

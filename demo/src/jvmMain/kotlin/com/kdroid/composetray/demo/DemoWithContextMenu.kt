@@ -53,11 +53,10 @@ fun main() = application {
                     Icons.Default.Favorite,
                     contentDescription = "",
                     // Use alwaysShowTray as a key to force recomposition when it changes
-                    tint = if (alwaysShowTray) Color.Unspecified else Color.Unspecified,
+                    tint = Color.White,
                     modifier = Modifier.fillMaxSize()
                 )
             },
-            iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
