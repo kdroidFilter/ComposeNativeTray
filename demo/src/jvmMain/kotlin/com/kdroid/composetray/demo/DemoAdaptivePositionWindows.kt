@@ -16,6 +16,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.composetray.utils.getTrayWindowPosition
@@ -59,9 +60,10 @@ fun main() = application {
                    Icons.Default.Notifications,
                    contentDescription = "Application Icon",
                    modifier = Modifier.fillMaxSize(),
-                   colorFilter = ColorFilter.tint(if (alwaysShowTray) Color.White else Color.White)
+                   colorFilter = ColorFilter.tint(if (alwaysShowTray) Color.Unspecified else Color.Unspecified)
                )
            },
+            iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")

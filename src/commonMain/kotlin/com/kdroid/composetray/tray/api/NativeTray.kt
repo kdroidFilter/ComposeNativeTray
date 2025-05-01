@@ -9,7 +9,7 @@ import com.kdroid.composetray.tray.impl.AwtTrayInitializer
 import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.ComposableIconUtils
-
+import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.extractToTempIfDifferent
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
@@ -47,37 +47,22 @@ internal class NativeTray {
      */
     constructor(
         iconContent: @Composable () -> Unit,
+        iconRenderProperties: IconRenderProperties = IconRenderProperties(),
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
         primaryActionLinuxLabel: String,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-        iconWidth: Int = 200,
-        iconHeight: Int = 200,
-        density: Float = 2f
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         // Render the composable to PNG file for general use
-        val pngIconPath = ComposableIconUtils.renderComposableToPngFile(
-            width = iconWidth,
-            height = iconHeight,
-            density = density,
-            content = iconContent
-        )
+        val pngIconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
         Log.d("NativeTray", "Generated PNG icon path: $pngIconPath")
 
         // For Windows, we need an ICO file
         val windowsIconPath = if (getOperatingSystem() == OperatingSystem.WINDOWS) {
             // Create a temporary ICO file
-            val tempFile = createTempFile(suffix = ".ico")
-            val icoData = ComposableIconUtils.renderComposableToIcoBytes(
-                width = iconWidth,
-                height = iconHeight,
-                density = density,
-                content = iconContent
-            )
-            tempFile.writeBytes(icoData)
-            val path = tempFile.absolutePath
-            Log.d("NativeTray", "Generated Windows ICO path: $path")
-            path
+            ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent).also {
+                Log.d("NativeTray", "Generated Windows ICO path: $it")
+            }
         } else {
             pngIconPath
         }
@@ -193,6 +178,7 @@ fun ApplicationScope.Tray(
  * This version accepts a Composable for the icon instead of file paths.
  *
  * @param iconContent A Composable function that defines the icon to be displayed in the tray.
+ * @param iconRenderProperties Properties for rendering the icon.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
  * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
@@ -201,16 +187,18 @@ fun ApplicationScope.Tray(
 @Composable
 fun ApplicationScope.Tray(
     iconContent: @Composable () -> Unit,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     // Calculate a hash of the rendered composable content to detect changes
-    val contentHash = ComposableIconUtils.calculateContentHash(content = iconContent)
+    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
 
     DisposableEffect(
         iconContent,
+        iconRenderProperties,
         tooltip,
         primaryAction,
         primaryActionLinuxLabel,
@@ -219,6 +207,7 @@ fun ApplicationScope.Tray(
     ) {
         NativeTray(
             iconContent = iconContent,
+            iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
             primaryActionLinuxLabel = primaryActionLinuxLabel,

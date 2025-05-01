@@ -63,10 +63,11 @@ application {
       Icon(
         Icons.Default.Favorite,
         contentDescription = "",
-        tint = Color.White,
+        tint = Color.Unspecified, // If not defined icon will be tinted with LocalContentColor.current
         modifier = Modifier.fillMaxSize() // This is crucial!
       )
     },
+    iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(), // If you need icon render customization
     tooltip = "My Application",
     primaryAction = {
       Log.i(logTag, "Primary action triggered")

@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
@@ -52,10 +53,11 @@ fun main() = application {
                     Icons.Default.Favorite,
                     contentDescription = "",
                     // Use alwaysShowTray as a key to force recomposition when it changes
-                    tint = if (alwaysShowTray) Color.White else Color.White,
+                    tint = if (alwaysShowTray) Color.Unspecified else Color.Unspecified,
                     modifier = Modifier.fillMaxSize()
                 )
             },
+            iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
             primaryAction = {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
