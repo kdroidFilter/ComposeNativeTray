@@ -22,7 +22,7 @@
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
-  
+
 <p align="center">
   <img src="screenshots/demo.gif" alt="demo">
 </p>
@@ -67,7 +67,6 @@ application {
         modifier = Modifier.fillMaxSize() // This is crucial!
       )
     },
-    iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(), // If you need icon render customization
     tooltip = "My Application",
     primaryAction = {
       Log.i(logTag, "Primary action triggered")
@@ -131,6 +130,41 @@ application {
 - **Divider**: A separator used to visually separate menu items.
 - **dispose**: Call to remove the system tray icon and exit gracefully.
 - **Primary Action**: An action triggered by a left-click on the tray icon (Windows and macOS) or as a top item in the context menu (Linux).
+
+### 🎨 Icon Rendering Customization
+
+The `IconRenderProperties` class allows you to customize how your tray icon is rendered. This is an optional parameter when using the Tray component, with a default value already provided:
+
+```kotlin
+iconRenderProperties = IconRenderProperties.forCurrentOperatingSystem()
+```
+
+#### Available Factory Methods:
+
+1. **forCurrentOperatingSystem()**: Creates properties optimized for the current operating system:
+   - Windows: 32x32 pixels
+   - macOS: 44x44 pixels
+   - Linux: 24x24 pixels
+
+   ```kotlin
+   IconRenderProperties.forCurrentOperatingSystem(
+       sceneWidth = 192,    // Optional: Width of the compose scene (default: 192)
+       sceneHeight = 192,   // Optional: Height of the compose scene (default: 192)
+       density = Density(2f) // Optional: Density for the compose scene (default: 2f)
+   )
+   ```
+
+2. **withoutScalingAndAliasing()**: Creates properties that don't force icon scaling and aliasing:
+
+   ```kotlin
+   IconRenderProperties.withoutScalingAndAliasing(
+       sceneWidth = 192,    // Optional: Width of the compose scene (default: 192)
+       sceneHeight = 192,   // Optional: Height of the compose scene (default: 192)
+       density = Density(2f) // Optional: Density for the compose scene (default: 2f)
+   )
+   ```
+
+This allows you to fine-tune how your icon appears in the system tray across different platforms.
 
 ### 🔄 Single Instance Management
 
