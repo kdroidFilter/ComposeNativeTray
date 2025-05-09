@@ -188,6 +188,22 @@ if (!isSingleInstance) {
 
 In this example, the `SingleInstanceManager` will check if an instance is already running. If not, it will acquire the lock and start watching for restore requests. If an instance is already running, it will send a restore request to bring the existing window to the foreground, allowing you to focus on the already-running application rather than starting a new instance.
 
+#### Configuration
+
+`SingleInstanceManager` can be configured:
+```kotlin
+SingleInstanceManager.configuration = Configuration(
+    lockFilesDir = Paths.get("path/to/your/app/data/dir/single_instance_manager"),
+    appIdentifier = "app_id"
+)
+```
+This is useful when you need single-instance management but want finer-grained control.
+
+By specifying a custom `lockFilesDir`, you limit the scope of single-instance management
+from every instance of your app on the whole system to only those that share the specified data directory.
+
+Setting the custom `appIdentifier` can be used for even more granular control.
+
 ### 📌 Tray Position Detection
 
 The `getTrayPosition()` function allows you to determine the current position of the system tray on the screen. This information can be useful for aligning application windows relative to the tray icon.
