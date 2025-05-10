@@ -52,7 +52,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.kdroidfilter",
         artifactId = "composenativetray",
-        version = version.toString()
+        version = version
     )
 
     // Configure POM metadata for the published artifact
