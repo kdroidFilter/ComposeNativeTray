@@ -1,4 +1,5 @@
 package com.kdroid.composetray.utils
+
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.e
@@ -7,7 +8,11 @@ import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
-import java.nio.file.*
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardWatchEventKinds
 
 
 /**
@@ -17,13 +22,43 @@ import java.nio.file.*
  * and provides a mechanism to notify the running instance when another instance attempts to start.
  */
 object SingleInstanceManager {
+
+    private const val TAG = "SingleInstanceChecker"
+
+    /**
+     * Don't inline to [Configuration] initializer to prevent multiple calls with the different stack depth.
+     */
+    private val APP_IDENTIFIER = getAppIdentifier()
+
+    /**
+     * Configuration for a locking mechanism.
+     *
+     * @property lockFilesDir The directory where lock files will be stored. Defaults to the system's temporary directory.
+     * @property lockIdentifier The lock identifier that will be used for generating lock files names.
+     */
+    data class Configuration(
+        val lockFilesDir: Path = Paths.get(System.getProperty("java.io.tmpdir")),
+        val lockIdentifier: String = APP_IDENTIFIER
+    ) {
+        val lockFileName: String = "$lockIdentifier.lock"
+        val restoreRequestFileName: String = "$lockIdentifier.restore_request"
+    }
+
+    var configuration: Configuration = Configuration()
+        set(value) {
+            check(fileChannel == null) { "Configuration can be changed only before first call to isSingleInstance()!" }
+            field = value
+        }
+
     private var fileChannel: FileChannel? = null
     private var fileLock: FileLock? = null
-    private val APP_IDENTIFIER = getAppIdentifier()
-    private val LOCK_FILE_NAME = "$APP_IDENTIFIER.lock"
-    private val MESSAGE_FILE_NAME = "${APP_IDENTIFIER}_restore_request"
-    private const val TAG = "SingleInstanceChecker"
     private var isWatching = false
+
+    /**
+     * Checks if the current process is the single running instance.
+     *
+     * @param onRestoreRequest A function to be executed if a restore request is received from another instance.
+     */
     fun isSingleInstance(onRestoreRequest: () -> Unit): Boolean {
         // If the lock is already acquired by this process, we are the first instance
         if (fileLock != null) {
@@ -64,17 +99,19 @@ object SingleInstanceManager {
             false
         }
     }
+
     private fun createLockFile(): File {
-        val lockFilePath = System.getProperty("java.io.tmpdir") + File.separator + LOCK_FILE_NAME
-        return File(lockFilePath)
+        val lockFile = configuration.lockFilesDir.resolve(configuration.lockFileName).toFile()
+        lockFile.parentFile.mkdirs()
+        return lockFile
     }
+
     private fun watchForRestoreRequests(onRestoreRequest: () -> Unit) {
         Thread {
             try {
-                val tmpDir = Paths.get(System.getProperty("java.io.tmpdir"))
                 val watchService = FileSystems.getDefault().newWatchService()
-                tmpDir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE)
-                Log.d(TAG, "Watching directory: $tmpDir for restore requests")
+                configuration.lockFilesDir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE)
+                Log.d(TAG, "Watching directory: ${configuration.lockFilesDir} for restore requests")
                 while (true) {
                     val key = watchService.take()
                     for (event in key.pollEvents()) {
@@ -83,7 +120,7 @@ object SingleInstanceManager {
                             continue
                         }
                         val filename = event.context() as Path
-                        if (filename.toString() == MESSAGE_FILE_NAME) {
+                        if (filename.toString() == configuration.restoreRequestFileName) {
                             Log.d(TAG, "Restore request file detected")
                             onRestoreRequest()
                             // Remove the request file after processing
@@ -100,24 +137,27 @@ object SingleInstanceManager {
             }
         }.start()
     }
+
     private fun sendRestoreRequest() {
         try {
-            val restoreRequestFile = Paths.get(System.getProperty("java.io.tmpdir"), MESSAGE_FILE_NAME)
-            Files.createFile(restoreRequestFile)
-            Log.d(TAG, "Restore request file created: $restoreRequestFile")
+            val restoreRequestFilePath = configuration.lockFilesDir.resolve(configuration.restoreRequestFileName)
+            Files.createFile(restoreRequestFilePath)
+            Log.d(TAG, "Restore request file created: $restoreRequestFilePath")
         } catch (e: Exception) {
             Log.e(TAG, "Error while sending restore request", e)
         }
     }
+
     private fun deleteRestoreRequestFile() {
         try {
-            val restoreRequestFile = Paths.get(System.getProperty("java.io.tmpdir"), MESSAGE_FILE_NAME)
-            Files.deleteIfExists(restoreRequestFile)
-            Log.d(TAG, "Restore request file deleted")
+            val restoreRequestFilePath = configuration.lockFilesDir.resolve(configuration.restoreRequestFileName)
+            Files.deleteIfExists(restoreRequestFilePath)
+            Log.d(TAG, "Restore request file deleted: $restoreRequestFilePath")
         } catch (e: Exception) {
             Log.e(TAG, "Error while deleting restore request file", e)
         }
     }
+
     private fun releaseLock() {
         try {
             fileLock?.release()
@@ -127,6 +167,7 @@ object SingleInstanceManager {
             Log.e(TAG, "Error while releasing the lock", e)
         }
     }
+
     private fun getAppIdentifier(): String {
         val callerClassName = Thread.currentThread().stackTrace[3].className
         return callerClassName.replace(".", "_")
