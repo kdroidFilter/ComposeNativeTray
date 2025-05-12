@@ -48,6 +48,16 @@ kotlin {
 
 }
 
+val buildWin: TaskProvider<Exec> = tasks.register<Exec>("buildNativeWin") {
+    onlyIf { System.getProperty("os.name").startsWith("Windows") }
+    workingDir(rootDir.resolve("winlib"))
+    commandLine("cmd", "/c", "build.bat")
+}
+
+tasks.register("buildNativeLibraries") {
+    dependsOn(buildWin)
+}
+
 mavenPublishing {
     coordinates(
         groupId = "io.github.kdroidfilter",
