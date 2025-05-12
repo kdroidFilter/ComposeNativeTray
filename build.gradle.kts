@@ -10,7 +10,11 @@ plugins {
 }
 
 group = "com.kdroid.composenativetray"
-version = "0.6.0"
+val ref = System.getenv("GITHUB_REF") ?: ""
+val version = if (ref.startsWith("refs/tags/")) {
+    val tag = ref.removePrefix("refs/tags/")
+    if (tag.startsWith("v")) tag.substring(1) else tag
+} else "dev"
 
 repositories {
     mavenCentral()
@@ -48,7 +52,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.kdroidfilter",
         artifactId = "composenativetray",
-        version = version.toString()
+        version = version
     )
 
     // Configure POM metadata for the published artifact

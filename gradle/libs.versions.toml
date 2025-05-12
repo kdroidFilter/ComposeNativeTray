@@ -1,9 +1,8 @@
 [versions]
 kermit = "2.0.5"
 kotlin = "2.1.20"
-agp = "8.9.2"
 kotlinx-coroutines = "1.10.2"
-compose = "1.7.3"
+compose = "1.8.0"
 jna = "5.17.0"
 platformtools = "0.2.9"
 
@@ -13,15 +12,12 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 platformtools-core = { module = "io.github.kdroidfilter:platformtools.core", version.ref = "platformtools" }
-platformtools-darkmodedetector = { module = "io.github.kdroidfilter:platformtools.darkmodedetector", version.ref = "platformtools" }
 kmp-log = { module = "io.github.kdroidfilter:kmplog", version = "0.3.0" }
 
 [plugins]
 
 multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-android-library = { id = "com.android.library", version.ref = "agp" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-android-application = { id = "com.android.application", version.ref = "agp" }
 vannitktech-maven-publish = {id = "com.vanniktech.maven.publish", version = "0.31.0"}
 dokka = { id = "org.jetbrains.dokka" , version = "2.0.0"}

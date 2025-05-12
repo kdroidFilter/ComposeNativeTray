@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
@@ -57,7 +58,6 @@ fun main() = application {
                     painter = painterResource(icon),
                     contentDescription = "Application Icon",
                     // Use alwaysShowTray as a key to force recomposition when it changes
-                    colorFilter = if (alwaysShowTray) null else null
                 )
             },
             primaryAction = {
