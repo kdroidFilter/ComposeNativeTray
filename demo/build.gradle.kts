@@ -18,6 +18,7 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(compose.components.resources)
             implementation(compose.material3)
+            implementation("org.jetbrains.compose.material:material-icons-core:1.7.3")
             implementation(libs.kmp.log)
         }
     }
