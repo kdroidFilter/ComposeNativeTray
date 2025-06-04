@@ -13,6 +13,8 @@ object AwtTrayInitializer {
     // Stores the reference to the current TrayIcon
     private var trayIcon: TrayIcon? = null
 
+    fun isSupported(): Boolean = SystemTray.isSupported()
+
     /**
      * Initializes the system tray with the specified parameters.
      *
@@ -28,7 +30,7 @@ object AwtTrayInitializer {
         onLeftClick: (() -> Unit)?,
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
-        if (!SystemTray.isSupported()) {
+        if (!isSupported()) {
             throw IllegalStateException("System tray is not supported.")
         }
 

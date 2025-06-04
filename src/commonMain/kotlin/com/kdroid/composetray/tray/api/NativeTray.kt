@@ -13,15 +13,24 @@ import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.extractToTempIfDifferent
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
-import io.github.kdroidfilter.platformtools.OperatingSystem
+import com.kdroid.kmplog.e
+import io.github.kdroidfilter.platformtools.OperatingSystem.LINUX
+import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
+import io.github.kdroidfilter.platformtools.OperatingSystem.UNKNOWN
+import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
+
 
 internal class NativeTray {
-    val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private val awtTrayUsed = AtomicBoolean(false)
 
     /**
      * Constructor that accepts file paths for icons
@@ -58,7 +67,7 @@ internal class NativeTray {
         Log.d("NativeTray", "Generated PNG icon path: $pngIconPath")
 
         // For Windows, we need an ICO file
-        val windowsIconPath = if (getOperatingSystem() == OperatingSystem.WINDOWS) {
+        val windowsIconPath = if (getOperatingSystem() == WINDOWS) {
             // Create a temporary ICO file
             ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent).also {
                 Log.d("NativeTray", "Generated Windows ICO path: $it")
@@ -79,37 +88,53 @@ internal class NativeTray {
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         trayScope.launch {
-            when (getOperatingSystem()) {
-                OperatingSystem.LINUX -> {
-                    Log.d("NativeTray", "Initializing Linux tray with icon path: $iconPath")
-                    LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
-                }
-                OperatingSystem.WINDOWS -> {
-                    Log.d("NativeTray", "Initializing Windows tray with icon path: $windowsIconPath")
-                    WindowsTrayInitializer.initialize(
-                        windowsIconPath,
-                        tooltip,
-                        primaryAction,
-                        menuContent
-                    )
-                }
-                OperatingSystem.MACOS, OperatingSystem.UNKNOWN -> {
-                    Log.d("NativeTray", "Initializing AWT tray with icon path: $iconPath")
-                    AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
-                }
+            var trayInitialized = false
+            val os = getOperatingSystem()
+            try {
+                when (os) {
+                    LINUX -> {
+                        Log.d("NativeTray", "Initializing Linux tray with icon path: $iconPath")
+                        LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+                        trayInitialized = true
+                    }
 
-                else -> {}
+                    WINDOWS -> {
+                        Log.d("NativeTray", "Initializing Windows tray with icon path: $windowsIconPath")
+                        WindowsTrayInitializer.initialize(windowsIconPath, tooltip, primaryAction, menuContent)
+                        trayInitialized = true
+                    }
+
+                    else -> {}
+                }
+            } catch (e: Exception) {
+                Log.e("NativeTray", "Error initializing tray:", e)
+            }
+
+            val awtTrayRequired = os == MACOS || os == UNKNOWN || !trayInitialized
+            if (awtTrayRequired) {
+                if (AwtTrayInitializer.isSupported()) {
+                    try {
+                        Log.d("NativeTray", "Initializing AWT tray with icon path: $iconPath")
+                        AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
+                        awtTrayUsed.set(true)
+                    } catch (e: Exception) {
+                        Log.e("NativeTray", "Error initializing AWT tray:", e)
+                    }
+                } else {
+                    Log.d("NativeTray", "AWT tray is not supported")
+                }
             }
         }
     }
 
-    /**
-     * Creates a temporary file that will be deleted when the JVM exits.
-     */
-    private fun createTempFile(prefix: String = "tray_icon_", suffix: String): java.io.File {
-        val tempFile = java.io.File.createTempFile(prefix, suffix)
-        tempFile.deleteOnExit()
-        return tempFile
+    internal fun dispose() {
+        val os = getOperatingSystem()
+        when {
+            awtTrayUsed.get() -> AwtTrayInitializer.dispose()
+            os == LINUX -> LinuxTrayInitializer.dispose()
+            os == WINDOWS -> WindowsTrayInitializer.dispose()
+            else -> {}
+        }
     }
 }
 
@@ -152,7 +177,7 @@ fun ApplicationScope.Tray(
         primaryActionLinuxLabel,
         menuContent
     ) {
-        NativeTray(
+        val tray = NativeTray(
             iconPath = absoluteIconPath,
             windowsIconPath = absoluteWindowsIconPath,
             tooltip = tooltip,
@@ -163,12 +188,7 @@ fun ApplicationScope.Tray(
 
         onDispose {
             Log.d("NativeTray", "onDispose")
-            when (getOperatingSystem()) {
-                OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
-                OperatingSystem.MACOS, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
-                OperatingSystem.LINUX -> LinuxTrayInitializer.dispose()
-                else -> {}
-            }
+            tray.dispose()
         }
     }
 }
@@ -205,7 +225,7 @@ fun ApplicationScope.Tray(
         menuContent,
         contentHash, // Use the content hash as an implicit key
     ) {
-        NativeTray(
+        val tray = NativeTray(
             iconContent = iconContent,
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
@@ -216,12 +236,7 @@ fun ApplicationScope.Tray(
 
         onDispose {
             Log.d("NativeTray", "onDispose")
-            when (getOperatingSystem()) {
-                OperatingSystem.WINDOWS -> WindowsTrayInitializer.dispose()
-                OperatingSystem.MACOS, OperatingSystem.UNKNOWN -> AwtTrayInitializer.dispose()
-                OperatingSystem.LINUX -> LinuxTrayInitializer.dispose()
-                else -> {}
-            }
+            tray.dispose()
         }
     }
 }
