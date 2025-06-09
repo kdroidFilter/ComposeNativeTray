@@ -145,7 +145,11 @@ internal class WindowsTrayManager(
                     task = updateQueue.poll()
                 }
 
-                if (trayLib.tray_loop(1) != 0) break
+                // Non blocking message loop so queued updates can be processed
+                if (trayLib.tray_loop(0) != 0) break
+
+                // Small sleep to avoid busy looping
+                Thread.sleep(16)
             }
         } catch (e: Exception) {
             e.printStackTrace()
