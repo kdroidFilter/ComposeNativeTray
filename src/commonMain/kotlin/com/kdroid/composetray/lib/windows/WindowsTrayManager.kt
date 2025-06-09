@@ -151,7 +151,7 @@ internal class WindowsTrayManager(
         synchronized(tray) {
             tray.icon_filepath = path
             tray.write()
-            trayLib.tray_update(tray)
+            trayLib.tray_update_icon(tray)
         }
     }
 
@@ -161,7 +161,7 @@ internal class WindowsTrayManager(
             menuItems.addAll(items)
             initializeTrayMenu()
             tray.write()
-            trayLib.tray_update(tray)
+            trayLib.tray_update_menu(tray)
         }
     }
 
