@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
@@ -289,8 +290,13 @@ fun ApplicationScope.rememberTrayState(
     LaunchedEffect(menuContent, primaryAction, primaryActionLinuxLabel) {
         state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
     }
+    var lastIconHash by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(iconContent, iconRenderProperties) {
-        state.updateIconContent(iconContent, iconRenderProperties)
+        val currentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+        if (currentHash != lastIconHash) {
+            lastIconHash = currentHash
+            state.updateIconContent(iconContent, iconRenderProperties)
+        }
     }
 
     return state

@@ -137,6 +137,9 @@ application {
 }
 ```
 
+Icon updates are tracked automatically. Changing the content passed to
+`rememberTrayState` will refresh the tray icon without recreating the tray.
+
 You can also update menu items reactively:
 
 ```kotlin
