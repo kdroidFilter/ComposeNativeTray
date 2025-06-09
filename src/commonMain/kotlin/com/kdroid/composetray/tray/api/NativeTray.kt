@@ -250,14 +250,32 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
-    rememberTrayState(
+    val state = rememberTrayState(
         iconContent = iconContent,
         iconRenderProperties = iconRenderProperties,
         tooltip = tooltip,
         primaryAction = primaryAction,
         primaryActionLinuxLabel = primaryActionLinuxLabel,
-        menuContent = menuContent
     )
+
+    Tray(
+        state = state,
+        primaryAction = primaryAction,
+        primaryActionLinuxLabel = primaryActionLinuxLabel,
+        menuContent = menuContent,
+    )
+}
+
+@Composable
+fun ApplicationScope.Tray(
+    state: TrayState,
+    primaryAction: (() -> Unit)? = null,
+    primaryActionLinuxLabel: String = "Open",
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    LaunchedEffect(state, menuContent, primaryAction, primaryActionLinuxLabel) {
+        state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
+    }
 }
 
 @Composable
@@ -267,7 +285,6 @@ fun ApplicationScope.rememberTrayState(
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLinuxLabel: String = "Open",
-    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ): TrayState {
     val nativeTray = remember {
         NativeTray(
@@ -276,7 +293,7 @@ fun ApplicationScope.rememberTrayState(
             tooltip = tooltip,
             primaryAction = primaryAction,
             primaryActionLinuxLabel = primaryActionLinuxLabel,
-            menuContent = menuContent,
+            menuContent = null,
         )
     }
 
@@ -287,8 +304,8 @@ fun ApplicationScope.rememberTrayState(
     val state = remember { TrayState(nativeTray) }
 
     LaunchedEffect(tooltip) { state.updateTooltip(tooltip) }
-    LaunchedEffect(menuContent, primaryAction, primaryActionLinuxLabel) {
-        state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
+    LaunchedEffect(primaryAction, primaryActionLinuxLabel) {
+        state.updateMenuItems(null, primaryAction, primaryActionLinuxLabel)
     }
     var lastIconHash by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(iconContent, iconRenderProperties) {

@@ -58,7 +58,7 @@ The `Tray` must be executed inside an Application Scope, like this:
 
 ````kotlin
 application {
-  Tray(
+  val trayState = rememberTrayState(
     iconContent = {
       Icon(
         Icons.Default.Favorite,
@@ -71,8 +71,10 @@ application {
     primaryAction = {
       Log.i(logTag, "Primary action triggered")
     },
-    primaryActionLinuxLabel = "Open Application"
-  ) {
+    primaryActionLinuxLabel = "Open Application",
+  )
+
+  Tray(state = trayState) {
     SubMenu(label = "Options") {
       Item(label = "Setting 1") {
         Log.i(logTag, "Setting 1 selected")
@@ -134,6 +136,10 @@ application {
 
   // Example of updating the tooltip
   trayState.updateTooltip("New tooltip")
+
+  Tray(state = trayState) {
+    // menu items
+  }
 }
 ```
 
@@ -146,16 +152,17 @@ You can also update menu items reactively:
 application {
   var showAdvanced by remember { mutableStateOf(false) }
 
-  rememberTrayState(
+  val trayState = rememberTrayState(
     iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
-    tooltip = "My Application",
-    menuContent = {
-      Item(label = "Toggle Advanced") { showAdvanced = !showAdvanced }
-      if (showAdvanced) {
-        Item(label = "Advanced Option") { /* ... */ }
-      }
-    }
+    tooltip = "My Application"
   )
+
+  Tray(state = trayState) {
+    Item(label = "Toggle Advanced") { showAdvanced = !showAdvanced }
+    if (showAdvanced) {
+      Item(label = "Advanced Option") { /* ... */ }
+    }
+  }
 }
 ```
 
