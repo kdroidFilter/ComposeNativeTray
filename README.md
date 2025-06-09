@@ -123,6 +123,39 @@ application {
 }
 ````
 
+You can keep a single tray instance and update its properties using `rememberTrayState`:
+
+```kotlin
+application {
+  val trayState = rememberTrayState(
+    iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
+    tooltip = "My Application"
+  )
+
+  // Example of updating the tooltip
+  trayState.updateTooltip("New tooltip")
+}
+```
+
+You can also update menu items reactively:
+
+```kotlin
+application {
+  var showAdvanced by remember { mutableStateOf(false) }
+
+  rememberTrayState(
+    iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
+    tooltip = "My Application",
+    menuContent = {
+      Item(label = "Toggle Advanced") { showAdvanced = !showAdvanced }
+      if (showAdvanced) {
+        Item(label = "Advanced Option") { /* ... */ }
+      }
+    }
+  )
+}
+```
+
 ### 📋 Components of the Tray Menu
 - **Item**: A standard clickable item that can be enabled or disabled.
 - **CheckableItem**: A menu item with a checkbox that can be toggled on or off.

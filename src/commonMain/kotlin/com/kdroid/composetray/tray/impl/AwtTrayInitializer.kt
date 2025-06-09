@@ -12,6 +12,7 @@ import java.awt.event.MouseEvent
 object AwtTrayInitializer {
     // Stores the reference to the current TrayIcon
     private var trayIcon: TrayIcon? = null
+    private var popupMenu: PopupMenu? = null
 
     fun isSupported(): Boolean = SystemTray.isSupported()
 
@@ -67,6 +68,24 @@ object AwtTrayInitializer {
 
         // Store the reference for future use
         trayIcon = newTrayIcon
+        popupMenu = popupMenu
+    }
+
+    fun updateTooltip(text: String) {
+        trayIcon?.toolTip = text
+    }
+
+    fun updateIcon(iconPath: String) {
+        trayIcon?.image = Toolkit.getDefaultToolkit().getImage(iconPath)
+    }
+
+    fun updateMenu(menuContent: (TrayMenuBuilder.() -> Unit)?) {
+        trayIcon?.let { icon ->
+            val newMenu = PopupMenu()
+            menuContent?.let { AwtTrayMenuBuilderImpl(newMenu, icon).apply(it) }
+            icon.popupMenu = newMenu
+            popupMenu = newMenu
+        }
     }
 
     /**

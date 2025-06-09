@@ -60,6 +60,8 @@ internal class WindowsTrayManager(
     }
 
     private fun initializeTrayMenu() {
+        callbackReferences.clear()
+        nativeMenuItemsReferences.clear()
         val menuItemPrototype = WindowsNativeTrayMenuItem()
         val nativeMenuItems = menuItemPrototype.toArray(menuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
 
@@ -134,6 +136,32 @@ internal class WindowsTrayManager(
                 trayLib.tray_exit()
               //  tray.menu?.let { trayLib.tray_free_menu(it) }
             }
+        }
+    }
+
+    fun updateTooltip(text: String) {
+        synchronized(tray) {
+            tray.tooltip = text
+            tray.write()
+            trayLib.tray_update(tray)
+        }
+    }
+
+    fun updateIcon(path: String) {
+        synchronized(tray) {
+            tray.icon_filepath = path
+            tray.write()
+            trayLib.tray_update(tray)
+        }
+    }
+
+    fun updateMenuItems(items: List<MenuItem>) {
+        synchronized(tray) {
+            menuItems.clear()
+            menuItems.addAll(items)
+            initializeTrayMenu()
+            tray.write()
+            trayLib.tray_update(tray)
         }
     }
 

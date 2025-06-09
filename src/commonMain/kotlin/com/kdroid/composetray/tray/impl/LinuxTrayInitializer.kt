@@ -223,6 +223,30 @@ object LinuxTrayInitializer {
         }
     }
 
+    fun updateTooltip(text: String) {
+        currentIndicator.get()?.let { AppIndicator.INSTANCE.app_indicator_set_title(it, text) }
+        currentStatusIcon.get()?.let { GtkStatusIcon.INSTANCE.gtk_status_icon_set_tooltip_text(it, text) }
+    }
+
+    fun updateMenu(menuContent: (TrayMenuBuilder.() -> Unit)?, primaryAction: (() -> Unit)?, primaryActionLinuxLabel: String) {
+        currentIndicator.get()?.let { indicator ->
+            currentMenuBuilder.get()?.dispose()
+            currentMenu.get()?.let { Gtk.INSTANCE.gtk_widget_destroy(it) }
+            val menu = Gtk.INSTANCE.gtk_menu_new()
+            currentMenu.set(menu)
+            val builder = LinuxTrayMenuBuilderImpl(menu)
+            currentMenuBuilder.set(builder)
+            primaryAction?.let { addPrimaryActionMenuItem(builder, it, primaryActionLinuxLabel) }
+            menuContent?.let { builder.apply(it) }
+            Gtk.INSTANCE.gtk_widget_show_all(menu)
+            AppIndicator.INSTANCE.app_indicator_set_menu(indicator, menu)
+        }
+    }
+
+    fun updateIcon(iconPath: String) {
+        currentIndicator.get()?.let { AppIndicator.INSTANCE.app_indicator_set_icon_full(it, iconPath, null) }
+    }
+
     private fun startGtkMainLoopIfInitialized() {
         if (isInitialized.get()) {
             Gtk.INSTANCE.gtk_main()
