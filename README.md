@@ -58,7 +58,10 @@ The `Tray` must be executed inside an Application Scope, like this:
 
 ````kotlin
 application {
-  val trayState = rememberTrayState(
+  val trayState = rememberTrayState()
+
+  Tray(
+    state = trayState,
     iconContent = {
       Icon(
         Icons.Default.Favorite,
@@ -72,9 +75,7 @@ application {
       Log.i(logTag, "Primary action triggered")
     },
     primaryActionLinuxLabel = "Open Application",
-  )
-
-  Tray(state = trayState) {
+  ) {
     SubMenu(label = "Options") {
       Item(label = "Setting 1") {
         Log.i(logTag, "Setting 1 selected")
@@ -129,22 +130,23 @@ You can keep a single tray instance and update its properties using `rememberTra
 
 ```kotlin
 application {
-  val trayState = rememberTrayState(
+  val trayState = rememberTrayState()
+
+  Tray(
+    state = trayState,
     iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
     tooltip = "My Application"
-  )
+  ) {
+    // menu items
+  }
 
   // Example of updating the tooltip
   trayState.updateTooltip("New tooltip")
-
-  Tray(state = trayState) {
-    // menu items
-  }
 }
 ```
 
 Icon updates are tracked automatically. Changing the content passed to
-`rememberTrayState` will refresh the tray icon without recreating the tray.
+`Tray` will refresh the tray icon without recreating the tray.
 
 You can also update menu items reactively:
 
@@ -152,12 +154,13 @@ You can also update menu items reactively:
 application {
   var showAdvanced by remember { mutableStateOf(false) }
 
-  val trayState = rememberTrayState(
+  val trayState = rememberTrayState()
+
+  Tray(
+    state = trayState,
     iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
     tooltip = "My Application"
-  )
-
-  Tray(state = trayState) {
+  ) {
     Item(label = "Toggle Advanced") { showAdvanced = !showAdvanced }
     if (showAdvanced) {
       Item(label = "Advanced Option") { /* ... */ }

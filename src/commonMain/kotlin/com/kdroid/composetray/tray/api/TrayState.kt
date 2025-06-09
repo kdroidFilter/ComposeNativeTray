@@ -7,21 +7,52 @@ import com.kdroid.composetray.utils.IconRenderProperties
 /**
  * Holds the native tray instance and exposes update APIs.
  */
-class TrayState internal constructor(private val nativeTray: NativeTray) {
+class TrayState internal constructor() {
 
-    fun updateTooltip(text: String) {
-        nativeTray.updateTooltip(text)
+    internal var nativeTray: NativeTray? = null
+        private set
+
+    internal var lastIconHash: Long? = null
+
+    internal fun initIfNeeded(
+        iconContent: @Composable () -> Unit,
+        renderProps: IconRenderProperties,
+        tooltip: String,
+        primaryAction: (() -> Unit)?,
+        primaryActionLinuxLabel: String,
+        menuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        if (nativeTray == null) {
+            nativeTray = NativeTray(
+                iconContent = iconContent,
+                iconRenderProperties = renderProps,
+                tooltip = tooltip,
+                primaryAction = primaryAction,
+                primaryActionLinuxLabel = primaryActionLinuxLabel,
+                menuContent = menuContent
+            )
+        }
     }
 
-    fun updateMenuItems(menuContent: (TrayMenuBuilder.() -> Unit)?, primaryAction: (() -> Unit)?, primaryActionLinuxLabel: String) {
-        nativeTray.updateMenu(menuContent, primaryAction, primaryActionLinuxLabel)
+    fun updateTooltip(text: String) {
+        nativeTray?.updateTooltip(text)
+    }
+
+    fun updateMenuItems(
+        menuContent: (TrayMenuBuilder.() -> Unit)?,
+        primaryAction: (() -> Unit)?,
+        primaryActionLinuxLabel: String
+    ) {
+        nativeTray?.updateMenu(menuContent, primaryAction, primaryActionLinuxLabel)
     }
 
     fun updateIconContent(iconContent: @Composable () -> Unit, properties: IconRenderProperties) {
-        nativeTray.updateIconContent(iconContent, properties)
+        nativeTray?.updateIconContent(iconContent, properties)
     }
 
     fun dispose() {
-        nativeTray.dispose()
+        nativeTray?.dispose()
+        nativeTray = null
+        lastIconHash = null
     }
 }

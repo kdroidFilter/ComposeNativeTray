@@ -243,6 +243,7 @@ fun ApplicationScope.Tray(
  */
 @Composable
 fun ApplicationScope.Tray(
+    state: TrayState,
     iconContent: @Composable () -> Unit,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
@@ -250,71 +251,41 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
-    val state = rememberTrayState(
-        iconContent = iconContent,
-        iconRenderProperties = iconRenderProperties,
-        tooltip = tooltip,
-        primaryAction = primaryAction,
-        primaryActionLinuxLabel = primaryActionLinuxLabel,
-    )
+    LaunchedEffect(state) {
+        state.initIfNeeded(iconContent, iconRenderProperties, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+    }
 
-    Tray(
-        state = state,
-        primaryAction = primaryAction,
-        primaryActionLinuxLabel = primaryActionLinuxLabel,
-        menuContent = menuContent,
-    )
+    LaunchedEffect(state, tooltip) { state.updateTooltip(tooltip) }
+    LaunchedEffect(state, menuContent, primaryAction, primaryActionLinuxLabel) {
+        state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
+    }
+
+    var lastHash by remember(state) { mutableStateOf<Long?>(null) }
+    LaunchedEffect(state, iconContent, iconRenderProperties) {
+        val current = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+        if (current != lastHash) {
+            lastHash = current
+            state.updateIconContent(iconContent, iconRenderProperties)
+        }
+    }
 }
 
 @Composable
 fun ApplicationScope.Tray(
-    state: TrayState,
-    primaryAction: (() -> Unit)? = null,
-    primaryActionLinuxLabel: String = "Open",
-    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-) {
-    LaunchedEffect(state, menuContent, primaryAction, primaryActionLinuxLabel) {
-        state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
-    }
-}
-
-@Composable
-fun ApplicationScope.rememberTrayState(
     iconContent: @Composable () -> Unit,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLinuxLabel: String = "Open",
-): TrayState {
-    val nativeTray = remember {
-        NativeTray(
-            iconContent = iconContent,
-            iconRenderProperties = iconRenderProperties,
-            tooltip = tooltip,
-            primaryAction = primaryAction,
-            primaryActionLinuxLabel = primaryActionLinuxLabel,
-            menuContent = null,
-        )
-    }
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val state = rememberTrayState()
+    Tray(state, iconContent, iconRenderProperties, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+}
 
-    DisposableEffect(Unit) {
-        onDispose { nativeTray.dispose() }
-    }
-
-    val state = remember { TrayState(nativeTray) }
-
-    LaunchedEffect(tooltip) { state.updateTooltip(tooltip) }
-    LaunchedEffect(primaryAction, primaryActionLinuxLabel) {
-        state.updateMenuItems(null, primaryAction, primaryActionLinuxLabel)
-    }
-    var lastIconHash by remember { mutableStateOf<Long?>(null) }
-    LaunchedEffect(iconContent, iconRenderProperties) {
-        val currentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
-        if (currentHash != lastIconHash) {
-            lastIconHash = currentHash
-            state.updateIconContent(iconContent, iconRenderProperties)
-        }
-    }
-
+@Composable
+fun ApplicationScope.rememberTrayState(): TrayState {
+    val state = remember { TrayState() }
+    DisposableEffect(Unit) { onDispose { state.dispose() } }
     return state
 }
