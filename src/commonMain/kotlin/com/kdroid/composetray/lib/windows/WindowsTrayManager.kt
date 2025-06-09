@@ -12,11 +12,21 @@ internal class WindowsTrayManager(
     private val tray: WindowsNativeTray = WindowsNativeTray()
     private val menuItems: MutableList<MenuItem> = mutableListOf()
     private val running = AtomicBoolean(true)
+    private val updateQueue = java.util.concurrent.LinkedBlockingQueue<() -> Unit>()
+    private var trayThread: Thread? = null
 
     // Maintain a reference to all callbacks to avoid GC
     private val callbackReferences: MutableList<StdCallCallback> = mutableListOf()
     private val nativeMenuItemsReferences: MutableList<WindowsNativeTrayMenuItem> = mutableListOf()
     private val onLeftClickCallback = mutableStateOf(onLeftClick)
+
+    private fun executeOnTrayThread(action: () -> Unit) {
+        if (Thread.currentThread() === trayThread) {
+            action()
+        } else {
+            updateQueue.put(action)
+        }
+    }
 
     init {
         tray.icon_filepath = iconPath
@@ -123,10 +133,18 @@ internal class WindowsTrayManager(
 
     }
 
-    //Tray loop
+    // Tray loop running on the tray thread
     private fun runTrayLoop() {
+        trayThread = Thread.currentThread()
         try {
             while (running.get()) {
+                // Execute pending updates queued from other threads
+                var task = updateQueue.poll()
+                while (task != null) {
+                    try { task.invoke() } catch (_: Exception) {}
+                    task = updateQueue.poll()
+                }
+
                 if (trayLib.tray_loop(1) != 0) break
             }
         } catch (e: Exception) {
@@ -134,39 +152,46 @@ internal class WindowsTrayManager(
         } finally {
             synchronized(tray) {
                 trayLib.tray_exit()
-              //  tray.menu?.let { trayLib.tray_free_menu(it) }
             }
         }
     }
 
     fun updateTooltip(text: String) {
-        synchronized(tray) {
-            tray.tooltip = text
-            tray.write()
-            trayLib.tray_update(tray)
+        executeOnTrayThread {
+            synchronized(tray) {
+                tray.tooltip = text
+                tray.write()
+                trayLib.tray_update(tray)
+            }
         }
     }
 
     fun updateIcon(path: String) {
-        synchronized(tray) {
-            tray.icon_filepath = path
-            tray.write()
-            trayLib.tray_update_icon(tray)
+        executeOnTrayThread {
+            synchronized(tray) {
+                tray.icon_filepath = path
+                tray.write()
+                trayLib.tray_update_icon(tray)
+            }
         }
     }
 
     fun updateMenuItems(items: List<MenuItem>) {
-        synchronized(tray) {
-            menuItems.clear()
-            menuItems.addAll(items)
-            initializeTrayMenu()
-            tray.write()
-            trayLib.tray_update_menu(tray)
+        executeOnTrayThread {
+            synchronized(tray) {
+                menuItems.clear()
+                menuItems.addAll(items)
+                initializeTrayMenu()
+                tray.write()
+                trayLib.tray_update_menu(tray)
+            }
         }
     }
 
     fun stopTray() {
-        running.set(false)
-        trayLib.tray_exit()
+        executeOnTrayThread {
+            running.set(false)
+            trayLib.tray_exit()
+        }
     }
 }
