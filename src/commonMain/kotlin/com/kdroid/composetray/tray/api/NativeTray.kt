@@ -260,11 +260,11 @@ fun ApplicationScope.Tray(
         state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
     }
 
-    var lastHash by remember(state) { mutableStateOf<Long?>(null) }
-    LaunchedEffect(state, iconContent, iconRenderProperties) {
-        val current = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
-        if (current != lastHash) {
-            lastHash = current
+    val currentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+
+    LaunchedEffect(state, currentHash) {
+        if (currentHash != state.lastIconHash) {
+            state.lastIconHash = currentHash
             state.updateIconContent(iconContent, iconRenderProperties)
         }
     }

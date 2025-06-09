@@ -39,7 +39,7 @@ object AwtTrayInitializer {
         dispose()
 
         val systemTray = SystemTray.getSystemTray()
-        val popupMenu = PopupMenu()
+        var popupMenu = PopupMenu()
 
         // Create the tray icon
         val trayImage = Toolkit.getDefaultToolkit().getImage(iconPath)

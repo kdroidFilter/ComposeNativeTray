@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.tray.api.rememberTrayState
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
@@ -43,7 +44,6 @@ fun main() = application {
         exitApplication()
         return@application
     }
-
     val running = serviceStatus == ServiceStatus.RUNNING
     var icon by remember {   mutableStateOf(Res.drawable.icon) }
 
