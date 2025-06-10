@@ -106,8 +106,8 @@ internal class NativeTray {
 
                     else -> {}
                 }
-            } catch (e: Exception) {
-                Log.e("NativeTray", "Error initializing tray:", e)
+            } catch (th: Throwable) {
+                Log.e("NativeTray", "Error initializing tray:", th)
             }
 
             val awtTrayRequired = os == MACOS || os == UNKNOWN || !trayInitialized
@@ -117,8 +117,8 @@ internal class NativeTray {
                         Log.d("NativeTray", "Initializing AWT tray with icon path: $iconPath")
                         AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
                         awtTrayUsed.set(true)
-                    } catch (e: Exception) {
-                        Log.e("NativeTray", "Error initializing AWT tray:", e)
+                    } catch (th: Throwable) {
+                        Log.e("NativeTray", "Error initializing AWT tray:", th)
                     }
                 } else {
                     Log.d("NativeTray", "AWT tray is not supported")
