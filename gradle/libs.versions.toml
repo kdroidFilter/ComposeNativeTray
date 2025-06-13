@@ -1,5 +1,5 @@
 [versions]
-kermit = "2.0.5"
+kermit = "2.0.6"
 kotlin = "2.1.21"
 kotlinx-coroutines = "1.10.2"
 compose = "1.8.0"
