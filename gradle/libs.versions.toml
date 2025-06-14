@@ -4,7 +4,7 @@ kotlin = "2.1.21"
 kotlinx-coroutines = "1.10.2"
 compose = "1.8.0"
 jna = "5.17.0"
-platformtools = "0.2.9"
+platformtools = "0.3.4"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
