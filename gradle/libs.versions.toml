@@ -19,5 +19,5 @@ kmp-log = { module = "io.github.kdroidfilter:kmplog", version = "0.3.0" }
 multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-vannitktech-maven-publish = {id = "com.vanniktech.maven.publish", version = "0.32.0"}
+vannitktech-maven-publish = {id = "com.vanniktech.maven.publish", version = "0.33.0"}
 dokka = { id = "org.jetbrains.dokka" , version = "2.0.0"}
