@@ -57,7 +57,7 @@ fun main() = application {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
             },
-            primaryActionLinuxLabel = "Open the Application",
+            primaryActionLabel = "Open the Application",
             tooltip = "My Application"
         )
     }

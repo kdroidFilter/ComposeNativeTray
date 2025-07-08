@@ -45,10 +45,10 @@ internal class NativeTray {
         windowsIconPath: String = iconPath,
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
-        primaryActionLinuxLabel: String,
+        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
-        initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+        initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 
     /**
@@ -182,7 +182,7 @@ fun ApplicationScope.Tray(
             windowsIconPath = absoluteWindowsIconPath,
             tooltip = tooltip,
             primaryAction = primaryAction,
-            primaryActionLinuxLabel = primaryActionLinuxLabel,
+            primaryActionLabel = primaryActionLinuxLabel,
             menuContent = menuContent
         )
 
@@ -201,7 +201,7 @@ fun ApplicationScope.Tray(
  * @param iconRenderProperties Properties for rendering the icon.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
- * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
+ * @param primaryActionLabel The label for the primary action on Linux. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
  */
 @Composable
@@ -210,7 +210,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLinuxLabel: String = "Open",
+    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     // Calculate a hash of the rendered composable content to detect changes
@@ -221,7 +221,7 @@ fun ApplicationScope.Tray(
         iconRenderProperties,
         tooltip,
         primaryAction,
-        primaryActionLinuxLabel,
+        primaryActionLabel,
         menuContent,
         contentHash, // Use the content hash as an implicit key
     ) {
@@ -230,7 +230,7 @@ fun ApplicationScope.Tray(
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
-            primaryActionLinuxLabel = primaryActionLinuxLabel,
+            primaryActionLinuxLabel = primaryActionLabel,
             menuContent = menuContent,
         )
 
