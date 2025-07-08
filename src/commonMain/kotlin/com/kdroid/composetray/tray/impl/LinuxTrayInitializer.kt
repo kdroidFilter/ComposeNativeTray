@@ -85,7 +85,7 @@ object LinuxTrayInitializer {
         iconPath: String,
         tooltip: String,
         primaryAction: (() -> Unit)?,
-        primaryActionLinuxLabel: String,
+        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         cleanPreviousInstance()
@@ -97,7 +97,7 @@ object LinuxTrayInitializer {
                 iconPath = iconPath,
                 tooltip = tooltip,
                 primaryAction = primaryAction,
-                primaryActionLinuxLabel = primaryActionLinuxLabel,
+                primaryActionLabel = primaryActionLabel,
                 menuContent = menuContent
             )
         } else if (primaryAction != null) {
@@ -134,7 +134,7 @@ object LinuxTrayInitializer {
         iconPath: String,
         tooltip: String,
         primaryAction: (() -> Unit)?,
-        primaryActionLinuxLabel: String,
+        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         try {
@@ -152,7 +152,7 @@ object LinuxTrayInitializer {
             currentMenuBuilder.set(trayMenuBuilder)
 
             primaryAction?.let {
-                addPrimaryActionMenuItem(trayMenuBuilder, it, primaryActionLinuxLabel)
+                addPrimaryActionMenuItem(trayMenuBuilder, it, primaryActionLabel)
             }
 
             trayMenuBuilder.apply(menuContent!!)
@@ -170,9 +170,9 @@ object LinuxTrayInitializer {
     private fun addPrimaryActionMenuItem(
         trayMenuBuilder: LinuxTrayMenuBuilderImpl,
         primaryAction: () -> Unit,
-        primaryActionLinuxLabel: String
+        primaryActionLabel: String
     ) {
-        trayMenuBuilder.Item(primaryActionLinuxLabel) {
+        trayMenuBuilder.Item(primaryActionLabel) {
             saveTrayIconPosition()
             primaryAction.invoke()
         }

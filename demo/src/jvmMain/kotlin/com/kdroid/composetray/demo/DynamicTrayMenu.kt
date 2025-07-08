@@ -8,7 +8,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
-import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.kmplog.Log
@@ -64,7 +63,7 @@ fun main() = application {
                 isWindowVisible = true
                 Log.i(logTag, "On Primary Clicked")
             },
-            primaryActionLinuxLabel = "Open the Application",
+            primaryActionLabel = "Open the Application",
             tooltip = "My Application",
             menuContent = {
                 Item("Change icon") {

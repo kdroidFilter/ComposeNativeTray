@@ -38,17 +38,17 @@ internal class NativeTray {
      */
     @Deprecated(
         message = "Use the constructor with composable icon content instead",
-        replaceWith = ReplaceWith("NativeTray(iconContent, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)")
+        replaceWith = ReplaceWith("NativeTray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
     )
     constructor(
         iconPath: String,
         windowsIconPath: String = iconPath,
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
-        primaryActionLinuxLabel: String,
+        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
-        initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+        initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 
     /**
@@ -59,7 +59,7 @@ internal class NativeTray {
         iconRenderProperties: IconRenderProperties = IconRenderProperties(),
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
-        primaryActionLinuxLabel: String,
+        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         // Render the composable to PNG file for general use
@@ -76,7 +76,7 @@ internal class NativeTray {
             pngIconPath
         }
 
-        initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+        initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 
     private fun initializeTray(
@@ -84,7 +84,7 @@ internal class NativeTray {
         windowsIconPath: String,
         tooltip: String,
         primaryAction: (() -> Unit)?,
-        primaryActionLinuxLabel: String,
+        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         trayScope.launch {
@@ -94,7 +94,7 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         Log.d("NativeTray", "Initializing Linux tray with icon path: $iconPath")
-                        LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+                        LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                         trayInitialized = true
                     }
 
@@ -146,14 +146,14 @@ internal class NativeTray {
  * @param windowsIconPath The file path to the tray icon specifically for Windows. Defaults to the value of `iconPath`.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
- * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
+ * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
  * 
  * @deprecated Use the version with composable icon content instead
  */
 @Deprecated(
     message = "Use the version with composable icon content instead",
-    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)")
+    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
 )
 @Composable
 fun ApplicationScope.Tray(
@@ -161,7 +161,7 @@ fun ApplicationScope.Tray(
     windowsIconPath: String = iconPath,
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLinuxLabel: String = "Open",
+    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null
 ) {
     val absoluteIconPath = remember(iconPath) { extractToTempIfDifferent(iconPath)?.absolutePath.orEmpty() }
@@ -174,7 +174,7 @@ fun ApplicationScope.Tray(
         absoluteWindowsIconPath,
         tooltip,
         primaryAction,
-        primaryActionLinuxLabel,
+        primaryActionLabel,
         menuContent
     ) {
         val tray = NativeTray(
@@ -182,7 +182,7 @@ fun ApplicationScope.Tray(
             windowsIconPath = absoluteWindowsIconPath,
             tooltip = tooltip,
             primaryAction = primaryAction,
-            primaryActionLinuxLabel = primaryActionLinuxLabel,
+            primaryActionLabel = primaryActionLabel,
             menuContent = menuContent
         )
 
@@ -201,7 +201,7 @@ fun ApplicationScope.Tray(
  * @param iconRenderProperties Properties for rendering the icon.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
- * @param primaryActionLinuxLabel The label for the primary action on Linux. Defaults to "Open".
+ * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
  */
 @Composable
@@ -210,7 +210,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLinuxLabel: String = "Open",
+    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     // Calculate a hash of the rendered composable content to detect changes
@@ -221,7 +221,7 @@ fun ApplicationScope.Tray(
         iconRenderProperties,
         tooltip,
         primaryAction,
-        primaryActionLinuxLabel,
+        primaryActionLabel,
         menuContent,
         contentHash, // Use the content hash as an implicit key
     ) {
@@ -230,7 +230,7 @@ fun ApplicationScope.Tray(
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
-            primaryActionLinuxLabel = primaryActionLinuxLabel,
+            primaryActionLabel = primaryActionLabel,
             menuContent = menuContent,
         )
 
