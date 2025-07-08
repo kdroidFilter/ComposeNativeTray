@@ -115,7 +115,7 @@ internal class NativeTray {
                 if (AwtTrayInitializer.isSupported()) {
                     try {
                         Log.d("NativeTray", "Initializing AWT tray with icon path: $iconPath")
-                        AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
+                        AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                         awtTrayUsed.set(true)
                     } catch (th: Throwable) {
                         Log.e("NativeTray", "Error initializing AWT tray:", th)
