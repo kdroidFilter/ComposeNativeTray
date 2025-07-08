@@ -2,7 +2,9 @@ package com.kdroid.composetray.tray.api
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
@@ -31,6 +33,7 @@ internal class NativeTray {
     private val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val awtTrayUsed = AtomicBoolean(false)
+    private val operatingSystem = getOperatingSystem()
 
     /**
      * Constructor that accepts file paths for icons
@@ -127,6 +130,40 @@ internal class NativeTray {
         }
     }
 
+    internal fun updateTooltip(text: String) {
+        when {
+            awtTrayUsed.get() -> AwtTrayInitializer.updateTooltip(text)
+            operatingSystem == LINUX -> LinuxTrayInitializer.updateTooltip(text)
+            operatingSystem == WINDOWS -> WindowsTrayInitializer.updateTooltip(text)
+        }
+    }
+
+    internal fun updateMenu(
+        menuContent: (TrayMenuBuilder.() -> Unit)?,
+        primaryAction: (() -> Unit)?,
+        primaryActionLinuxLabel: String
+    ) {
+        when {
+            awtTrayUsed.get() -> AwtTrayInitializer.updateMenu(menuContent)
+            operatingSystem == LINUX -> LinuxTrayInitializer.updateMenu(menuContent, primaryAction, primaryActionLinuxLabel)
+            operatingSystem == WINDOWS -> WindowsTrayInitializer.updateMenu(menuContent)
+        }
+    }
+
+    internal fun updateIconContent(iconContent: @Composable () -> Unit, renderProps: IconRenderProperties) {
+        val pngIconPath = ComposableIconUtils.renderComposableToPngFile(renderProps, iconContent)
+        val windowsIconPath = if (operatingSystem == WINDOWS) {
+            ComposableIconUtils.renderComposableToIcoFile(renderProps, iconContent)
+        } else {
+            pngIconPath
+        }
+        when {
+            awtTrayUsed.get() -> AwtTrayInitializer.updateIcon(pngIconPath)
+            operatingSystem == LINUX -> LinuxTrayInitializer.updateIcon(pngIconPath)
+            operatingSystem == WINDOWS -> WindowsTrayInitializer.updateIcon(windowsIconPath)
+        }
+    }
+
     internal fun dispose() {
         val os = getOperatingSystem()
         when {
@@ -206,6 +243,7 @@ fun ApplicationScope.Tray(
  */
 @Composable
 fun ApplicationScope.Tray(
+    state: TrayState,
     iconContent: @Composable () -> Unit,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
@@ -213,30 +251,41 @@ fun ApplicationScope.Tray(
     primaryActionLinuxLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
-    // Calculate a hash of the rendered composable content to detect changes
-    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+    LaunchedEffect(state) {
+        state.initIfNeeded(iconContent, iconRenderProperties, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+    }
 
-    DisposableEffect(
-        iconContent,
-        iconRenderProperties,
-        tooltip,
-        primaryAction,
-        primaryActionLinuxLabel,
-        menuContent,
-        contentHash, // Use the content hash as an implicit key
-    ) {
-        val tray = NativeTray(
-            iconContent = iconContent,
-            iconRenderProperties = iconRenderProperties,
-            tooltip = tooltip,
-            primaryAction = primaryAction,
-            primaryActionLinuxLabel = primaryActionLinuxLabel,
-            menuContent = menuContent,
-        )
+    LaunchedEffect(state, tooltip) { state.updateTooltip(tooltip) }
+    LaunchedEffect(state, menuContent, primaryAction, primaryActionLinuxLabel) {
+        state.updateMenuItems(menuContent, primaryAction, primaryActionLinuxLabel)
+    }
 
-        onDispose {
-            Log.d("NativeTray", "onDispose")
-            tray.dispose()
+    val currentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+
+    LaunchedEffect(state, currentHash) {
+        if (currentHash != state.lastIconHash) {
+            state.lastIconHash = currentHash
+            state.updateIconContent(iconContent, iconRenderProperties)
         }
     }
+}
+
+@Composable
+fun ApplicationScope.Tray(
+    iconContent: @Composable () -> Unit,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    primaryActionLinuxLabel: String = "Open",
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val state = rememberTrayState()
+    Tray(state, iconContent, iconRenderProperties, tooltip, primaryAction, primaryActionLinuxLabel, menuContent)
+}
+
+@Composable
+fun ApplicationScope.rememberTrayState(): TrayState {
+    val state = remember { TrayState() }
+    DisposableEffect(Unit) { onDispose { state.dispose() } }
+    return state
 }

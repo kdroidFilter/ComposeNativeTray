@@ -66,7 +66,10 @@ The `Tray` must be executed inside an Application Scope, like this:
 
 ````kotlin
 application {
+  val trayState = rememberTrayState()
+
   Tray(
+    state = trayState,
     iconContent = {
       Icon(
         Icons.Default.Favorite,
@@ -79,7 +82,7 @@ application {
     primaryAction = {
       Log.i(logTag, "Primary action triggered")
     },
-    primaryActionLinuxLabel = "Open Application"
+    primaryActionLinuxLabel = "Open Application",
   ) {
     SubMenu(label = "Options") {
       Item(label = "Setting 1") {
@@ -130,6 +133,49 @@ application {
   }
 }
 ````
+
+You can keep a single tray instance and update its properties using `rememberTrayState`:
+
+```kotlin
+application {
+  val trayState = rememberTrayState()
+
+  Tray(
+    state = trayState,
+    iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
+    tooltip = "My Application"
+  ) {
+    // menu items
+  }
+
+  // Example of updating the tooltip
+  trayState.updateTooltip("New tooltip")
+}
+```
+
+Icon updates are tracked automatically. Changing the content passed to
+`Tray` will refresh the tray icon without recreating the tray.
+
+You can also update menu items reactively:
+
+```kotlin
+application {
+  var showAdvanced by remember { mutableStateOf(false) }
+
+  val trayState = rememberTrayState()
+
+  Tray(
+    state = trayState,
+    iconContent = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.fillMaxSize()) },
+    tooltip = "My Application"
+  ) {
+    Item(label = "Toggle Advanced") { showAdvanced = !showAdvanced }
+    if (showAdvanced) {
+      Item(label = "Advanced Option") { /* ... */ }
+    }
+  }
+}
+```
 
 ### 📋 Components of the Tray Menu
 - **Item**: A standard clickable item that can be enabled or disabled.
