@@ -17,7 +17,8 @@
 - Improves the appearance of the tray on Linux, which previously resembled Windows 95.
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
-  - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
+  - On Windows, the primary action is triggered by a left-click on the tray icon.
+  - On macOS, left-clicking opens the tray menu (macOS convention) while right-clicking has no effect. The primary action is added as the first item in the menu.
   - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label). If the context menu is empty, the library uses `gtkstatusicon` to capture the primary action without needing to add an item to the context menu.
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
@@ -45,7 +46,7 @@ To use the ComposeTray library, add it as a dependency in your `build.gradle.kts
 
 ```kotlin
 dependencies {
-  implementation("io.github.kdroidfilter:composenativetray:0.6.0")
+  implementation("io.github.kdroidfilter:composenativetray:<version>")
 }
 ```
 
@@ -71,7 +72,7 @@ application {
     primaryAction = {
       Log.i(logTag, "Primary action triggered")
     },
-    primaryActionLinuxLabel = "Open Application"
+    primaryActionLabel = "Open Application"
   ) {
     SubMenu(label = "Options") {
       Item(label = "Setting 1") {
