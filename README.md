@@ -138,7 +138,7 @@ application {
 - **SubMenu**: A submenu that can contain multiple items, including other submenus.
 - **Divider**: A separator used to visually separate menu items.
 - **dispose**: Call to remove the system tray icon and exit gracefully.
-- **Primary Action**: An action triggered by a left-click on the tray icon (Windows and macOS) or as a top item in the context menu (Linux).
+- **Primary Action**: An action triggered by a left-click on the tray icon (Windows) or as a top item in the context menu (MacOs and Linux).
 
 ### 🎨 Icon Rendering Customization
 
