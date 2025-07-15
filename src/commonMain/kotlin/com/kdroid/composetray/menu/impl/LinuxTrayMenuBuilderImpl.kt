@@ -11,10 +11,11 @@ internal class LinuxLibTrayMenuBuilderImpl(
     private val tooltip: String = "",
     private val onLeftClick: (() -> Unit)?
 ) : TrayMenuBuilder {
+
     private val menuItems = mutableListOf<LinuxNativeTrayMenuItem>()
     private val lock = ReentrantLock()
 
-    // Keep references to prevent GC
+    // Prevent GC
     private val persistentMenuItems = mutableListOf<LinuxNativeTrayMenuItem>()
     private val persistentCallbacks = mutableListOf<LinuxNativeTrayMenuItem.MenuItemCallback>()
 
@@ -23,7 +24,7 @@ internal class LinuxLibTrayMenuBuilderImpl(
             val menuItem = LinuxNativeTrayMenuItem().apply {
                 text = label
                 disabled = if (isEnabled) 0 else 1
-                checked = 0
+                checked = -1 // ❌ not checkable
 
                 val callback = LinuxNativeTrayMenuItem.MenuItemCallback { _ ->
                     onClick()
@@ -36,14 +37,19 @@ internal class LinuxLibTrayMenuBuilderImpl(
         }
     }
 
-    override fun CheckableItem(label: String, checked: Boolean, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
+    override fun CheckableItem(
+        label: String,
+        checked: Boolean,
+        isEnabled: Boolean,
+        onToggle: (Boolean) -> Unit
+    ) {
         var isChecked = checked
 
         lock.withLock {
             val menuItem = LinuxNativeTrayMenuItem().apply {
                 text = label
                 disabled = if (isEnabled) 0 else 1
-                this.checked = if (isChecked) 1 else 0
+                this.checked = if (isChecked) 1 else 0 // 1 / 0 → checkable
 
                 val callback = LinuxNativeTrayMenuItem.MenuItemCallback { item ->
                     isChecked = !isChecked
@@ -58,7 +64,11 @@ internal class LinuxLibTrayMenuBuilderImpl(
         }
     }
 
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
+    override fun SubMenu(
+        label: String,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
         if (submenuContent == null) return
 
         val subMenuBuilder = LinuxLibTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick)
@@ -68,7 +78,7 @@ internal class LinuxLibTrayMenuBuilderImpl(
             val menuItem = LinuxNativeTrayMenuItem().apply {
                 text = label
                 disabled = if (isEnabled) 0 else 1
-                checked = 0
+                checked = -1 // ❌ not checkable
                 submenu = subMenuBuilder.build()
             }
             menuItems.add(menuItem)
@@ -81,7 +91,7 @@ internal class LinuxLibTrayMenuBuilderImpl(
             val divider = LinuxNativeTrayMenuItem().apply {
                 text = "-"
                 disabled = 0
-                checked = 0
+                checked = -1 // ❌ not checkable
             }
             menuItems.add(divider)
             persistentMenuItems.add(divider)
@@ -96,32 +106,29 @@ internal class LinuxLibTrayMenuBuilderImpl(
         }
     }
 
-    fun build(): Pointer? {
-        lock.withLock {
-            if (menuItems.isEmpty()) return null
+    fun build(): Pointer? = lock.withLock {
+        if (menuItems.isEmpty()) return null
 
-            // Create an array with size + 1 for null terminator
-            val menuArray = LinuxNativeTrayMenuItem().toArray(menuItems.size + 1) as Array<LinuxNativeTrayMenuItem>
+        // +1 for NULL terminator
+        val menuArray =
+            LinuxNativeTrayMenuItem().toArray(menuItems.size + 1) as Array<LinuxNativeTrayMenuItem>
 
-            // Copy items to array
-            menuItems.forEachIndexed { index, item ->
-                menuArray[index].apply {
-                    text = item.text
-                    disabled = item.disabled
-                    checked = item.checked
-                    cb = item.cb
-                    submenu = item.submenu
-                    write() // Write to native memory
-                }
-            }
-
-            // Null terminator
-            menuArray[menuItems.size].apply {
-                text = null
+        menuItems.forEachIndexed { index, item ->
+            menuArray[index].apply {
+                text = item.text
+                disabled = item.disabled
+                checked = item.checked
+                cb = item.cb
+                submenu = item.submenu
                 write()
             }
-
-            return menuArray[0].pointer
         }
+
+        // NULL terminator
+        menuArray[menuItems.size].apply {
+            text = null
+            write()
+        }
+        menuArray[0].pointer
     }
 }
