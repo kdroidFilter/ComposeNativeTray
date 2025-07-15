@@ -61,6 +61,7 @@ fun main() = application {
             },
             primaryAction = {
                 isWindowVisible = true
+
                 Log.i(logTag, "On Primary Clicked")
             },
             primaryActionLabel = "Open the Application",
