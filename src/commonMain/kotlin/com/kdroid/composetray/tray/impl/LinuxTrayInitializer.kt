@@ -36,8 +36,16 @@ object LinuxTrayInitializer {
         running.set(false)
 
         try {
+            // Call tray_exit() to signal Qt to quit
+            // This must be called BEFORE waiting for the thread
+            trayLib.tray_exit()
+
             // Wait for the tray thread to clean up (with timeout)
-            latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            if (!latch.await(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                Log.e("LinuxTrayInitializer", "Timeout waiting for tray disposal")
+                // Force interrupt the thread if it doesn't exit cleanly
+                trayThread?.interrupt()
+            }
         } catch (e: InterruptedException) {
             Log.e("LinuxTrayInitializer", "Interrupted while waiting for disposal", e)
         }
@@ -64,8 +72,8 @@ object LinuxTrayInitializer {
         if (initialized.get()) {
             Log.d("LinuxTrayInitializer", "Already initialized, disposing previous instance")
             dispose()
-            // Give Qt time to clean up
-            Thread.sleep(100)
+            // Give Qt more time to clean up completely
+            Thread.sleep(500)
         }
 
         // Create the tray structure
@@ -117,10 +125,7 @@ object LinuxTrayInitializer {
                     }
                 }
 
-                Log.d("LinuxTrayInitializer", "Event loop ended, cleaning up")
-
-                // Clean up on the same thread
-                trayLib.tray_exit()
+                Log.d("LinuxTrayInitializer", "Event loop ended")
 
             } catch (e: Exception) {
                 Log.e("LinuxTrayInitializer", "Error in tray thread", e)
@@ -138,6 +143,6 @@ object LinuxTrayInitializer {
         }
 
         // Wait a bit to ensure the tray is initialized
-        Thread.sleep(100)
+        Thread.sleep(200)
     }
 }
