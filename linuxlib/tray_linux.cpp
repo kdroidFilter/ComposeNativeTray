@@ -43,6 +43,9 @@ TRAY_EXPORT void tray_exit(void)
     if (trayMenuInstance)
     {
         trayMenuInstance->exit();
+        trayMenuInstance->deleteLater();
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 1000);
+        trayMenuInstance = nullptr;
     }
 }
 

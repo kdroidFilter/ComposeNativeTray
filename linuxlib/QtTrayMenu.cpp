@@ -113,10 +113,9 @@ void QtTrayMenu::exit()
             trayIcon = nullptr;
         }
 
-        // Process any pending events before emitting exitRequested
-        // This ensures all GLib context operations are completed
-        app->processEvents();
-        app->processEvents(); // Extra call to ensure thorough cleanup
+        // Process any pending events to ensure proper cleanup
+        // Allow up to 1 second for event processing
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 1000);
 
         // Quit the blocking event loop if active
         if (blockingEventLoop) {
