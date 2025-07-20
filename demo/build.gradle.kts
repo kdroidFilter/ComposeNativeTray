@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.api.tasks.JavaExec
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -40,4 +41,23 @@ compose.desktop {
             configurationFiles.from(project.file("proguard-rules.pro"))
         }
     }
+}
+
+// Task to build native libraries and run the demo
+tasks.register("buildAndRunDemo") {
+    // Depend on the buildNativeLibraries task from the root project
+    dependsOn(rootProject.tasks.named("buildNativeLibraries"))
+    
+    // This task doesn't do anything by itself, it just depends on buildNativeLibraries
+    // and will be followed by the run task
+    doLast {
+        println("Native libraries built successfully. Starting demo application...")
+    }
+    
+    // Make sure the run task is executed after this task
+    finalizedBy(tasks.named("run"))
+    
+    // Description for the task
+    description = "Builds the native libraries and then runs the demo application"
+    group = "application"
 }

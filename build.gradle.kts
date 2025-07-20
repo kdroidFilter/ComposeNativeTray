@@ -54,8 +54,14 @@ val buildWin: TaskProvider<Exec> = tasks.register<Exec>("buildNativeWin") {
     commandLine("cmd", "/c", "build.bat")
 }
 
+val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
+    onlyIf { System.getProperty("os.name").toLowerCase().contains("linux") }
+    workingDir(rootDir.resolve("linuxlib"))
+    commandLine("./build.sh")
+}
+
 tasks.register("buildNativeLibraries") {
-    dependsOn(buildWin)
+    dependsOn(buildWin, buildLinux)
 }
 
 mavenPublishing {
