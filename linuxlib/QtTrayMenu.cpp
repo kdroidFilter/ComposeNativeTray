@@ -89,8 +89,6 @@ int QtTrayMenu::init(struct tray *tray)
     trayIcon->setToolTip(QString::fromUtf8(tray->tooltip));
 
     connect(trayIcon, &QSystemTrayIcon::activated, this, &QtTrayMenu::onTrayActivated);
-    // Remove connect for exitRequested
-    // connect(this, &QtTrayMenu::exitRequested, this, &QtTrayMenu::onExitRequested);
 
     auto *menu = new QMenu;
     createMenu(tray->menu, menu);
@@ -123,12 +121,21 @@ void QtTrayMenu::update(struct tray *tray)
 int QtTrayMenu::loop(int blocking)
 {
     if (!continueRunning) {
+        // Perform cleanup in the correct thread
+        if (trayIcon) {
+            trayIcon->hide();
+            trayIcon->deleteLater();
+            trayIcon = nullptr;
+        }
+        app->processEvents(QEventLoop::AllEvents, 1000);
         return -1;
     }
+
     if (!app || app->closingDown()) {
         printf("Application is not in a valid state or is closing down.\n");
         return -1;
     }
+
     if (blocking) {
         QEventLoop localLoop;
         blockingEventLoop = &localLoop;
@@ -145,25 +152,9 @@ void QtTrayMenu::exit()
 {
     continueRunning = false;
 
-    QMetaObject::invokeMethod(this, [this]() {
-        if (trayIcon) {
-            trayIcon->hide();
-            trayIcon->deleteLater();
-            trayIcon = nullptr;
-        }
-
-        // Process any pending events to ensure proper cleanup
-        // Allow up to 1 second for event processing
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 1000);
-
-        // Quit the blocking event loop if active
-        if (blockingEventLoop) {
-            blockingEventLoop->quit();
-        }
-
-        // Remove emit exitRequested
-        // emit exitRequested();
-    }, Qt::QueuedConnection);
+    if (blockingEventLoop) {
+        blockingEventLoop->quit();
+    }
 }
 
 void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
@@ -228,9 +219,3 @@ struct tray_menu_item *QtTrayMenu::getTrayMenuItem(QAction *action)
 {
     return reinterpret_cast<struct tray_menu_item *>(action->property("tray_menu_item").value<void *>());
 }
-
-// Remove onExitRequested
-// void QtTrayMenu::onExitRequested()
-// {
-//     app->quit();
-// }
