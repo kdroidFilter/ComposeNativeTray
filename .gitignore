@@ -46,3 +46,5 @@ bin/
 
 .idea
 tray_position.properties
+
+linuxlib/build-x86-64
