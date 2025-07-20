@@ -7,7 +7,7 @@ char *argvArray[] = {(char *)"TrayMenuApp", nullptr};
 bool debug = false;
 
 QtTrayMenu::QtTrayMenu()
-        : trayIcon(nullptr), trayStruct(nullptr), continueRunning(true), app(nullptr)
+    : trayIcon(nullptr), trayStruct(nullptr), continueRunning(true), app(nullptr), createdApp(false), blockingEventLoop(nullptr)
 {
     if (QApplication::instance()) {
         app = dynamic_cast<QApplication *>(QApplication::instance());
@@ -16,6 +16,7 @@ QtTrayMenu::QtTrayMenu()
         }
     } else {
         app = new QApplication(argc, &argvArray[0]);
+        createdApp = true;
     }
     if (debug)
         app->installEventFilter(this);
@@ -23,20 +24,22 @@ QtTrayMenu::QtTrayMenu()
 
 QtTrayMenu::~QtTrayMenu()
 {
-    delete trayIcon;
-    trayIcon = nullptr;
-
-    // Delete app only if it was created within this class
-    if (app && app != QApplication::instance()) {
-        delete app;
-        app = nullptr;
+    if (trayIcon) {
+        // Fallback in case exit() wasn't called; queue safe deletion
+        trayIcon->deleteLater();
+        trayIcon = nullptr;
     }
+
+    // Do NOT delete app here; it avoids thread-mismatched destruction warnings at JVM exit.
+    // If created internally, it's intentionally leaked at shutdown (harmless as process ends).
 }
 
 int QtTrayMenu::init(struct tray *tray)
 {
     if (trayIcon)
         return -1; // Already initialized
+
+    continueRunning = true; // Reset for recreation
 
     this->trayStruct = tray;
 
@@ -47,7 +50,8 @@ int QtTrayMenu::init(struct tray *tray)
     trayIcon->setToolTip(QString::fromUtf8(tray->tooltip));
 
     connect(trayIcon, &QSystemTrayIcon::activated, this, &QtTrayMenu::onTrayActivated);
-    connect(this, &QtTrayMenu::exitRequested, this, &QtTrayMenu::onExitRequested);
+    // Remove connect for exitRequested
+    // connect(this, &QtTrayMenu::exitRequested, this, &QtTrayMenu::onExitRequested);
 
     auto *menu = new QMenu;
     createMenu(tray->menu, menu);
@@ -87,7 +91,10 @@ int QtTrayMenu::loop(int blocking)
         return -1;
     }
     if (blocking) {
-        app->exec();
+        QEventLoop localLoop;
+        blockingEventLoop = &localLoop;
+        localLoop.exec();
+        blockingEventLoop = nullptr;
         return -1;
     } else {
         app->processEvents();
@@ -98,16 +105,27 @@ int QtTrayMenu::loop(int blocking)
 void QtTrayMenu::exit()
 {
     continueRunning = false;
-    
-    // Hide and delete the tray icon before quitting the application
-    // This ensures proper cleanup of the GLib main context
-    if (trayIcon) {
-        trayIcon->hide();
-        delete trayIcon;
-        trayIcon = nullptr;
-    }
-    
-    emit exitRequested();
+
+    QMetaObject::invokeMethod(this, [this]() {
+        if (trayIcon) {
+            trayIcon->hide();
+            trayIcon->deleteLater();
+            trayIcon = nullptr;
+        }
+
+        // Process any pending events before emitting exitRequested
+        // This ensures all GLib context operations are completed
+        app->processEvents();
+        app->processEvents(); // Extra call to ensure thorough cleanup
+
+        // Quit the blocking event loop if active
+        if (blockingEventLoop) {
+            blockingEventLoop->quit();
+        }
+
+        // Remove emit exitRequested
+        // emit exitRequested();
+    }, Qt::QueuedConnection);
 }
 
 void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
@@ -173,7 +191,8 @@ struct tray_menu_item *QtTrayMenu::getTrayMenuItem(QAction *action)
     return reinterpret_cast<struct tray_menu_item *>(action->property("tray_menu_item").value<void *>());
 }
 
-void QtTrayMenu::onExitRequested()
-{
-    app->quit();
-}
+// Remove onExitRequested
+// void QtTrayMenu::onExitRequested()
+// {
+//     app->quit();
+// }
