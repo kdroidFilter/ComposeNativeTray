@@ -1,28 +1,34 @@
+// QtAppManager.h
 #ifndef QT_APP_MANAGER_H
 #define QT_APP_MANAGER_H
 
 #include <QApplication>
+#include <QMutex>
+#include <QWaitCondition>
 #include <QThread>
-#include <atomic>
 #include <memory>
 
-class QtAppManager {
+class QtAppManager : public QThread {
+    Q_OBJECT
+
 public:
     static QtAppManager& instance();
     QApplication* getApp();
     bool isReady();
     void ensureRunning();
 
+protected:
+    void run() override;
+
 private:
     QtAppManager();
-    ~QtAppManager();
+    ~QtAppManager() override;
 
-    void initializeQt();
-
-    std::unique_ptr<QThread> qtThread;
     QApplication* app;
-    std::atomic<bool> initialized;
-    std::atomic<bool> running;
+    bool initialized;
+    bool running;
+    QMutex mutex;
+    QWaitCondition initCondition;
 };
 
 #endif // QT_APP_MANAGER_H

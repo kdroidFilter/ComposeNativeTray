@@ -1,73 +1,83 @@
+// QtAppManager.cpp
 #include "QtAppManager.h"
 #include <QCoreApplication>
-#include <QTimer>
+#include <QDebug>
 
 QtAppManager& QtAppManager::instance() {
     static QtAppManager instance;
     return instance;
 }
 
-QtAppManager::QtAppManager() : app(nullptr), initialized(false), running(false) {
-    initializeQt();
+QtAppManager::QtAppManager()
+    : app(nullptr), initialized(false), running(false) {
+    // Start the thread immediately upon construction
+    start();
+    // Wait for initialization (with timeout)
+    QMutexLocker locker(&mutex);
+    if (!initCondition.wait(&mutex, 2000)) {  // 2-second timeout
+        qWarning() << "Timeout waiting for Qt initialization";
+    }
 }
 
 QtAppManager::~QtAppManager() {
-    if (app) {
+    if (running && app) {
         app->quit();
     }
-    if (qtThread && qtThread->isRunning()) {
-        qtThread->wait(1000);  // Wait for thread to finish after quit
+    quit();
+    if (!wait(2000)) {  // Wait with timeout
+        qWarning() << "Timeout waiting for Qt thread to finish";
+        terminate();  // Force terminate if needed (use cautiously)
     }
 }
 
-void QtAppManager::initializeQt() {
+void QtAppManager::run() {
+    QMutexLocker locker(&mutex);
+
     if (QApplication::instance()) {
         app = qobject_cast<QApplication*>(QApplication::instance());
-        initialized = true;
-        running = true;
+    } else {
+        static int argc = 1;
+        static char app_name[] = "TrayMenuApp";
+        static char *argv[] = {app_name, nullptr};
+        app = new QApplication(argc, argv);
+        app->setQuitOnLastWindowClosed(false);
+    }
+
+    if (!app) {
+        qWarning() << "Failed to create QApplication";
+        initCondition.wakeAll();
         return;
     }
 
-    // Create Qt in a dedicated thread
-    qtThread = std::make_unique<QThread>();
-    qtThread->start();
+    initialized = true;
+    running = true;
+    initCondition.wakeAll();  // Signal that init is complete
 
-    // Initialize QApplication in the Qt thread
-    QTimer::singleShot(0, qtThread.get(), [this]() {
-        if (!QApplication::instance()) {
-            static int argc = 1;
-            static char app_name[] = "TrayMenuApp";
-            static char *argv[] = {app_name, nullptr};
-            app = new QApplication(argc, argv);
-            app->setQuitOnLastWindowClosed(false);
-        } else {
-            app = qobject_cast<QApplication*>(QApplication::instance());
-        }
-        initialized = true;
-        running = true;
-
-        // Run the proper event loop instead of polling
-        app->exec();
-
-        running = false;  // Exec returned
-    });
-
-    // Wait for initialization with reduced polling
-    while (!initialized) {
-        QThread::msleep(5);
-    }
+    locker.unlock();  // Unlock before exec() to avoid deadlock
+    app->exec();
+    running = false;
 }
 
 QApplication* QtAppManager::getApp() {
+    QMutexLocker locker(&mutex);
+    if (!initialized) {
+        if (!initCondition.wait(&mutex, 1000)) {
+            qWarning() << "Timeout waiting for app";
+        }
+    }
     return app;
 }
 
 bool QtAppManager::isReady() {
+    QMutexLocker locker(&mutex);
     return initialized && app;
 }
 
 void QtAppManager::ensureRunning() {
     if (!running || !app) {
-        initializeQt();
+        // Restart if needed (though singleton prevents multiples)
+        if (!isRunning()) {
+            start();
+        }
     }
 }

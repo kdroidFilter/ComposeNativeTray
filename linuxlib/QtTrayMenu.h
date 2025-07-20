@@ -8,9 +8,11 @@
 #include <QThread>
 #include <QEventLoop>
 #include <QCoreApplication>
+#include <QTimer>
+#include <QDebug>
 #include "tray.h"
+#include "QtAppManager.h"
 
-// All comments are in English, as requested.
 class QtTrayMenu : public QObject
 {
     Q_OBJECT
@@ -22,49 +24,36 @@ public:
     // Public API
     int  init(struct tray *tray);
     void update(struct tray *tray);
-    int  loop(int blocking);     // blocking == 0 → non‑blocking
-    void exit();                 // initiate graceful teardown
+    int  loop(int blocking);
+    void exit();
+
+signals:
+    // Signals for thread-safe operations
+    void initRequested();
+    void updateRequested();
+    void exitRequested();
+    void cleanupRequested();
+
+private slots:
+    // Slots that execute on Qt thread
+    int onInitRequested();
+    void onUpdateRequested();
+    void onExitRequested();
+    void onCleanupRequested();
+    void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
+    void onMenuItemTriggered();
 
 private:
     // Internal helpers
     void createMenu(struct tray_menu_item *items, QMenu *menu);
-    void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
-    void onMenuItemTriggered();
     struct tray_menu_item *getTrayMenuItem(QAction *action);
-
-    // Helper: run a lambda on the Qt thread and wait until it completes
-    template<typename Fn>
-    void runInQtThreadBlocking(Fn &&fn)
-    {
-        // Same thread → direct call
-        if (QThread::currentThread() == this->thread() || this->thread() == nullptr) {
-            fn();
-            return;
-        }
-
-        // Different thread → queued invoke + local loop
-        QEventLoop loop;
-        auto wrapper = [&, f = std::forward<Fn>(fn)]() mutable {
-            f();
-            loop.quit();
-        };
-        QMetaObject::invokeMethod(this, wrapper, Qt::QueuedConnection);
-        loop.exec();  // processes events until wrapper calls loop.quit()
-    }
 
     // State
     QApplication        *app;
     QSystemTrayIcon     *trayIcon;
     struct tray         *trayStruct;
+    struct tray         *tempTrayStruct; // Temporary storage for cross-thread communication
     bool                 continueRunning;
-
-    signals:
-        void exitRequested();
-    void cleanupRequested();
-
-private slots:
-    void onExitRequested();
-    void onCleanupRequested();
 };
 
 #endif // TRAYMENU_H
