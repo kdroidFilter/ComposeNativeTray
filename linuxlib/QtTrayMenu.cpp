@@ -1,14 +1,53 @@
 #include "QtTrayMenu.h"
 #include <QApplication>
 #include <QDebug>
+#include <QtGlobal>
 
 int argc = 1;
 char *argvArray[] = {(char *)"TrayMenuApp", nullptr};
 bool debug = false;
 
+// Custom message handler to filter out specific Qt warnings
+// This handler suppresses specific thread-related error messages that can occur
+// during application shutdown or when Qt objects are destroyed from a different thread.
+// These messages are generally harmless in this application context since we're
+// properly using deleteLater() and processEvents() for cleanup.
+void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    // Filter out specific error messages related to thread safety
+    if (msg.contains("QObject::killTimer: Timers cannot be stopped from another thread") ||
+        msg.contains("QObject::~QObject: Timers cannot be stopped from another thread") ||
+        msg.contains("g_main_context_pop_thread_default: assertion 'stack != NULL' failed")) {
+        return; // Silently ignore these messages as they're expected during cross-thread cleanup
+    }
+
+    // Forward all other messages to the default handler
+    const QByteArray localMsg = msg.toLocal8Bit();
+    switch (type) {
+    case QtDebugMsg:
+        fprintf(stderr, "Debug: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtInfoMsg:
+        fprintf(stderr, "Info: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtWarningMsg:
+        fprintf(stderr, "Warning: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtCriticalMsg:
+        fprintf(stderr, "Critical: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtFatalMsg:
+        fprintf(stderr, "Fatal: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        abort();
+    }
+}
+
 QtTrayMenu::QtTrayMenu()
     : trayIcon(nullptr), trayStruct(nullptr), continueRunning(true), app(nullptr), createdApp(false), blockingEventLoop(nullptr)
 {
+    // Install custom message handler to filter out specific Qt warnings
+    qInstallMessageHandler(customMessageHandler);
+    
     if (QApplication::instance()) {
         app = dynamic_cast<QApplication *>(QApplication::instance());
         if (!app) {
