@@ -9,23 +9,25 @@ object WindowsTrayInitializer {
     private var trayManager: WindowsTrayManager? = null
 
     fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) {
-        val windowsTrayManager = WindowsTrayManager(iconPath, tooltip, onLeftClick)
-        trayManager = windowsTrayManager
-        // Create an instance of WindowsTrayMenuImpl and apply the menu content
+        // Create menu items
         val trayMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
             menuContent?.let { it() }
         }
         val menuItems = trayMenuImpl.build()
 
-        // Add each menu item to WindowsTrayManager
-        menuItems.forEach { windowsTrayManager.addMenuItem(it) }
-
-        // Start the Windows tray
-        windowsTrayManager.startTray()
+        if (trayManager == null) {
+            // Create new manager
+            val windowsTrayManager = WindowsTrayManager(iconPath, tooltip, onLeftClick)
+            trayManager = windowsTrayManager
+            windowsTrayManager.initialize(menuItems)
+        } else {
+            // Update existing manager
+            trayManager?.update(iconPath, tooltip, onLeftClick, menuItems)
+        }
     }
 
     fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) {
-        trayManager?.stopTray()
+        // Same as initialize - it will handle both cases
         initialize(iconPath, tooltip, onLeftClick, menuContent)
     }
 
