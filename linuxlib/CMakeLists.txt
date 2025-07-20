@@ -14,9 +14,7 @@ list(APPEND SRCS
 		${CMAKE_CURRENT_SOURCE_DIR}/QtTrayMenu.cpp
 )
 
-add_library(tray SHARED ${SRCS}
-		QtAppManager.h
-		QtAppManager.cpp)
+add_library(tray SHARED ${SRCS})
 set_property(TARGET tray PROPERTY C_STANDARD 99)
 target_compile_definitions(tray PRIVATE TRAY_EXPORTS)
 set_target_properties(tray PROPERTIES C_VISIBILITY_PRESET hidden)

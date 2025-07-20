@@ -1,129 +1,97 @@
 #include "QtTrayMenu.h"
+#include <QApplication>
+#include <QDebug>
 
-#include <atomic>
-#include <QIcon>
-#include <QThread>
+int argc = 1;
+char *argvArray[] = {(char *)"TrayMenuApp", nullptr};
+bool debug = false;
 
-//----------------------------------------
-// Construction / Destruction
-//----------------------------------------
 QtTrayMenu::QtTrayMenu()
-    : trayIcon(nullptr)
-    , trayStruct(nullptr)
-    , continueRunning(true)
-    , app(nullptr)
+        : trayIcon(nullptr), trayStruct(nullptr), continueRunning(true), app(nullptr)
 {
-    // Use QtAppManager to ensure proper Qt initialization
-    app = QtAppManager::instance().getApp();
-    if (!app) {
-        qDebug() << "Failed to get QApplication instance";
-        return;
+    if (QApplication::instance()) {
+        app = dynamic_cast<QApplication *>(QApplication::instance());
+        if (!app) {
+            fprintf(stderr, "QCoreApplication is not a QApplication, please contact support.");
+        }
+    } else {
+        app = new QApplication(argc, &argvArray[0]);
     }
-
-    // Move this QObject to the Qt GUI thread
-    this->moveToThread(app->thread());
-
-    // Use Qt::QueuedConnection for thread-safe signal handling
-    connect(this, &QtTrayMenu::initRequested,
-            this, &QtTrayMenu::onInitRequested,
-            Qt::QueuedConnection);
-
-    connect(this, &QtTrayMenu::updateRequested,
-            this, &QtTrayMenu::onUpdateRequested,
-            Qt::QueuedConnection);
-
-    connect(this, &QtTrayMenu::cleanupRequested,
-            this, &QtTrayMenu::onCleanupRequested,
-            Qt::QueuedConnection);
-
-    connect(this, &QtTrayMenu::exitRequested,
-            this, &QtTrayMenu::onExitRequested,
-            Qt::QueuedConnection);
+    if (debug)
+        app->installEventFilter(this);
 }
 
 QtTrayMenu::~QtTrayMenu()
 {
-    // Ensure cleanup happens in the Qt thread
-    if (trayIcon) {
-        if (QThread::currentThread() == app->thread()) {
-            // Already on Qt thread, cleanup directly
-            onCleanupRequested();
-        } else {
-            // Use blocking invocation for cleanup
-            QMetaObject::invokeMethod(this, &QtTrayMenu::onCleanupRequested,
-                                    Qt::BlockingQueuedConnection);
-        }
+    delete trayIcon;
+    trayIcon = nullptr;
+
+    // Delete app only if it was created within this class
+    if (app && app != QApplication::instance()) {
+        delete app;
+        app = nullptr;
     }
 }
 
-//----------------------------------------
-// Public API
-//----------------------------------------
 int QtTrayMenu::init(struct tray *tray)
 {
-    if (!app) {
-        return -1;
-    }
+    if (trayIcon)
+        return -1; // Already initialized
 
-    // Store the tray pointer for later use
-    tempTrayStruct = tray;
+    this->trayStruct = tray;
 
-    // If we're on the Qt thread, initialize directly
-    if (QThread::currentThread() == app->thread()) {
-        return onInitRequested();
-    }
+    if (app->applicationName().isEmpty() || app->applicationName() == "TrayMenuApp")
+        app->setApplicationName(tray->tooltip);
 
-    // For cross-thread initialization, we need to use invokeMethod
-    // and wait for completion without using QEventLoop
-    std::atomic<bool> completed(false);
-    std::atomic<int> result(-1);
+    trayIcon = new QSystemTrayIcon(QIcon(tray->icon_filepath));
+    trayIcon->setToolTip(QString::fromUtf8(tray->tooltip));
 
-    QMetaObject::invokeMethod(this, [this, &result, &completed]() {
-        result = onInitRequested();
-        completed = true;
-    }, Qt::QueuedConnection);
+    connect(trayIcon, &QSystemTrayIcon::activated, this, &QtTrayMenu::onTrayActivated);
+    connect(this, &QtTrayMenu::exitRequested, this, &QtTrayMenu::onExitRequested);
 
-    // Wait for completion (busy wait with sleep to avoid blocking)
-    while (!completed) {
-        QThread::msleep(10);
-    }
+    auto *menu = new QMenu;
+    createMenu(tray->menu, menu);
 
-    return result;
+    trayIcon->setContextMenu(menu);
+    trayIcon->show();
+
+    return 0;
 }
 
 void QtTrayMenu::update(struct tray *tray)
 {
-    if (!trayIcon || !app) return;
+    QMetaObject::invokeMethod(this, [this, tray]() {
+        this->trayStruct = tray;
+        if (trayIcon) {
+            auto newIcon = QIcon(tray->icon_filepath);
+            if (!newIcon.isNull())
+                trayIcon->setIcon(newIcon);
+            trayIcon->setToolTip(QString::fromUtf8(tray->tooltip));
+        }
 
-    // Store the tray pointer for the update
-    tempTrayStruct = tray;
-
-    // Use signal to ensure execution on Qt thread
-    emit updateRequested();
+        auto *existingMenu = trayIcon->contextMenu();
+        if (existingMenu) {
+            existingMenu->clear();
+            createMenu(tray->menu, existingMenu);
+        }
+    }, Qt::QueuedConnection);
 }
 
 int QtTrayMenu::loop(int blocking)
 {
-    if (!app) {
+    if (!continueRunning) {
         return -1;
     }
-    if (!continueRunning) return -1;
-
-    try {
-        if (blocking) {
-            // For blocking mode, we need to ensure we're on the Qt thread
-            if (QThread::currentThread() != app->thread()) {
-                // If not on Qt thread, we can't run exec() directly
-                return -1;
-            }
-            return app->exec();
-        } else {
-            // Non-blocking mode: process events
-            app->processEvents(QEventLoop::AllEvents, 10);
-            return continueRunning ? 0 : -1;
-        }
-    } catch (...) {
+    if (!app || app->closingDown()) {
+        printf("Application is not in a valid state or is closing down.\n");
         return -1;
+    }
+    if (blocking) {
+        app->exec();
+        return -1;
+    } else {
+        app->processEvents();
+        return 0;
     }
 }
 
@@ -133,126 +101,10 @@ void QtTrayMenu::exit()
     emit exitRequested();
 }
 
-//----------------------------------------
-// Private slots (executed on Qt thread)
-//----------------------------------------
-int QtTrayMenu::onInitRequested()
-{
-    if (trayIcon) {
-        return -1; // Already initialized
-    }
-
-    trayStruct = tempTrayStruct;
-    tempTrayStruct = nullptr;
-
-    if (!trayStruct) {
-        return -1;
-    }
-
-    // Set application name if not already set
-    if (app->applicationName().isEmpty() || app->applicationName() == "TrayMenuApp") {
-        app->setApplicationName(trayStruct->tooltip ? trayStruct->tooltip : "System Tray");
-    }
-
-    // Create the tray icon
-    trayIcon = new QSystemTrayIcon(this);
-
-    if (trayStruct->icon_filepath) {
-        QIcon icon(trayStruct->icon_filepath);
-        if (!icon.isNull()) {
-            trayIcon->setIcon(icon);
-        }
-    }
-
-    if (trayStruct->tooltip) {
-        trayIcon->setToolTip(QString::fromUtf8(trayStruct->tooltip));
-    }
-
-    connect(trayIcon, &QSystemTrayIcon::activated,
-            this, &QtTrayMenu::onTrayActivated);
-
-    // Create context menu
-    if (trayStruct->menu) {
-        auto *menu = new QMenu();
-        createMenu(trayStruct->menu, menu);
-        trayIcon->setContextMenu(menu);
-    }
-
-    trayIcon->show();
-    app->processEvents();
-
-    return 0;
-}
-
-void QtTrayMenu::onUpdateRequested()
-{
-    if (!trayIcon) return;
-
-    trayStruct = tempTrayStruct;
-    tempTrayStruct = nullptr;
-
-    if (!trayStruct) return;
-
-    // Update icon
-    if (trayStruct->icon_filepath) {
-        QIcon newIcon(trayStruct->icon_filepath);
-        if (!newIcon.isNull()) {
-            trayIcon->setIcon(newIcon);
-        }
-    }
-
-    // Update tooltip
-    if (trayStruct->tooltip) {
-        trayIcon->setToolTip(QString::fromUtf8(trayStruct->tooltip));
-    }
-
-    // Update menu
-    if (trayStruct->menu) {
-        if (auto *existingMenu = trayIcon->contextMenu()) {
-            existingMenu->clear();
-            createMenu(trayStruct->menu, existingMenu);
-        }
-    }
-
-    app->processEvents();
-}
-
-void QtTrayMenu::onCleanupRequested()
-{
-    if (!trayIcon) return;
-
-    trayIcon->hide();
-
-    if (auto *menu = trayIcon->contextMenu()) {
-        trayIcon->setContextMenu(nullptr);
-        delete menu;
-    }
-
-    delete trayIcon;
-    trayIcon = nullptr;
-}
-
-void QtTrayMenu::onExitRequested()
-{
-    continueRunning = false;
-
-    // Cleanup first
-    onCleanupRequested();
-
-    // Request application quit
-    if (app && !app->closingDown()) {
-        app->quit();
-    }
-}
-
-//----------------------------------------
-// Internal helpers
-//----------------------------------------
 void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
 {
-    if (!items || !menu) return;
-
     while (items && items->text) {
+
         // Separator
         if (QString::fromUtf8(items->text) == "-") {
             menu->addSeparator();
@@ -263,21 +115,18 @@ void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
         auto *action = new QAction(QString::fromUtf8(items->text), menu);
         action->setDisabled(items->disabled == 1);
 
+        // ✅ NEW: make the action checkable only when appropriate
         const bool isCheckable = (items->checked == 0 || items->checked == 1);
         action->setCheckable(isCheckable);
         if (isCheckable) {
             action->setChecked(items->checked == 1);
         }
 
-        action->setProperty("tray_menu_item",
-                            QVariant::fromValue(static_cast<void *>(items)));
+        action->setProperty("tray_menu_item", QVariant::fromValue((void *)items));
+        connect(action, &QAction::triggered, this, &QtTrayMenu::onMenuItemTriggered);
 
-        connect(action, &QAction::triggered,
-                this, &QtTrayMenu::onMenuItemTriggered);
-
-        // Submenu
         if (items->submenu) {
-            auto *submenu = new QMenu(menu);
+            auto *submenu = new QMenu;
             createMenu(items->submenu, submenu);
             action->setMenu(submenu);
         }
@@ -287,36 +136,35 @@ void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
     }
 }
 
+bool QtTrayMenu::eventFilter(QObject *watched, QEvent *event)
+{
+    qDebug() << "Event Type:" << event->type();
+    return QObject::eventFilter(watched, event);
+}
+
 void QtTrayMenu::onTrayActivated(QSystemTrayIcon::ActivationReason reason)
 {
     if (reason == QSystemTrayIcon::Trigger && trayStruct && trayStruct->cb) {
-        // Execute callback directly - it should be quick
-        // If the callback needs to do heavy work, it should spawn its own thread
         trayStruct->cb(trayStruct);
-        app->processEvents();
     }
 }
 
 void QtTrayMenu::onMenuItemTriggered()
 {
     auto *action = qobject_cast<QAction *>(sender());
-    if (!action) return;
+    struct tray_menu_item *menuItem = getTrayMenuItem(action);
 
-    auto *item = getTrayMenuItem(action);
-    if (!item || !item->cb) return;
-
-    if (action->isCheckable()) {
-        item->checked = action->isChecked() ? 1 : 0;
+    if (menuItem && menuItem->cb) {
+        menuItem->cb(menuItem);
     }
-
-    // Execute callback directly
-    item->cb(item);
-    app->processEvents();
 }
 
 struct tray_menu_item *QtTrayMenu::getTrayMenuItem(QAction *action)
 {
-    if (!action) return nullptr;
-    return static_cast<tray_menu_item *>(
-        action->property("tray_menu_item").value<void *>());
+    return reinterpret_cast<struct tray_menu_item *>(action->property("tray_menu_item").value<void *>());
+}
+
+void QtTrayMenu::onExitRequested()
+{
+    app->quit();
 }

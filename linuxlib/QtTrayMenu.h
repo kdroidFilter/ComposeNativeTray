@@ -1,59 +1,41 @@
 #ifndef TRAYMENU_H
 #define TRAYMENU_H
 
-#include <QApplication>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QObject>
-#include <QThread>
-#include <QEventLoop>
-#include <QCoreApplication>
-#include <QTimer>
-#include <QDebug>
 #include "tray.h"
-#include "QtAppManager.h"
 
 class QtTrayMenu : public QObject
-{
-    Q_OBJECT
+        {
+            Q_OBJECT
 
-public:
-    QtTrayMenu();
-    ~QtTrayMenu();
+            public:
+                QtTrayMenu();
+                ~QtTrayMenu();
+                virtual bool eventFilter(QObject *watched, QEvent *event) override;
+                int init(struct tray *tray);
+                void update(struct tray *tray);
+                int loop(int blocking);
+                void exit();
 
-    // Public API
-    int  init(struct tray *tray);
-    void update(struct tray *tray);
-    int  loop(int blocking);
-    void exit();
+            private:
+                void createMenu(struct tray_menu_item *items, QMenu *menu);
+                void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
+                void onMenuItemTriggered();
+                QApplication *app;
+                QSystemTrayIcon *trayIcon;
+                struct tray *trayStruct;
+                bool continueRunning;
+                struct tray_menu_item *getTrayMenuItem(QAction *action);
 
-signals:
-    // Signals for thread-safe operations
-    void initRequested();
-    void updateRequested();
-    void exitRequested();
-    void cleanupRequested();
+            signals:
+                void exitRequested();
 
-private slots:
-    // Slots that execute on Qt thread
-    int onInitRequested();
-    void onUpdateRequested();
-    void onExitRequested();
-    void onCleanupRequested();
-    void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
-    void onMenuItemTriggered();
+            private slots:
+                void onExitRequested();
 
-private:
-    // Internal helpers
-    void createMenu(struct tray_menu_item *items, QMenu *menu);
-    struct tray_menu_item *getTrayMenuItem(QAction *action);
-
-    // State
-    QApplication        *app;
-    QSystemTrayIcon     *trayIcon;
-    struct tray         *trayStruct;
-    struct tray         *tempTrayStruct; // Temporary storage for cross-thread communication
-    bool                 continueRunning;
 };
+
 
 #endif // TRAYMENU_H
