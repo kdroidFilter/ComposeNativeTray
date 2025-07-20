@@ -2,6 +2,7 @@ package com.kdroid.composetray.tray.api
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
@@ -32,6 +33,48 @@ internal class NativeTray {
 
     private val awtTrayUsed = AtomicBoolean(false)
 
+    private val os = getOperatingSystem()
+    private var initialized = false
+
+    fun update(
+        iconPath: String,
+        windowsIconPath: String = iconPath,
+        tooltip: String,
+        primaryAction: (() -> Unit)?,
+        primaryActionLabel: String,
+        menuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        if (!initialized) {
+            initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+            initialized = true
+            return
+        }
+
+        try {
+            when (os) {
+                LINUX -> LinuxTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                WINDOWS -> WindowsTrayInitializer.update(windowsIconPath, tooltip, primaryAction, menuContent)
+                MACOS, UNKNOWN -> {
+                    AwtTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                    awtTrayUsed.set(true)
+                }
+                else -> {}
+            }
+        } catch (th: Throwable) {
+            Log.e("NativeTray", "Error updating tray:", th)
+        }
+    }
+
+    fun dispose() {
+        when (os) {
+            LINUX -> LinuxTrayInitializer.dispose()
+            WINDOWS -> WindowsTrayInitializer.dispose()
+            MACOS, UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
+            else -> {}
+        }
+        initialized = false
+    }
+
     /**
      * Constructor that accepts file paths for icons
      * @deprecated Use the constructor with composable icon content instead
@@ -40,49 +83,10 @@ internal class NativeTray {
         message = "Use the constructor with composable icon content instead",
         replaceWith = ReplaceWith("NativeTray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
     )
-    constructor(
+    private fun initializeTray(
         iconPath: String,
         windowsIconPath: String = iconPath,
         tooltip: String = "",
-        primaryAction: (() -> Unit)?,
-        primaryActionLabel: String,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
-    ) {
-        initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
-    }
-
-    /**
-     * Constructor that accepts a Composable for the icon
-     */
-    constructor(
-        iconContent: @Composable () -> Unit,
-        iconRenderProperties: IconRenderProperties = IconRenderProperties(),
-        tooltip: String = "",
-        primaryAction: (() -> Unit)?,
-        primaryActionLabel: String,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
-    ) {
-        // Render the composable to PNG file for general use
-        val pngIconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
-        Log.d("NativeTray", "Generated PNG icon path: $pngIconPath")
-
-        // For Windows, we need an ICO file
-        val windowsIconPath = if (getOperatingSystem() == WINDOWS) {
-            // Create a temporary ICO file
-            ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent).also {
-                Log.d("NativeTray", "Generated Windows ICO path: $it")
-            }
-        } else {
-            pngIconPath
-        }
-
-        initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
-    }
-
-    private fun initializeTray(
-        iconPath: String,
-        windowsIconPath: String,
-        tooltip: String,
         primaryAction: (() -> Unit)?,
         primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
@@ -127,15 +131,34 @@ internal class NativeTray {
         }
     }
 
-    internal fun dispose() {
-        val os = getOperatingSystem()
-        when {
-            awtTrayUsed.get() -> AwtTrayInitializer.dispose()
-            os == LINUX -> LinuxTrayInitializer.dispose()
-            os == WINDOWS -> WindowsTrayInitializer.dispose()
-            else -> {}
+    /**
+     * Constructor that accepts a Composable for the icon
+     */
+    private fun initializeTray(
+        iconContent: @Composable () -> Unit,
+        iconRenderProperties: IconRenderProperties = IconRenderProperties(),
+        tooltip: String = "",
+        primaryAction: (() -> Unit)?,
+        primaryActionLabel: String,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+    ) {
+        // Render the composable to PNG file for general use
+        val pngIconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
+        Log.d("NativeTray", "Generated PNG icon path: $pngIconPath")
+
+        // For Windows, we need an ICO file
+        val windowsIconPath = if (getOperatingSystem() == WINDOWS) {
+            // Create a temporary ICO file
+            ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent).also {
+                Log.d("NativeTray", "Generated Windows ICO path: $it")
+            }
+        } else {
+            pngIconPath
         }
+
+        initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
+
 }
 
 
@@ -148,7 +171,7 @@ internal class NativeTray {
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
  * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
- * 
+ *
  * @deprecated Use the version with composable icon content instead
  */
 @Deprecated(
@@ -169,23 +192,16 @@ fun ApplicationScope.Tray(
         if (windowsIconPath == iconPath) absoluteIconPath
         else extractToTempIfDifferent(windowsIconPath)?.absolutePath.orEmpty()
     }
-    DisposableEffect(
-        absoluteIconPath,
-        absoluteWindowsIconPath,
-        tooltip,
-        primaryAction,
-        primaryActionLabel,
-        menuContent
-    ) {
-        val tray = NativeTray(
-            iconPath = absoluteIconPath,
-            windowsIconPath = absoluteWindowsIconPath,
-            tooltip = tooltip,
-            primaryAction = primaryAction,
-            primaryActionLabel = primaryActionLabel,
-            menuContent = menuContent
-        )
 
+    val tray = remember { NativeTray() }
+
+    // Update quand params changent (sans dispose)
+    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent) {
+        tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    }
+
+    // Dispose seulement quand Tray est supprimé de la composition
+    DisposableEffect(Unit) {
         onDispose {
             Log.d("NativeTray", "onDispose")
             tray.dispose()
@@ -213,27 +229,24 @@ fun ApplicationScope.Tray(
     primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
+    val os = getOperatingSystem()
     // Calculate a hash of the rendered composable content to detect changes
     val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
 
-    DisposableEffect(
-        iconContent,
-        iconRenderProperties,
-        tooltip,
-        primaryAction,
-        primaryActionLabel,
-        menuContent,
-        contentHash, // Use the content hash as an implicit key
-    ) {
-        val tray = NativeTray(
-            iconContent = iconContent,
-            iconRenderProperties = iconRenderProperties,
-            tooltip = tooltip,
-            primaryAction = primaryAction,
-            primaryActionLabel = primaryActionLabel,
-            menuContent = menuContent,
-        )
+    val pngIconPath = remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
+    val windowsIconPath = remember(contentHash) {
+        if (os == WINDOWS) ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent) else pngIconPath
+    }
 
+    val tray = remember { NativeTray() }
+
+    // Update quand params changent (sans dispose)
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    }
+
+    // Dispose seulement quand Tray est supprimé de la composition
+    DisposableEffect(Unit) {
         onDispose {
             Log.d("NativeTray", "onDispose")
             tray.dispose()

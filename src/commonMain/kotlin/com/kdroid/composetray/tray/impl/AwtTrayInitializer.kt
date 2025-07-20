@@ -95,6 +95,17 @@ object AwtTrayInitializer {
         trayIcon = newTrayIcon
     }
 
+    fun update(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)?,
+        primaryActionLabel: String = "Open",
+        menuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        dispose()
+        initialize(iconPath, tooltip, onLeftClick, primaryActionLabel, menuContent)
+    }
+
     /**
      * Disposes of the current tray icon, if it exists.
      */

@@ -145,4 +145,29 @@ object LinuxTrayInitializer {
         // Wait a bit to ensure the tray is initialized
         Thread.sleep(200)
     }
+
+    fun update(
+        iconPath: String,
+        tooltip: String,
+        primaryAction: (() -> Unit)?,
+        primaryActionLabel: String,
+        menuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        if (!initialized.get()) {
+            initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+            return
+        }
+
+        val linuxTray = tray.get() ?: return
+        linuxTray.icon_filepath = iconPath
+        linuxTray.tooltip = tooltip
+        linuxTray.cb = primaryAction?.let { LinuxNativeTray.TrayCallback { _ -> it.invoke() } }
+
+        val builder = LinuxLibTrayMenuBuilderImpl(iconPath, tooltip, primaryAction)
+        menuContent?.invoke(builder)
+        linuxTray.menu = builder.build()
+
+        trayLib.tray_update(linuxTray)
+        menuBuilder.set(builder)
+    }
 }
