@@ -98,6 +98,15 @@ int QtTrayMenu::loop(int blocking)
 void QtTrayMenu::exit()
 {
     continueRunning = false;
+    
+    // Hide and delete the tray icon before quitting the application
+    // This ensures proper cleanup of the GLib main context
+    if (trayIcon) {
+        trayIcon->hide();
+        delete trayIcon;
+        trayIcon = nullptr;
+    }
+    
     emit exitRequested();
 }
 
