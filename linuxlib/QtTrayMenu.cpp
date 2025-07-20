@@ -47,7 +47,7 @@ QtTrayMenu::QtTrayMenu()
 {
     // Install custom message handler to filter out specific Qt warnings
     qInstallMessageHandler(customMessageHandler);
-    
+
     if (QApplication::instance()) {
         app = dynamic_cast<QApplication *>(QApplication::instance());
         if (!app) {

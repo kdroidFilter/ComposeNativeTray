@@ -48,36 +48,17 @@ TRAY_EXPORT void tray_exit(void)
         // Process events to ensure exit signal is processed
         QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
         
-        // Hide the tray icon before deletion to ensure proper cleanup
-        QMetaObject::invokeMethod(trayMenuInstance, [&]() {
-            // Additional cleanup in the Qt thread context
-            if (QApplication::instance()) {
-                QApplication::instance()->processEvents(QEventLoop::AllEvents);
-            }
-        }, Qt::BlockingQueuedConnection);
-        
         // Schedule deletion of the tray instance
         trayMenuInstance->deleteLater();
         
         // Process events multiple times with smaller timeouts to allow
         // proper cleanup of GLib context between event processing cycles
-        for (int i = 0; i < 10; i++) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-            // Small sleep between processing to allow background operations to complete
-            if (i % 2 == 0) {
-                QThread::msleep(50);
-            }
+        for (int i = 0; i < 5; i++) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 200);
         }
-        
-        // Final event processing with longer timeout
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 300);
         
         // Clear the pointer after processing events
         trayMenuInstance = nullptr;
-        
-        // Ensure all pending deletions are processed
-        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        QCoreApplication::processEvents(QEventLoop::AllEvents);
     }
 }
 
