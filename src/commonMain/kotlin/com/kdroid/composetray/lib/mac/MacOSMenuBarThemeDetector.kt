@@ -1,13 +1,13 @@
 package com.kdroid.composetray.lib.mac
 
-import co.touchlab.kermit.Logger
 import com.sun.jna.Native
 import java.util.function.Consumer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import com.kdroid.composetray.lib.mac.MacTrayManager.MacTrayLibrary
 
-private val logger = Logger.withTag("MacOSMenuBarThemeDetector")
+// Removed kermit Logger import and usage
+// private val logger = Logger.withTag("MacOSMenuBarThemeDetector")
 
 object MacOSMenuBarThemeDetector {
 

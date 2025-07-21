@@ -6,12 +6,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import com.kdroid.composetray.utils.getTrayPosition
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.i
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import composenativetray.demo.generated.resources.icon2
@@ -22,10 +21,11 @@ import org.jetbrains.compose.resources.painterResource
  * This demo uses Res.drawable.icon and Res.drawable.icon2 resources with dynamic switching.
  */
 fun main() = application {
-    Log.setDevelopmentMode(true)
+    allowComposeNativeTrayLogging = true
     val logTag = "PainterTrayDemo"
+    val kermit = Logger.withTag(logTag)
 
-    Log.d("TrayPosition", getTrayPosition().toString())
+    kermit.d { "TrayPosition: ${getTrayPosition()}" }
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var alwaysShowTray by remember { mutableStateOf(true) }
@@ -53,17 +53,17 @@ fun main() = application {
             tooltip = "Painter Demo",
             primaryAction = {
                 isWindowVisible = true
-                Log.i(logTag, "Primary action clicked")
+                kermit.i { "Primary action clicked" }
             },
             primaryActionLabel = "Open Application"
         ) {
             // Menu item to switch between icons
             Item(label = "Switch Icon") {
                 currentIcon = if (currentIcon == Res.drawable.icon) {
-                    Log.i(logTag, "Switched to icon2")
+                    kermit.i { "Switched to icon2" }
                     Res.drawable.icon2
                 } else {
-                    Log.i(logTag, "Switched to icon")
+                    kermit.i { "Switched to icon" }
                     Res.drawable.icon
                 }
             }
@@ -72,7 +72,7 @@ fun main() = application {
 
             // Standard menu items
             Item(label = "About") {
-                Log.i(logTag, "Painter API Demo - Using resource icons")
+                kermit.i { "Painter API Demo - Using resource icons" }
             }
 
             Divider()
@@ -83,7 +83,7 @@ fun main() = application {
                 checked = alwaysShowTray,
                 onCheckedChange = { checked ->
                     alwaysShowTray = checked
-                    Log.i(logTag, "Always show tray ${if (checked) "enabled" else "disabled"}")
+                    kermit.i { "Always show tray ${if (checked) "enabled" else "disabled"}" }
                 }
             )
 
@@ -92,7 +92,7 @@ fun main() = application {
                 checked = hideOnClose,
                 onCheckedChange = { checked ->
                     hideOnClose = checked
-                    Log.i(logTag, "Hide on close ${if (checked) "enabled" else "disabled"}")
+                    kermit.i { "Hide on close ${if (checked) "enabled" else "disabled"}" }
                 }
             )
 
@@ -100,11 +100,11 @@ fun main() = application {
 
             Item(label = "Hide in tray") {
                 isWindowVisible = false
-                Log.i(logTag, "Application hidden in tray")
+                kermit.i { "Application hidden in tray" }
             }
 
             Item(label = "Exit") {
-                Log.i(logTag, "Exiting application")
+                kermit.i { "Exiting application" }
                 dispose()
                 exitApplication()
             }

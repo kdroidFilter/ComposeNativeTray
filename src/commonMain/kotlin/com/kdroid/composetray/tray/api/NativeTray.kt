@@ -17,9 +17,6 @@ import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.*
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.e
 import io.github.kdroidfilter.platformtools.OperatingSystem.*
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
@@ -64,7 +61,7 @@ internal class NativeTray {
                 else -> {}
             }
         } catch (th: Throwable) {
-            Log.e("NativeTray", "Error updating tray:", th)
+            errorln { "NativeTray: Error updating tray: $th" }
         }
     }
 
@@ -101,19 +98,19 @@ internal class NativeTray {
             try {
                 when (os) {
                     LINUX -> {
-                        Log.d("NativeTray", "Initializing Linux tray with icon path: $iconPath")
+                        debugln { "NativeTray: Initializing Linux tray with icon path: $iconPath" }
                         LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                         trayInitialized = true
                     }
 
                     WINDOWS -> {
-                        Log.d("NativeTray", "Initializing Windows tray with icon path: $windowsIconPath")
+                        debugln { "NativeTray: Initializing Windows tray with icon path: $windowsIconPath" }
                         WindowsTrayInitializer.initialize(windowsIconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
                     MACOS -> {
-                        Log.d("NativeTray", "Initializing macOS tray with icon path: $iconPath")
+                        debugln { "NativeTray: Initializing macOS tray with icon path: $iconPath" }
                         MacTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
@@ -121,21 +118,21 @@ internal class NativeTray {
                     else -> {}
                 }
             } catch (th: Throwable) {
-                Log.e("NativeTray", "Error initializing tray:", th)
+                errorln { "NativeTray: Error initializing tray: $th" }
             }
 
             val awtTrayRequired = os == UNKNOWN || !trayInitialized
             if (awtTrayRequired) {
                 if (AwtTrayInitializer.isSupported()) {
                     try {
-                        Log.d("NativeTray", "Initializing AWT tray with icon path: $iconPath")
+                        debugln { "NativeTray: Initializing AWT tray with icon path: $iconPath" }
                         AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                         awtTrayUsed.set(true)
                     } catch (th: Throwable) {
-                        Log.e("NativeTray", "Error initializing AWT tray:", th)
+                        errorln { "NativeTray: Error initializing AWT tray: $th" }
                     }
                 } else {
-                    Log.d("NativeTray", "AWT tray is not supported")
+                    debugln { "NativeTray: AWT tray is not supported" }
                 }
             }
         }
@@ -154,13 +151,13 @@ internal class NativeTray {
     ) {
         // Render the composable to PNG file for general use
         val pngIconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
-        Log.d("NativeTray", "Generated PNG icon path: $pngIconPath")
+        debugln { "NativeTray: Generated PNG icon path: $pngIconPath" }
 
         // For Windows, we need an ICO file
         val windowsIconPath = if (getOperatingSystem() == WINDOWS) {
             // Create a temporary ICO file
             ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent).also {
-                Log.d("NativeTray", "Generated Windows ICO path: $it")
+                debugln { "NativeTray: Generated Windows ICO path: $it" }
             }
         } else {
             pngIconPath
@@ -216,7 +213,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("NativeTray", "onDispose")
+            debugln { "NativeTray: onDispose" }
             tray.dispose()
         }
     }
@@ -266,7 +263,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("NativeTray", "onDispose")
+            debugln { "NativeTray: onDispose" }
             tray.dispose()
         }
     }
@@ -332,7 +329,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("NativeTray", "onDispose")
+            debugln { "NativeTray: onDispose" }
             tray.dispose()
         }
     }
@@ -392,7 +389,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("NativeTray", "onDispose")
+            debugln { "NativeTray: onDispose" }
             tray.dispose()
         }
     }

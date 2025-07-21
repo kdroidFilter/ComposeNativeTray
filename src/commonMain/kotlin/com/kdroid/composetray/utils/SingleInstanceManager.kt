@@ -1,8 +1,5 @@
 package com.kdroid.composetray.utils
 
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.e
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
@@ -62,7 +59,7 @@ object SingleInstanceManager {
     fun isSingleInstance(onRestoreRequest: () -> Unit): Boolean {
         // If the lock is already acquired by this process, we are the first instance
         if (fileLock != null) {
-            Log.d(TAG, "The lock is already held by this process")
+            debugln { "$TAG: The lock is already held by this process" }
             return true
         }
         val lockFile = createLockFile()
@@ -71,7 +68,7 @@ object SingleInstanceManager {
             fileLock = fileChannel?.tryLock()
             if (fileLock != null) {
                 // We are the only instance
-                Log.d(TAG, "Lock acquired, starting to watch for restore requests")
+                debugln { "$TAG: Lock acquired, starting to watch for restore requests" }
                 // Ensure that watching is started only once
                 if (!isWatching) {
                     isWatching = true
@@ -81,21 +78,21 @@ object SingleInstanceManager {
                     releaseLock()
                     lockFile.delete()
                     deleteRestoreRequestFile()
-                    Log.d(TAG, "Shutdown hook executed")
+                    debugln { "$TAG: Shutdown hook executed" }
                 })
                 true
             } else {
                 // Another instance is already running
                 sendRestoreRequest()
-                Log.d(TAG, "Restore request sent to the existing instance")
+                debugln { "$TAG: Restore request sent to the existing instance" }
                 false
             }
         } catch (e: OverlappingFileLockException) {
             // The lock is already held by this process
-            Log.d(TAG, "The lock is already held by this process (OverlappingFileLockException)")
+            debugln { "$TAG: The lock is already held by this process (OverlappingFileLockException)" }
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Error in isSingleInstance", e)
+            errorln { "$TAG: Error in isSingleInstance: $e" }
             false
         }
     }
@@ -111,7 +108,7 @@ object SingleInstanceManager {
             try {
                 val watchService = FileSystems.getDefault().newWatchService()
                 configuration.lockFilesDir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE)
-                Log.d(TAG, "Watching directory: ${configuration.lockFilesDir} for restore requests")
+                debugln { "$TAG: Watching directory: ${configuration.lockFilesDir} for restore requests" }
                 while (true) {
                     val key = watchService.take()
                     for (event in key.pollEvents()) {
@@ -121,7 +118,7 @@ object SingleInstanceManager {
                         }
                         val filename = event.context() as Path
                         if (filename.toString() == configuration.restoreRequestFileName) {
-                            Log.d(TAG, "Restore request file detected")
+                            debugln { "$TAG: Restore request file detected" }
                             onRestoreRequest()
                             // Remove the request file after processing
                             deleteRestoreRequestFile()
@@ -133,7 +130,7 @@ object SingleInstanceManager {
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in watchForRestoreRequests", e)
+                errorln { "$TAG: Error in watchForRestoreRequests: $e" }
             }
         }.start()
     }
@@ -142,9 +139,9 @@ object SingleInstanceManager {
         try {
             val restoreRequestFilePath = configuration.lockFilesDir.resolve(configuration.restoreRequestFileName)
             Files.createFile(restoreRequestFilePath)
-            Log.d(TAG, "Restore request file created: $restoreRequestFilePath")
+            debugln { "$TAG: Restore request file created: $restoreRequestFilePath" }
         } catch (e: Exception) {
-            Log.e(TAG, "Error while sending restore request", e)
+            errorln { "$TAG: Error while sending restore request: $e" }
         }
     }
 
@@ -152,9 +149,9 @@ object SingleInstanceManager {
         try {
             val restoreRequestFilePath = configuration.lockFilesDir.resolve(configuration.restoreRequestFileName)
             Files.deleteIfExists(restoreRequestFilePath)
-            Log.d(TAG, "Restore request file deleted: $restoreRequestFilePath")
+            debugln { "$TAG: Restore request file deleted: $restoreRequestFilePath" }
         } catch (e: Exception) {
-            Log.e(TAG, "Error while deleting restore request file", e)
+            errorln { "$TAG: Error while deleting restore request file: $e" }
         }
     }
 
@@ -162,9 +159,9 @@ object SingleInstanceManager {
         try {
             fileLock?.release()
             fileChannel?.close()
-            Log.d(TAG, "Lock released")
+            debugln { "$TAG: Lock released" }
         } catch (e: Exception) {
-            Log.e(TAG, "Error while releasing the lock", e)
+            errorln { "$TAG: Error while releasing the lock: $e" }
         }
     }
 

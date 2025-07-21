@@ -13,20 +13,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import com.kdroid.composetray.utils.getTrayPosition
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.i
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 
 fun main() = application {
-    Log.setDevelopmentMode(true)
+    allowComposeNativeTrayLogging = true
     val logTag = "NativeTray"
+    val kermit = Logger.withTag(logTag)
 
-    Log.d("TrayPosition", getTrayPosition().toString())
+    kermit.d { "TrayPosition: ${getTrayPosition()}" }
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -55,7 +55,7 @@ fun main() = application {
             },
             primaryAction = {
                 isWindowVisible = true
-                Log.i(logTag, "On Primary Clicked")
+                kermit.i { "On Primary Clicked" }
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application"

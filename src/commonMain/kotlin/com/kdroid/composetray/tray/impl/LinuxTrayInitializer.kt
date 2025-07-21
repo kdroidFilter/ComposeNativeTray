@@ -4,9 +4,8 @@ import com.kdroid.composetray.lib.linux.libtray.LibTray
 import com.kdroid.composetray.lib.linux.libtray.LinuxNativeTray
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxLibTrayMenuBuilderImpl
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.e
+import com.kdroid.composetray.utils.debugln
+import com.kdroid.composetray.utils.errorln
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -21,10 +20,10 @@ object LinuxTrayInitializer {
     private val disposeLatch = AtomicReference<CountDownLatch?>(null)
 
     fun dispose() {
-        Log.d("LinuxTrayInitializer", "Disposing tray...")
+        debugln { "LinuxTrayInitializer: Disposing tray..." }
 
         if (!initialized.get()) {
-            Log.d("LinuxTrayInitializer", "Not initialized, nothing to dispose")
+            debugln { "LinuxTrayInitializer: Not initialized, nothing to dispose" }
             return
         }
 
@@ -42,12 +41,12 @@ object LinuxTrayInitializer {
 
             // Wait for the tray thread to clean up (with timeout)
             if (!latch.await(2, java.util.concurrent.TimeUnit.SECONDS)) {
-                Log.e("LinuxTrayInitializer", "Timeout waiting for tray disposal")
+                errorln { "LinuxTrayInitializer: Timeout waiting for tray disposal" }
                 // Force interrupt the thread if it doesn't exit cleanly
                 trayThread?.interrupt()
             }
         } catch (e: InterruptedException) {
-            Log.e("LinuxTrayInitializer", "Interrupted while waiting for disposal", e)
+            errorln { "LinuxTrayInitializer: Interrupted while waiting for disposal: $e" }
         }
 
         // Clear references
@@ -58,7 +57,7 @@ object LinuxTrayInitializer {
         trayThread = null
         disposeLatch.set(null)
 
-        Log.d("LinuxTrayInitializer", "Disposal complete")
+        debugln { "LinuxTrayInitializer: Disposal complete" }
     }
 
     fun initialize(
@@ -70,7 +69,7 @@ object LinuxTrayInitializer {
     ) {
         // Dispose any existing instance
         if (initialized.get()) {
-            Log.d("LinuxTrayInitializer", "Already initialized, disposing previous instance")
+            debugln { "LinuxTrayInitializer: Already initialized, disposing previous instance" }
             dispose()
             // Give Qt more time to clean up completely
             Thread.sleep(500)
@@ -104,31 +103,31 @@ object LinuxTrayInitializer {
         // Create a new thread for the tray to ensure Qt operations happen on the same thread
         trayThread = Thread {
             try {
-                Log.d("LinuxTrayInitializer", "Initializing tray on dedicated thread")
+                debugln { "LinuxTrayInitializer: Initializing tray on dedicated thread" }
 
                 // Initialize the tray
                 val result = trayLib.tray_init(linuxTray)
                 if (result != 0) {
-                    Log.e("LinuxTrayInitializer", "Failed to initialize tray: $result")
+                    errorln { "LinuxTrayInitializer: Failed to initialize tray: $result" }
                     initialized.set(false)
                     return@Thread
                 }
 
-                Log.d("LinuxTrayInitializer", "Tray initialized successfully, starting event loop")
+                debugln { "LinuxTrayInitializer: Tray initialized successfully, starting event loop" }
 
                 // Run the event loop
                 while (running.get()) {
                     val loopResult = trayLib.tray_loop(1) // Blocking call
                     if (loopResult != 0) {
-                        Log.d("LinuxTrayInitializer", "Tray loop exited with result: $loopResult")
+                        debugln { "LinuxTrayInitializer: Tray loop exited with result: $loopResult" }
                         break
                     }
                 }
 
-                Log.d("LinuxTrayInitializer", "Event loop ended")
+                debugln { "LinuxTrayInitializer: Event loop ended" }
 
             } catch (e: Exception) {
-                Log.e("LinuxTrayInitializer", "Error in tray thread", e)
+                errorln { "LinuxTrayInitializer: Error in tray thread: $e" }
             } finally {
                 running.set(false)
                 initialized.set(false)

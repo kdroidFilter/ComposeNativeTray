@@ -13,22 +13,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.composetray.utils.getTrayWindowPosition
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.i
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
-    Log.setDevelopmentMode(true)
+    allowComposeNativeTrayLogging = true
     val logTag = "NativeTray"
+    val kermit = Logger.withTag(logTag)
 
-    Log.d("TrayPosition", getTrayPosition().toString())
+    kermit.d { "TrayPosition: ${getTrayPosition()}" }
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -64,7 +64,7 @@ fun main() = application {
            },
             primaryAction = {
                 isWindowVisible = true
-                Log.i(logTag, "On Primary Clicked")
+                kermit.i { "$logTag: On Primary Clicked" }
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application"
@@ -73,10 +73,10 @@ fun main() = application {
             // Tools SubMenu
             SubMenu(label = "Tools") {
                 Item(label = "Calculator") {
-                    Log.i(logTag, "Calculator launched")
+                    kermit.i { "$logTag: Calculator launched" }
                 }
                 Item(label = "Notepad") {
-                    Log.i(logTag, "Notepad opened")
+                    kermit.i { "$logTag: Notepad opened" }
                 }
             }
 
@@ -88,7 +88,7 @@ fun main() = application {
                 checked = notificationsEnabled,
                 onCheckedChange = { isChecked ->
                     notificationsEnabled = isChecked
-                    Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
+                    kermit.i { "$logTag: Notifications ${if (isChecked) "enabled" else "disabled"}" }
                 }
             )
             CheckableItem(
@@ -96,14 +96,14 @@ fun main() = application {
                 checked = initialChecked,
                 onCheckedChange = { isChecked ->
                     initialChecked = isChecked
-                    Log.i(logTag, "Initial Checked ${if (isChecked) "enabled" else "disabled"}")
+                    kermit.i { "$logTag: Initial Checked ${if (isChecked) "enabled" else "disabled"}" }
                 }
             )
 
             Divider()
 
             Item(label = "About") {
-                Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+                kermit.i { "$logTag: Application v1.0 - Developed by Elyahou" }
             }
 
             Divider()
@@ -113,7 +113,7 @@ fun main() = application {
                 checked = alwaysShowTray,
                 onCheckedChange = { isChecked ->
                     alwaysShowTray = isChecked
-                    Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
+                    kermit.i { "$logTag: Always show tray ${if (isChecked) "enabled" else "disabled"}" }
                 }
             )
 
@@ -122,7 +122,7 @@ fun main() = application {
                 checked = hideOnClose,
                 onCheckedChange = { isChecked ->
                     hideOnClose = isChecked
-                    Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
+                    kermit.i { "$logTag: Hide on close ${if (isChecked) "enabled" else "disabled"}" }
                 }
             )
 
@@ -130,7 +130,7 @@ fun main() = application {
 
 
             Item(label = "Exit", isEnabled = true) {
-                Log.i(logTag, "Exiting the application")
+                kermit.i { "$logTag: Exiting the application" }
                 dispose()
                 exitApplication()
             }

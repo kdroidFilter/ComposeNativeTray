@@ -7,12 +7,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.i
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import composenativetray.demo.generated.resources.icon2
@@ -27,10 +25,10 @@ private enum class ServiceStatus {
 }
 
 fun main() = application {
-    Log.setDevelopmentMode(true)
     val logTag = "NativeTray"
+    val kermit = Logger.withTag(logTag)
 
-    Log.d("TrayPosition", getTrayPosition().toString())
+    kermit.d { "TrayPosition: ${getTrayPosition()}" }
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -48,7 +46,7 @@ fun main() = application {
     }
 
     val running = serviceStatus == ServiceStatus.RUNNING
-    var icon by remember {   mutableStateOf(Res.drawable.icon) }
+    var icon by remember { mutableStateOf(Res.drawable.icon) }
 
     // Always create the Tray composable, but make it conditional on visibility
     // This ensures it's recomposed when alwaysShowTray changes
@@ -67,8 +65,7 @@ fun main() = application {
             },
             primaryAction = {
                 isWindowVisible = true
-
-                Log.i(logTag, "On Primary Clicked")
+                kermit.i { "On Primary Clicked" }
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application",
@@ -88,11 +85,11 @@ fun main() = application {
                 // Dynamic Service Menu
                 SubMenu(label = "Service Control") {
                     Item(label = "Start Service", isEnabled = !running) {
-                        Log.i(logTag, "Start Service selected")
+                        kermit.i { "Start Service selected" }
                         serviceStatus = ServiceStatus.RUNNING
                     }
                     Item(label = "Stop Service", isEnabled = running) {
-                        Log.i(logTag, "Stop Service selected")
+                        kermit.i { "Stop Service selected" }
                         serviceStatus = ServiceStatus.STOPPED
                     }
                     Item(label = "Service Status: ${if (running) "Running" else "Stopped"}", isEnabled = false)
@@ -103,11 +100,11 @@ fun main() = application {
                 // Options SubMenu
                 SubMenu(label = "Options") {
                     Item(label = "Show Text") {
-                        Log.i(logTag, "Show Text selected")
+                        kermit.i { "Show Text selected" }
                         textVisible = true
                     }
                     Item(label = "Hide Text") {
-                        Log.i(logTag, "Hide Text selected")
+                        kermit.i { "Hide Text selected" }
                         textVisible = false
                     }
                 }
@@ -115,7 +112,7 @@ fun main() = application {
                 Divider()
 
                 Item(label = "About") {
-                    Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+                    kermit.i { "Application v1.0 - Developed by Elyahou" }
                 }
 
                 Divider()
@@ -125,7 +122,7 @@ fun main() = application {
                     checked = alwaysShowTray,
                     onCheckedChange = { isChecked ->
                         alwaysShowTray = isChecked
-                        Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
+                        kermit.i { "Always show tray ${if (isChecked) "enabled" else "disabled"}" }
                     }
                 )
 
@@ -134,14 +131,14 @@ fun main() = application {
                     checked = hideOnClose,
                     onCheckedChange = { isChecked ->
                         hideOnClose = isChecked
-                        Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
+                        kermit.i { "Hide on close ${if (isChecked) "enabled" else "disabled"}" }
                     }
                 )
 
                 Divider()
 
                 Item(label = "Exit", isEnabled = true) {
-                    Log.i(logTag, "Exiting the application")
+                    kermit.i { "Exiting the application" }
                     dispose()
                     exitApplication()
                 }
@@ -168,4 +165,3 @@ fun main() = application {
         }
     }
 }
-
