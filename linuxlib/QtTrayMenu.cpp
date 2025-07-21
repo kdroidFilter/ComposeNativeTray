@@ -6,13 +6,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <QTimer>
-#include <QDesktopServices>
-#include <QUrl>
 
 #ifdef Q_OS_LINUX
-#include <QProcess>
-#include <QStandardPaths>
-#include <QDir>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusInterface>
 #endif
 
 int argc = 1;
@@ -21,16 +19,7 @@ bool debug = false;
 
 // Forward declarations
 bool isGnomeDesktop();
-void simulateMenuBarClick();
-
-// Helper function to apply the GNOME workaround after a callback
-void applyGnomeWorkaround() {
-    if (isGnomeDesktop()) {
-        QTimer::singleShot(100, []() {
-            simulateMenuBarClick();
-        });
-    }
-}
+void applyGnomeDBusWorkaround();
 
 // Function to detect the GNOME desktop environment
 bool isGnomeDesktop() {
@@ -43,44 +32,52 @@ bool isGnomeDesktop() {
            gdmSession.contains("gnome", Qt::CaseInsensitive);
 }
 
-// Function to simulate a click on the menu bar (GNOME workaround)
-void simulateMenuBarClick() {
+// DBus-based workaround for GNOME busy cursor issue
+void applyGnomeDBusWorkaround() {
     if (!isGnomeDesktop()) {
-        return; // Apply the workaround only on GNOME
+        return;
     }
 
 #ifdef Q_OS_LINUX
-    // Method 1: Use gdbus to interact with GNOME Shell
-    QProcess gdbus;
-    gdbus.start("gdbus", QStringList()
-        << "call"
-        << "--session"
-        << "--dest" << "org.gnome.Shell"
-        << "--object-path" << "/org/gnome/Shell"
-        << "--method" << "org.gnome.Shell.Eval"
-        << "Main.panel._updatePanel()");
-    gdbus.waitForFinished(1000);
+    // Use D-Bus to interact with GNOME Shell
+    QDBusInterface shellInterface(
+        "org.gnome.Shell",
+        "/org/gnome/Shell",
+        "org.gnome.Shell",
+        QDBusConnection::sessionBus()
+    );
+
+    if (shellInterface.isValid()) {
+        // Execute JavaScript commands in GNOME Shell to reset cursor and update UI
+        QList<QString> commands = {
+            // Reset cursor to default
+            "global.display.set_cursor(Meta.Cursor.DEFAULT);",
+            // Update panel to refresh UI state
+            "Main.panel.queue_relayout();",
+            // Force stage redraw
+            "global.stage.queue_redraw();"
+        };
+
+        for (const QString &cmd : commands) {
+            QList<QVariant> args;
+            args << cmd;
+            shellInterface.callWithArgumentList(QDBus::NoBlock, "Eval", args);
+        }
+    }
 #endif
 }
 
 // Suppress GLib messages by redirecting stderr temporarily
 void suppressGLibMessages() {
-    // Set environment variables to suppress GLib messages
     setenv("G_MESSAGES_DEBUG", "", 1);
     setenv("G_DEBUG", "", 1);
 
-    // Alternative: redirect stderr to /dev/null for GLib messages
-    // This is more aggressive but completely effective
     static bool glib_suppressed = false;
     if (!glib_suppressed) {
-        // Save original stderr
         static int original_stderr = dup(STDERR_FILENO);
 
-        // Open /dev/null
         int dev_null = open("/dev/null", O_WRONLY);
         if (dev_null != -1) {
-            // Temporarily redirect stderr to /dev/null during Qt operations
-            // We'll restore it after Qt initialization
             dup2(dev_null, STDERR_FILENO);
             close(dev_null);
         }
@@ -88,30 +85,19 @@ void suppressGLibMessages() {
     }
 }
 
-void restoreStderr() {
-    // This function would restore stderr if needed, but we'll keep it simple
-    // and just leave the suppression active since the messages are harmless
-}
-
 // Custom message handler to filter out specific Qt warnings
-// This handler suppresses specific thread-related error messages that can occur
-// during application shutdown or when Qt objects are destroyed from a different thread.
-// These messages are generally harmless in this application context since we're
-// properly using deleteLater() and processEvents() for cleanup.
 void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    // Filter out specific error messages related to thread safety and GLib
     if (msg.contains("QObject::killTimer: Timers cannot be stopped from another thread") ||
         msg.contains("QObject::~QObject: Timers cannot be stopped from another thread") ||
         msg.contains("g_main_context_pop_thread_default")) {
-        return; // Silently ignore these messages as they're expected during cross-thread cleanup
+        return;
     }
 
-    // Forward all other messages to the default handler
     const QByteArray localMsg = msg.toLocal8Bit();
     switch (type) {
     case QtDebugMsg:
-        fprintf(stderr, "Debug: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        if (debug) fprintf(stderr, "Debug: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
         break;
     case QtInfoMsg:
         fprintf(stderr, "Info: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
@@ -131,10 +117,7 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
 QtTrayMenu::QtTrayMenu()
     : trayIcon(nullptr), trayStruct(nullptr), continueRunning(true), app(nullptr), createdApp(false), blockingEventLoop(nullptr)
 {
-    // Suppress GLib messages before any Qt operations
     suppressGLibMessages();
-
-    // Install custom message handler to filter out specific Qt warnings
     qInstallMessageHandler(customMessageHandler);
 
     if (QApplication::instance()) {
@@ -146,20 +129,19 @@ QtTrayMenu::QtTrayMenu()
         app = new QApplication(argc, &argvArray[0]);
         createdApp = true;
     }
+
     if (debug)
         app->installEventFilter(this);
 }
 
 QtTrayMenu::~QtTrayMenu()
 {
-    // Cleanup in destructor as fallback
     if (trayIcon) {
         trayIcon->hide();
         trayIcon->deleteLater();
         trayIcon = nullptr;
     }
 
-    // Process any pending deleteLater() calls
     if (app) {
         app->processEvents(QEventLoop::AllEvents, 100);
     }
@@ -168,10 +150,9 @@ QtTrayMenu::~QtTrayMenu()
 int QtTrayMenu::init(struct tray *tray)
 {
     if (trayIcon)
-        return -1; // Already initialized
+        return -1;
 
-    continueRunning = true; // Reset for recreation
-
+    continueRunning = true;
     this->trayStruct = tray;
 
     if (app->applicationName().isEmpty() || app->applicationName() == "TrayMenuApp")
@@ -208,8 +189,10 @@ void QtTrayMenu::update(struct tray *tray)
             createMenu(tray->menu, existingMenu);
         }
 
-        // GNOME WORKAROUND: Apply after the update
-        applyGnomeWorkaround();
+        // Apply GNOME DBus workaround after update
+        QTimer::singleShot(100, []() {
+            applyGnomeDBusWorkaround();
+        });
     }, Qt::QueuedConnection);
 }
 
@@ -228,14 +211,13 @@ int QtTrayMenu::loop(int blocking)
         QEventLoop localLoop;
         blockingEventLoop = &localLoop;
 
-        // Simple blocking loop that can be interrupted
         while (continueRunning) {
             localLoop.processEvents(QEventLoop::AllEvents, 100);
             if (!continueRunning) break;
         }
 
         blockingEventLoop = nullptr;
-        return -1; // Always return -1 when exiting
+        return -1;
     } else {
         app->processEvents();
         return 0;
@@ -246,19 +228,16 @@ void QtTrayMenu::exit()
 {
     continueRunning = false;
 
-    // Immediate cleanup in the Qt thread
     if (trayIcon) {
         trayIcon->hide();
         trayIcon->deleteLater();
         trayIcon = nullptr;
     }
 
-    // Quit any blocking event loop
     if (blockingEventLoop) {
         blockingEventLoop->quit();
     }
 
-    // Process events to handle deleteLater() calls
     if (app) {
         app->processEvents(QEventLoop::AllEvents, 200);
     }
@@ -267,8 +246,6 @@ void QtTrayMenu::exit()
 void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
 {
     while (items && items->text) {
-
-        // Separator
         if (QString::fromUtf8(items->text) == "-") {
             menu->addSeparator();
             ++items;
@@ -278,7 +255,6 @@ void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
         auto *action = new QAction(QString::fromUtf8(items->text), menu);
         action->setDisabled(items->disabled == 1);
 
-        // NEW: make the action checkable only when appropriate
         const bool isCheckable = (items->checked == 0 || items->checked == 1);
         action->setCheckable(isCheckable);
         if (isCheckable) {
@@ -310,8 +286,10 @@ void QtTrayMenu::onTrayActivated(QSystemTrayIcon::ActivationReason reason)
     if (reason == QSystemTrayIcon::Trigger && trayStruct && trayStruct->cb) {
         trayStruct->cb(trayStruct);
 
-        // GNOME WORKAROUND: Apply after EACH callback
-        applyGnomeWorkaround();
+        // Apply DBus workaround after callback with delay
+        QTimer::singleShot(100, []() {
+            applyGnomeDBusWorkaround();
+        });
     }
 }
 
@@ -323,8 +301,10 @@ void QtTrayMenu::onMenuItemTriggered()
     if (menuItem && menuItem->cb) {
         menuItem->cb(menuItem);
 
-        // GNOME WORKAROUND: Apply after EACH menu callback
-        applyGnomeWorkaround();
+        // Apply DBus workaround after menu callback with delay
+        QTimer::singleShot(100, []() {
+            applyGnomeDBusWorkaround();
+        });
     }
 }
 

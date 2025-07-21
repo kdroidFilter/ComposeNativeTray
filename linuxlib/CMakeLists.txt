@@ -22,8 +22,8 @@ set_target_properties(tray PROPERTIES C_VISIBILITY_PRESET hidden)
 # Linux Qt6 configuration
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/QtTrayMenu.cpp PROPERTY LANGUAGE CXX)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/tray_linux.cpp PROPERTY LANGUAGE CXX)
-find_package(Qt6 COMPONENTS Core Widgets Gui REQUIRED)
-target_link_libraries(tray PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui)
+find_package(Qt6 COMPONENTS Core Widgets Gui DBus REQUIRED)
+target_link_libraries(tray PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::DBus)
 set_target_properties(tray PROPERTIES LINKER_LANGUAGE CXX AUTOMOC ON)
 target_compile_definitions(tray PRIVATE TRAY_QT6=1)
 
