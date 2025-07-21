@@ -45,7 +45,7 @@ kotlin {
             implementation(libs.kmp.log)
             implementation(libs.kermit)
             implementation(libs.platformtools.core)
-            implementation("io.github.kdroidfilter:platformtools.darkmodedetector:0.4.0")
+            implementation(libs.platformtools.darkmodedetector)
 
         }
     }
