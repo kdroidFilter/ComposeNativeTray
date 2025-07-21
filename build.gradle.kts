@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
@@ -110,7 +109,7 @@ mavenPublishing {
     }
 
     // Configure publishing to Maven Central
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
 
 
     // Enable GPG signing for all publications

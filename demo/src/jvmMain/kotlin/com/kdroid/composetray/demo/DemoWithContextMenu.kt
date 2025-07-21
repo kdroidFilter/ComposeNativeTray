@@ -14,8 +14,10 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
+import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import composenativetray.demo.generated.resources.Res
@@ -23,6 +25,8 @@ import composenativetray.demo.generated.resources.icon
 
 fun main() = application {
     allowComposeNativeTrayLogging = true
+    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
+
     val logTag = "NativeTray"
     val kermit = Logger.withTag("NativeTray")
 

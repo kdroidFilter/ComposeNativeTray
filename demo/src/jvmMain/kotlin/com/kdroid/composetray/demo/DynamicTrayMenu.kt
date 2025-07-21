@@ -9,7 +9,10 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
+import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
 import com.kdroid.composetray.utils.getTrayPosition
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
@@ -27,6 +30,9 @@ private enum class ServiceStatus {
 fun main() = application {
     val logTag = "NativeTray"
     val kermit = Logger.withTag(logTag)
+    allowComposeNativeTrayLogging = true
+    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
+
 
     kermit.d { "TrayPosition: ${getTrayPosition()}" }
 
