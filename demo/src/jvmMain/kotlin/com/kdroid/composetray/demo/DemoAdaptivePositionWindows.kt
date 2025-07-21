@@ -34,6 +34,8 @@ fun main() = application {
     var textVisible by remember { mutableStateOf(false) }
     var alwaysShowTray by remember { mutableStateOf(false) }
     var hideOnClose by remember { mutableStateOf(true) }
+    var notificationsEnabled by remember { mutableStateOf(false) }
+    var initialChecked by remember { mutableStateOf(true) }
 
     val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
         isWindowVisible = true
@@ -81,12 +83,22 @@ fun main() = application {
             Divider()
 
             // Checkable Items
-            CheckableItem(label = "Enable notifications") { isChecked ->
-                Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
-            }
-            CheckableItem(label = "Initial Checked", checked = true) { isChecked ->
-                Log.i(logTag, "Initial Checked ${if (isChecked) "enabled" else "disabled"}")
-            }
+            CheckableItem(
+                label = "Enable notifications",
+                checked = notificationsEnabled,
+                onCheckedChange = { isChecked ->
+                    notificationsEnabled = isChecked
+                    Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
+                }
+            )
+            CheckableItem(
+                label = "Initial Checked",
+                checked = initialChecked,
+                onCheckedChange = { isChecked ->
+                    initialChecked = isChecked
+                    Log.i(logTag, "Initial Checked ${if (isChecked) "enabled" else "disabled"}")
+                }
+            )
 
             Divider()
 
@@ -96,15 +108,23 @@ fun main() = application {
 
             Divider()
 
-            CheckableItem(label = "Always show tray", checked = alwaysShowTray) { isChecked ->
-                alwaysShowTray = isChecked
-                Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
-            }
+            CheckableItem(
+                label = "Always show tray",
+                checked = alwaysShowTray,
+                onCheckedChange = { isChecked ->
+                    alwaysShowTray = isChecked
+                    Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
+                }
+            )
 
-            CheckableItem(label = "Hide on close", checked = hideOnClose) { isChecked ->
-                hideOnClose = isChecked
-                Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
-            }
+            CheckableItem(
+                label = "Hide on close",
+                checked = hideOnClose,
+                onCheckedChange = { isChecked ->
+                    hideOnClose = isChecked
+                    Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
+                }
+            )
 
             Divider()
 

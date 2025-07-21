@@ -120,15 +120,23 @@ fun main() = application {
 
                 Divider()
 
-                CheckableItem(label = "Always show tray", checked = alwaysShowTray) { isChecked ->
-                    alwaysShowTray = isChecked
-                    Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
-                }
+                CheckableItem(
+                    label = "Always show tray",
+                    checked = alwaysShowTray,
+                    onCheckedChange = { isChecked ->
+                        alwaysShowTray = isChecked
+                        Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
+                    }
+                )
 
-                CheckableItem(label = "Hide on close", checked = hideOnClose) { isChecked ->
-                    hideOnClose = isChecked
-                    Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
-                }
+                CheckableItem(
+                    label = "Hide on close",
+                    checked = hideOnClose,
+                    onCheckedChange = { isChecked ->
+                        hideOnClose = isChecked
+                        Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
+                    }
+                )
 
                 Divider()
 
