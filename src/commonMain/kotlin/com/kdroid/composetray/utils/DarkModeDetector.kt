@@ -5,8 +5,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.kdroid.composetray.lib.mac.MacOSMenuBarThemeDetector
+import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem.*
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
+import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.util.function.Consumer
 
@@ -15,7 +17,15 @@ fun isMenuInDarkMode(): Boolean {
     return when (getOperatingSystem()) {
         MACOS -> isMacOsMenuBarInDarkMode()
         WINDOWS -> isSystemInDarkMode()
-        LINUX -> true
+        LINUX -> when (detectLinuxDesktopEnvironment()) {
+            LinuxDesktopEnvironment.GNOME -> true
+            LinuxDesktopEnvironment.KDE -> isSystemInDarkMode()
+            LinuxDesktopEnvironment.XFCE -> true
+            LinuxDesktopEnvironment.CINNAMON -> true
+            LinuxDesktopEnvironment.MATE -> true
+            LinuxDesktopEnvironment.UNKNOWN -> true
+            null -> isSystemInDarkMode()
+        }
         else -> true
     }
 }
