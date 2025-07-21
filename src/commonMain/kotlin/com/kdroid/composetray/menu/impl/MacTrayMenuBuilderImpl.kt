@@ -29,23 +29,26 @@ internal class MacTrayMenuBuilderImpl(
         }
     }
 
-    override fun CheckableItem(label: String, checked: Boolean, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
-        var isChecked = checked // Initialize checked state
-
+    override fun CheckableItem(
+        label: String,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
         lock.withLock {
             val menuItem = MacTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 isCheckable = true,
-                isChecked = isChecked,
+                isChecked = checked,
                 onClick = {
                     lock.withLock {
-                        // Inverts the checked state
-                        isChecked = !isChecked
-                        onToggle(isChecked)
+                        // Toggle the checked state
+                        val newChecked = !checked
+                        onCheckedChange(newChecked)
 
-                        // Update the menu item in the tray manager
-                        trayManager?.updateMenuItemCheckedState(label, isChecked)
+                        // Note: The actual visual update of the check mark
+                        // will happen when the menu is recreated after the state change
                     }
                 }
             )

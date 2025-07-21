@@ -40,21 +40,19 @@ internal class LinuxLibTrayMenuBuilderImpl(
     override fun CheckableItem(
         label: String,
         checked: Boolean,
-        isEnabled: Boolean,
-        onToggle: (Boolean) -> Unit
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
     ) {
-        var isChecked = checked
-
         lock.withLock {
             val menuItem = LinuxNativeTrayMenuItem().apply {
                 text = label
                 disabled = if (isEnabled) 0 else 1
-                this.checked = if (isChecked) 1 else 0 // 1 / 0 → checkable
+                this.checked = if (checked) 1 else 0 // 1 / 0 → checkable
 
                 val callback = LinuxNativeTrayMenuItem.MenuItemCallback { item ->
-                    isChecked = !isChecked
-                    item.checked = if (isChecked) 1 else 0
-                    onToggle(isChecked)
+                    val newChecked = item.checked == 0
+                    item.checked = if (newChecked) 1 else 0
+                    onCheckedChange(newChecked)
                 }
                 cb = callback
                 persistentCallbacks.add(callback)

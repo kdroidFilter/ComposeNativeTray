@@ -37,6 +37,11 @@ fun main() = application {
     var dynamicItemLabel by remember { mutableStateOf("Dynamic Item") }
     var itemCounter by remember { mutableStateOf(0) }
 
+    // New idiomatic state management
+    var notificationsEnabled by remember { mutableStateOf(false) }
+    var darkModeEnabled by remember { mutableStateOf(false) }
+    var autoStartEnabled by remember { mutableStateOf(true) }
+
     val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
         isWindowVisible = true
     })
@@ -114,21 +119,45 @@ fun main() = application {
 
             Divider()
 
-            // Checkable Items
-            CheckableItem(label = "Enable notifications") { isChecked ->
-                Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
-            }
-            CheckableItem(label = "Initial Checked", checked = true) { isChecked ->
-                Log.i(logTag, "Initial Checked ${if (isChecked) "enabled" else "disabled"}")
-            }
+            // New idiomatic CheckableItem usage
+            CheckableItem(
+                label = "Enable notifications",
+                checked = notificationsEnabled,
+                onCheckedChange = { checked ->
+                    notificationsEnabled = checked
+                    Log.i(logTag, "Notifications ${if (checked) "enabled" else "disabled"}")
+                }
+            )
+
+            CheckableItem(
+                label = "Dark mode",
+                checked = darkModeEnabled,
+                onCheckedChange = { checked ->
+                    darkModeEnabled = checked
+                    Log.i(logTag, "Dark mode ${if (checked) "enabled" else "disabled"}")
+                }
+            )
+
+            CheckableItem(
+                label = "Auto-start on login",
+                checked = autoStartEnabled,
+                onCheckedChange = { checked ->
+                    autoStartEnabled = checked
+                    Log.i(logTag, "Auto-start ${if (checked) "enabled" else "disabled"}")
+                }
+            )
 
             Divider()
 
             // Toggle advanced options visibility
-            CheckableItem(label = "Show advanced options", checked = showAdvancedOptions) { isChecked ->
-                showAdvancedOptions = isChecked
-                Log.i(logTag, "Advanced options ${if (isChecked) "shown" else "hidden"}")
-            }
+            CheckableItem(
+                label = "Show advanced options",
+                checked = showAdvancedOptions,
+                onCheckedChange = { checked ->
+                    showAdvancedOptions = checked
+                    Log.i(logTag, "Advanced options ${if (checked) "shown" else "hidden"}")
+                }
+            )
 
             Item(label = "About") {
                 Log.i(logTag, "Application v1.0 - Developed by Elyahou")
@@ -136,15 +165,23 @@ fun main() = application {
 
             Divider()
 
-            CheckableItem(label = "Always show tray", checked = alwaysShowTray) { isChecked ->
-                alwaysShowTray = isChecked
-                Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
-            }
+            CheckableItem(
+                label = "Always show tray",
+                checked = alwaysShowTray,
+                onCheckedChange = { checked ->
+                    alwaysShowTray = checked
+                    Log.i(logTag, "Always show tray ${if (checked) "enabled" else "disabled"}")
+                }
+            )
 
-            CheckableItem(label = "Hide on close", checked = hideOnClose) { isChecked ->
-                hideOnClose = isChecked
-                Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
-            }
+            CheckableItem(
+                label = "Hide on close",
+                checked = hideOnClose,
+                onCheckedChange = { checked ->
+                    hideOnClose = checked
+                    Log.i(logTag, "Hide on close ${if (checked) "enabled" else "disabled"}")
+                }
+            )
 
             Divider()
 

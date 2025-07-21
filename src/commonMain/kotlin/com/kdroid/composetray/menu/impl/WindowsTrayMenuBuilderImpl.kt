@@ -28,27 +28,22 @@ internal class WindowsTrayMenuBuilderImpl(
         }
     }
 
-    override fun CheckableItem(label: String, checked: Boolean, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
-        var isChecked = checked // Initialise l'état checked
-
+    override fun CheckableItem(
+        label: String,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
         lock.withLock {
             val menuItem = WindowsTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 isCheckable = true,
-                isChecked = isChecked,
+                isChecked = checked,
                 onClick = {
-                    lock.withLock {
-                        // Inverts the checked state
-                        isChecked = !isChecked
-                        onToggle(isChecked)
-
-                        // Updates the item in the menuItems list
-                        val itemIndex = menuItems.indexOfFirst { it.text == label }
-                        if (itemIndex != -1) {
-                            menuItems[itemIndex] = menuItems[itemIndex].copy(isChecked = isChecked)
-                        }
-                    }
+                    // Toggle the checked state
+                    val newChecked = !checked
+                    onCheckedChange(newChecked)
                 }
             )
             menuItems.add(menuItem)
