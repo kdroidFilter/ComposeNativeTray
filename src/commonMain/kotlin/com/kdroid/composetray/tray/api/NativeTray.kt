@@ -14,6 +14,7 @@ import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.MenuContentHash
 import com.kdroid.composetray.utils.extractToTempIfDifferent
+import com.kdroid.composetray.utils.isMenuInDarkMode
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.e
@@ -242,9 +243,11 @@ fun ApplicationScope.Tray(
     primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
+    val isDark = isMenuInDarkMode()  // Observe menu bar theme to trigger recomposition on changes
+
     val os = getOperatingSystem()
-    // Calculate a hash of the rendered composable content to detect changes
-    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+    // Calculate a hash of the rendered composable content to detect changes, including theme state
+    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) + isDark.hashCode()
 
     // Calculate a hash of the menu content to detect changes
     val menuHash = MenuContentHash.calculateMenuHash(menuContent)
@@ -256,7 +259,7 @@ fun ApplicationScope.Tray(
 
     val tray = remember { NativeTray() }
 
-    // Update when params change, including menuHash
+    // Update when params change, including contentHash (which incorporates theme)
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }

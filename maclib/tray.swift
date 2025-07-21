@@ -1,16 +1,19 @@
+// Modified tray.swift (reduce debounce to 0.1s and asyncAfter to 0.01s for faster detection)
 import Cocoa
 import Foundation
 
 // Types for C callbacks
 public typealias TrayCallback = @convention(c) (UnsafeMutableRawPointer?) -> Void
 public typealias MenuItemCallback = @convention(c) (UnsafeMutableRawPointer?) -> Void
+public typealias ThemeCallback = @convention(c) (Int32) -> Void
 
-// Static variables 
+// Static variables
 private var loopStatus: Int32 = 0
 private var trayInstance: UnsafeMutableRawPointer? = nil
 private var app: NSApplication? = nil
 private var statusBar: NSStatusBar? = nil
 private var statusItem: NSStatusItem? = nil
+private var themeCallback: ThemeCallback? = nil
 
 // Delegate for the menu
 class MenuDelegate: NSObject, NSMenuDelegate {
@@ -54,9 +57,45 @@ class MenuDelegate: NSObject, NSMenuDelegate {
     }
 }
 
-// Delegate instance
+// Appearance observer
+class MenuBarAppearanceObserver: NSObject {
+    var debounceTimer: Timer?
+    var lastAppearanceName: NSAppearance.Name?
+
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "button.effectiveAppearance" {
+            debounceTimer?.invalidate()
+            debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
+                guard let self = self,
+                      let statusItem = object as? NSStatusItem,
+                      let appearance = statusItem.button?.effectiveAppearance else { return }
+                self.updateForAppearance(appearance)
+            }
+        }
+    }
+
+    func updateForAppearance(_ appearance: NSAppearance) {
+        let name = appearance.bestMatch(from: [.darkAqua, .aqua])
+        guard name != lastAppearanceName else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+            guard let self = self,
+                  let currentAppearance = statusItem?.button?.effectiveAppearance else { return }
+            let currentName = currentAppearance.bestMatch(from: [.darkAqua, .aqua])
+            guard currentName == name && currentName != self.lastAppearanceName else { return }
+            self.lastAppearanceName = currentName
+            let isDark = currentName == .darkAqua ? Int32(1) : Int32(0)
+            if let cb = themeCallback {
+                cb(isDark)
+            }
+        }
+    }
+}
+
+// Delegate instances
 private var menuDelegate: MenuDelegate? = nil
 private var buttonClickHandler: ButtonClickHandler? = nil
+private var appearanceObserver: MenuBarAppearanceObserver? = nil
 
 // Function to create a native menu from a C structure
 private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
@@ -132,9 +171,11 @@ public func tray_init(_ tray: UnsafeMutableRawPointer) -> Int32 {
 
     menuDelegate = MenuDelegate()
     buttonClickHandler = ButtonClickHandler()
+    appearanceObserver = MenuBarAppearanceObserver()
     app = NSApplication.shared
     statusBar = NSStatusBar.system
     statusItem = statusBar?.statusItem(withLength: NSStatusItem.variableLength)
+    statusItem?.addObserver(appearanceObserver!, forKeyPath: "button.effectiveAppearance", options: [.initial, .new], context: nil)
 
     tray_update(tray)
 
@@ -228,6 +269,12 @@ public func tray_exit() {
 
     loopStatus = -1
 
+    // Remove the observer
+    if let observer = appearanceObserver {
+        statusItem?.removeObserver(observer, forKeyPath: "button.effectiveAppearance")
+    }
+    appearanceObserver = nil
+
     // Remove the status bar item
     if let statusItem = statusItem {
         NSStatusBar.system.removeStatusItem(statusItem)
@@ -238,4 +285,19 @@ public func tray_exit() {
     statusItem = nil
     menuDelegate = nil
     buttonClickHandler = nil
+}
+
+@_cdecl("tray_set_theme_callback")
+public func tray_set_theme_callback(_ cb: @escaping ThemeCallback) {
+    themeCallback = cb
+}
+
+@_cdecl("tray_is_menu_dark")
+public func tray_is_menu_dark() -> Int32 {
+    guard let button = statusItem?.button else {
+        return 1 // Default to true (dark) if not available
+    }
+    let appearance = button.effectiveAppearance
+    let name = appearance.bestMatch(from: [.darkAqua, .aqua])
+    return name == .darkAqua ? 1 : 0
 }

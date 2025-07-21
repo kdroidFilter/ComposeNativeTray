@@ -1,3 +1,4 @@
+// Modified MacTrayManager.kt (add ThemeCallback and update MacTrayLibrary)
 package com.kdroid.composetray.lib.mac
 
 import androidx.compose.runtime.mutableStateOf
@@ -63,22 +64,22 @@ internal class MacTrayManager(
             }
         }
     }
-    
+
     // Update the tray with new properties and menu items
     fun update(newIconPath: String, newTooltip: String, newOnLeftClick: (() -> Unit)?, newMenuItems: List<MenuItem>? = null) {
         lock.withLock {
             if (!running.get() || tray == null) return
-            
+
             // Update properties
             val iconChanged = this.iconPath != newIconPath
             val tooltipChanged = this.tooltip != newTooltip
             val onLeftClickChanged = this.onLeftClickCallback.value != newOnLeftClick
-            
+
             // Update icon path and tooltip
             this.iconPath = newIconPath
             this.tooltip = newTooltip
             this.onLeftClickCallback.value = newOnLeftClick
-            
+
             // Update the tray object with new values
             tray?.let {
                 if (iconChanged) {
@@ -91,7 +92,7 @@ internal class MacTrayManager(
                     initializeOnLeftClickCallback()
                 }
             }
-            
+
             // Update menu items if provided
             if (newMenuItems != null) {
                 menuItems.clear()
@@ -316,12 +317,18 @@ internal class MacTrayManager(
         fun invoke(item: Pointer?)
     }
 
+    interface ThemeCallback : Callback {
+        fun invoke(isDark: Int)
+    }
+
     // JNA interface for the native library
     interface MacTrayLibrary : Library {
         fun tray_init(tray: MacTray): Int
         fun tray_loop(blocking: Int): Int
         fun tray_update(tray: MacTray)
         fun tray_exit()
+        fun tray_set_theme_callback(cb: ThemeCallback)
+        fun tray_is_menu_dark(): Int
     }
 
     // Structure for a menu item

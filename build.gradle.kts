@@ -43,6 +43,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.kmp.log)
+            implementation(libs.kermit)
             implementation(libs.platformtools.core)
         }
     }

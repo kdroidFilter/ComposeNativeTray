@@ -15,6 +15,7 @@ import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.getTrayPosition
+import com.kdroid.composetray.utils.isMenuInDarkMode
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.i
@@ -60,7 +61,7 @@ fun main() = application {
                 Icon(
                     Icons.Default.Favorite,
                     contentDescription = "",
-                    tint = Color.White,
+                    tint = if (isMenuInDarkMode()) Color.White else Color.Black,
                     modifier = Modifier.fillMaxSize()
                 )
             },
