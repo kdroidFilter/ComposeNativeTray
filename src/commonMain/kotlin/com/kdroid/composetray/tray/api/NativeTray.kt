@@ -1,27 +1,26 @@
 package com.kdroid.composetray.tray.api
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
 import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
-import com.kdroid.composetray.utils.ComposableIconUtils
-import com.kdroid.composetray.utils.IconRenderProperties
-import com.kdroid.composetray.utils.MenuContentHash
-import com.kdroid.composetray.utils.extractToTempIfDifferent
-import com.kdroid.composetray.utils.isMenuBarInDarkMode
+import com.kdroid.composetray.utils.*
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.e
-import io.github.kdroidfilter.platformtools.OperatingSystem.LINUX
-import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
-import io.github.kdroidfilter.platformtools.OperatingSystem.UNKNOWN
-import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
+import io.github.kdroidfilter.platformtools.OperatingSystem.*
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -260,6 +259,132 @@ fun ApplicationScope.Tray(
     val tray = remember { NativeTray() }
 
     // Update when params change, including contentHash (which incorporates theme)
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    }
+
+    // Dispose only when Tray is removed from composition
+    DisposableEffect(Unit) {
+        onDispose {
+            Log.d("NativeTray", "onDispose")
+            tray.dispose()
+        }
+    }
+}
+
+/**
+ * Configures and displays a system tray icon using an ImageVector, with automatic tint adaptation based on menu bar theme.
+ *
+ * @param icon The ImageVector to display as the tray icon.
+ * @param tint Optional tint color for the icon. If null, automatically adapts to white in dark mode and black in light mode.
+ * @param iconRenderProperties Properties for rendering the icon.
+ * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
+ * @param primaryAction An optional callback to be invoked when the tray icon is clicked.
+ * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
+ * @param menuContent A lambda that builds the tray menu.
+ */
+@Composable
+fun ApplicationScope.Tray(
+    icon: ImageVector,
+    tint: Color? = null,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    primaryActionLabel: String = "Open",
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val isDark = isMenuBarInDarkMode()
+
+    // Define the icon content lambda
+    val iconContent: @Composable () -> Unit = {
+        Image(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            colorFilter = tint?.let { androidx.compose.ui.graphics.ColorFilter.tint(it) }
+                ?: if (isDark) androidx.compose.ui.graphics.ColorFilter.tint(Color.White)
+                else androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
+        )
+    }
+
+    val os = getOperatingSystem()
+    // Calculate menu hash to detect changes
+    val menuHash = MenuContentHash.calculateMenuHash(menuContent)
+
+    // Updated contentHash to include icon and tint for proper recomposition on changes
+    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) +
+            isDark.hashCode() +
+            icon.hashCode() +
+            (tint?.hashCode() ?: 0)  // Include tint if set; 0 as fallback when null
+
+    val pngIconPath = remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
+    val windowsIconPath = remember(contentHash) {
+        if (os == WINDOWS) ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent) else pngIconPath
+    }
+
+    val tray = remember { NativeTray() }
+
+    // Update when params change, including contentHash (which incorporates theme/icon/tint)
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    }
+
+    // Dispose only when Tray is removed from composition
+    DisposableEffect(Unit) {
+        onDispose {
+            Log.d("NativeTray", "onDispose")
+            tray.dispose()
+        }
+    }
+}
+
+/**
+ * Configures and displays a system tray icon using a Painter.
+ *
+ * @param icon The Painter to display as the tray icon.
+ * @param iconRenderProperties Properties for rendering the icon.
+ * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
+ * @param primaryAction An optional callback to be invoked when the tray icon is clicked.
+ * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
+ * @param menuContent A lambda that builds the tray menu.
+ */
+@Composable
+fun ApplicationScope.Tray(
+    icon: Painter,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    primaryActionLabel: String = "Open",
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val isDark = isMenuBarInDarkMode()  // Included for consistency, even if not used in rendering
+
+    // Define the icon content lambda
+    val iconContent: @Composable () -> Unit = {
+        Image(
+            painter = icon,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+
+    val os = getOperatingSystem()
+    // Calculate menu hash to detect changes
+    val menuHash = MenuContentHash.calculateMenuHash(menuContent)
+
+    // Updated contentHash to include icon for proper recomposition on changes
+    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) +
+            isDark.hashCode() +
+            icon.hashCode()
+
+    val pngIconPath = remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
+    val windowsIconPath = remember(contentHash) {
+        if (os == WINDOWS) ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent) else pngIconPath
+    }
+
+    val tray = remember { NativeTray() }
+
+    // Update when params change, including contentHash (which incorporates theme/icon)
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
