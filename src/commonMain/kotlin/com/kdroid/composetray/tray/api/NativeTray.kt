@@ -12,6 +12,7 @@ import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
+import com.kdroid.composetray.utils.MenuContentHash
 import com.kdroid.composetray.utils.extractToTempIfDifferent
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
@@ -110,7 +111,7 @@ internal class NativeTray {
                         WindowsTrayInitializer.initialize(windowsIconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
-                    
+
                     MACOS -> {
                         Log.d("NativeTray", "Initializing macOS tray with icon path: $iconPath")
                         MacTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
@@ -185,7 +186,7 @@ internal class NativeTray {
  */
 @Deprecated(
     message = "Use the version with composable icon content instead",
-    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent, menuKey)")
+    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
 )
 @Composable
 fun ApplicationScope.Tray(
@@ -194,7 +195,6 @@ fun ApplicationScope.Tray(
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLabel: String = "Open",
-    menuKey: Any? = null, // Add a key parameter to force recomposition when state variables change
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val absoluteIconPath = remember(iconPath) { extractToTempIfDifferent(iconPath)?.absolutePath.orEmpty() }
@@ -205,13 +205,15 @@ fun ApplicationScope.Tray(
 
     val tray = remember { NativeTray() }
 
-    // Update quand params changent (sans dispose)
-    // Include menuKey in the dependency array to force recomposition when state variables change
-    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, menuKey) {
+    // Calculate menu hash to detect changes
+    val menuHash = MenuContentHash.calculateMenuHash(menuContent)
+
+    // Update when params change, including menuHash
+    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, menuHash) {
         tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 
-    // Dispose seulement quand Tray est supprimé de la composition
+    // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
             Log.d("NativeTray", "onDispose")
@@ -238,12 +240,14 @@ fun ApplicationScope.Tray(
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLabel: String = "Open",
-    menuKey: Any? = null, // Add a key parameter to force recomposition when state variables change
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val os = getOperatingSystem()
     // Calculate a hash of the rendered composable content to detect changes
     val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent)
+
+    // Calculate a hash of the menu content to detect changes
+    val menuHash = MenuContentHash.calculateMenuHash(menuContent)
 
     val pngIconPath = remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
     val windowsIconPath = remember(contentHash) {
@@ -252,13 +256,12 @@ fun ApplicationScope.Tray(
 
     val tray = remember { NativeTray() }
 
-    // Update quand params changent (sans dispose)
-    // Include menuKey in the dependency array to force recomposition when state variables change
-    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuKey) {
+    // Update when params change, including menuHash
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 
-    // Dispose seulement quand Tray est supprimé de la composition
+    // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
             Log.d("NativeTray", "onDispose")

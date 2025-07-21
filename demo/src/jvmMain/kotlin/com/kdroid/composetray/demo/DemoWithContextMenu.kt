@@ -32,6 +32,11 @@ fun main() = application {
     var alwaysShowTray by remember { mutableStateOf(false) }
     var hideOnClose by remember { mutableStateOf(true) }
 
+    // Dynamic menu state
+    var showAdvancedOptions by remember { mutableStateOf(true) }
+    var dynamicItemLabel by remember { mutableStateOf("Dynamic Item") }
+    var itemCounter by remember { mutableStateOf(0) }
+
     val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
         isWindowVisible = true
     })
@@ -42,7 +47,6 @@ fun main() = application {
     }
 
     // Always create the Tray composable, but make it conditional on visibility
-    // This ensures it's recomposed when alwaysShowTray changes
     val showTray = alwaysShowTray || !isWindowVisible
 
     if (showTray) {
@@ -51,7 +55,6 @@ fun main() = application {
                 Icon(
                     Icons.Default.Favorite,
                     contentDescription = "",
-                    // Use alwaysShowTray as a key to force recomposition when it changes
                     tint = Color.White,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -62,7 +65,17 @@ fun main() = application {
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application"
+            // Note: No menuKey needed anymore!
         ) {
+            // Dynamic item that changes label
+            Item(label = dynamicItemLabel) {
+                itemCounter++
+                dynamicItemLabel = "Clicked $itemCounter times"
+                Log.i(logTag, "Dynamic item clicked: $dynamicItemLabel")
+            }
+
+            Divider()
+
             // Options SubMenu
             SubMenu(label = "Options") {
                 Item(label = "Show Text") {
@@ -73,12 +86,16 @@ fun main() = application {
                     Log.i(logTag, "Hide Text selected")
                     textVisible = false
                 }
-                SubMenu(label = "Advanced Sub-options") {
-                    Item(label = "Advanced Option 1") {
-                        Log.i(logTag, "Advanced Option 1 selected")
-                    }
-                    Item(label = "Advanced Option 2") {
-                        Log.i(logTag, "Advanced Option 2 selected")
+
+                // Conditionally show advanced options
+                if (showAdvancedOptions) {
+                    SubMenu(label = "Advanced Sub-options") {
+                        Item(label = "Advanced Option 1") {
+                            Log.i(logTag, "Advanced Option 1 selected")
+                        }
+                        Item(label = "Advanced Option 2") {
+                            Log.i(logTag, "Advanced Option 2 selected")
+                        }
                     }
                 }
             }
@@ -106,6 +123,12 @@ fun main() = application {
             }
 
             Divider()
+
+            // Toggle advanced options visibility
+            CheckableItem(label = "Show advanced options", checked = showAdvancedOptions) { isChecked ->
+                showAdvancedOptions = isChecked
+                Log.i(logTag, "Advanced options ${if (isChecked) "shown" else "hidden"}")
+            }
 
             Item(label = "About") {
                 Log.i(logTag, "Application v1.0 - Developed by Elyahou")
@@ -147,9 +170,9 @@ fun main() = application {
                 exitApplication()
             }
         },
-        title = "Compose Desktop Application with Two Screens",
+        title = "Compose Desktop Application with Dynamic Tray Menu",
         visible = isWindowVisible,
-        icon = org.jetbrains.compose.resources.painterResource(Res.drawable.icon) // Optional: Set window icon
+        icon = org.jetbrains.compose.resources.painterResource(Res.drawable.icon)
     ) {
         App(textVisible, alwaysShowTray, hideOnClose) { alwaysShow, hideOnCloseState ->
             alwaysShowTray = alwaysShow

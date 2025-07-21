@@ -73,7 +73,6 @@ fun main() = application {
             primaryActionLabel = "Open the Application",
             tooltip = "My Application",
             // Pass isVisible and name as menuKey to force recomposition when they change
-            menuKey = Pair(isVisible, name),
             menuContent = {
                 Item("Change icon") {
                     icon = if (icon == Res.drawable.icon) Res.drawable.icon2 else Res.drawable.icon
