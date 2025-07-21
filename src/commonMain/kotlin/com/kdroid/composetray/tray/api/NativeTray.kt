@@ -176,7 +176,7 @@ internal class NativeTray {
  */
 @Deprecated(
     message = "Use the version with composable icon content instead",
-    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
+    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent, menuKey)")
 )
 @Composable
 fun ApplicationScope.Tray(
@@ -185,7 +185,8 @@ fun ApplicationScope.Tray(
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLabel: String = "Open",
-    menuContent: (TrayMenuBuilder.() -> Unit)? = null
+    menuKey: Any? = null, // Add a key parameter to force recomposition when state variables change
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val absoluteIconPath = remember(iconPath) { extractToTempIfDifferent(iconPath)?.absolutePath.orEmpty() }
     val absoluteWindowsIconPath = remember(iconPath, windowsIconPath) {
@@ -196,7 +197,8 @@ fun ApplicationScope.Tray(
     val tray = remember { NativeTray() }
 
     // Update quand params changent (sans dispose)
-    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent) {
+    // Include menuKey in the dependency array to force recomposition when state variables change
+    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, menuKey) {
         tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 
@@ -227,6 +229,7 @@ fun ApplicationScope.Tray(
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
     primaryActionLabel: String = "Open",
+    menuKey: Any? = null, // Add a key parameter to force recomposition when state variables change
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val os = getOperatingSystem()
@@ -241,7 +244,8 @@ fun ApplicationScope.Tray(
     val tray = remember { NativeTray() }
 
     // Update quand params changent (sans dispose)
-    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash) {
+    // Include menuKey in the dependency array to force recomposition when state variables change
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuKey) {
         tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
     }
 

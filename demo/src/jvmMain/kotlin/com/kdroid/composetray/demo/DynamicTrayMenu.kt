@@ -17,6 +17,10 @@ import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import composenativetray.demo.generated.resources.icon2
 import org.jetbrains.compose.resources.painterResource
+import java.awt.Color
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
+import javax.swing.Timer
 
 private enum class ServiceStatus {
     RUNNING, STOPPED
@@ -49,6 +53,8 @@ fun main() = application {
     // Always create the Tray composable, but make it conditional on visibility
     // This ensures it's recomposed when alwaysShowTray changes
     val showTray = alwaysShowTray || !isWindowVisible
+    var isVisible by remember { mutableStateOf(true) }
+    var name by remember { mutableStateOf("Change Item Name") }
 
     if (showTray) {
         Tray(
@@ -66,9 +72,19 @@ fun main() = application {
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application",
+            // Pass isVisible and name as menuKey to force recomposition when they change
+            menuKey = Pair(isVisible, name),
             menuContent = {
                 Item("Change icon") {
                     icon = if (icon == Res.drawable.icon) Res.drawable.icon2 else Res.drawable.icon
+                }
+                if (isVisible) {
+                    Item("Hide Me") {
+                        isVisible = false
+                    }
+                }
+                Item(name) {
+                    name = "I've changed !"
                 }
                 // Dynamic Service Menu
                 SubMenu(label = "Service Control") {
@@ -138,9 +154,11 @@ fun main() = application {
         visible = isWindowVisible,
         icon = painterResource(Res.drawable.icon) // Optional: Set window icon
     ) {
+        window.toFront()
         App(textVisible, alwaysShowTray, hideOnClose) { alwaysShow, hideOnCloseState ->
             alwaysShowTray = alwaysShow
             hideOnClose = hideOnCloseState
         }
     }
 }
+
