@@ -4,8 +4,9 @@
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QObject>
+#include <QThread>
 #include "tray.h"
-#include <QEventLoop>  // Note: Typo in include; should be QEventLoop, not QEventLoop> as in the document.
+#include <QEventLoop>
 
 class QtTrayMenu : public QObject
 {
@@ -18,7 +19,9 @@ public:
     int init(struct tray *tray);
     void update(struct tray *tray);
     int loop(int blocking);
-    void exit();
+
+public:
+    Q_INVOKABLE void exit();  // Make it invokable but keep it in public section
 
 private:
     void createMenu(struct tray_menu_item *items, QMenu *menu);

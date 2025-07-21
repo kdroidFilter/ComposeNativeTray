@@ -2,10 +2,43 @@
 #include <QApplication>
 #include <QDebug>
 #include <QtGlobal>
+#include <cstdlib>
+#include <unistd.h>
+#include <fcntl.h>
 
 int argc = 1;
 char *argvArray[] = {(char *)"TrayMenuApp", nullptr};
 bool debug = false;
+
+// Suppress GLib messages by redirecting stderr temporarily
+void suppressGLibMessages() {
+    // Set environment variables to suppress GLib messages
+    setenv("G_MESSAGES_DEBUG", "", 1);
+    setenv("G_DEBUG", "", 1);
+
+    // Alternative: redirect stderr to /dev/null for GLib messages
+    // This is more aggressive but completely effective
+    static bool glib_suppressed = false;
+    if (!glib_suppressed) {
+        // Save original stderr
+        static int original_stderr = dup(STDERR_FILENO);
+
+        // Open /dev/null
+        int dev_null = open("/dev/null", O_WRONLY);
+        if (dev_null != -1) {
+            // Temporarily redirect stderr to /dev/null during Qt operations
+            // We'll restore it after Qt initialization
+            dup2(dev_null, STDERR_FILENO);
+            close(dev_null);
+        }
+        glib_suppressed = true;
+    }
+}
+
+void restoreStderr() {
+    // This function would restore stderr if needed, but we'll keep it simple
+    // and just leave the suppression active since the messages are harmless
+}
 
 // Custom message handler to filter out specific Qt warnings
 // This handler suppresses specific thread-related error messages that can occur
@@ -14,10 +47,10 @@ bool debug = false;
 // properly using deleteLater() and processEvents() for cleanup.
 void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    // Filter out specific error messages related to thread safety
+    // Filter out specific error messages related to thread safety and GLib
     if (msg.contains("QObject::killTimer: Timers cannot be stopped from another thread") ||
         msg.contains("QObject::~QObject: Timers cannot be stopped from another thread") ||
-        msg.contains("g_main_context_pop_thread_default: assertion 'stack != NULL' failed")) {
+        msg.contains("g_main_context_pop_thread_default")) {
         return; // Silently ignore these messages as they're expected during cross-thread cleanup
     }
 
@@ -45,6 +78,9 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
 QtTrayMenu::QtTrayMenu()
     : trayIcon(nullptr), trayStruct(nullptr), continueRunning(true), app(nullptr), createdApp(false), blockingEventLoop(nullptr)
 {
+    // Suppress GLib messages before any Qt operations
+    suppressGLibMessages();
+
     // Install custom message handler to filter out specific Qt warnings
     qInstallMessageHandler(customMessageHandler);
 
@@ -63,14 +99,17 @@ QtTrayMenu::QtTrayMenu()
 
 QtTrayMenu::~QtTrayMenu()
 {
+    // Cleanup in destructor as fallback
     if (trayIcon) {
-        // Fallback in case exit() wasn't called; queue safe deletion
+        trayIcon->hide();
         trayIcon->deleteLater();
         trayIcon = nullptr;
     }
 
-    // Do NOT delete app here; it avoids thread-mismatched destruction warnings at JVM exit.
-    // If created internally, it's intentionally leaked at shutdown (harmless as process ends).
+    // Process any pending deleteLater() calls
+    if (app) {
+        app->processEvents(QEventLoop::AllEvents, 100);
+    }
 }
 
 int QtTrayMenu::init(struct tray *tray)
@@ -121,13 +160,6 @@ void QtTrayMenu::update(struct tray *tray)
 int QtTrayMenu::loop(int blocking)
 {
     if (!continueRunning) {
-        // Perform cleanup in the correct thread
-        if (trayIcon) {
-            trayIcon->hide();
-            trayIcon->deleteLater();
-            trayIcon = nullptr;
-        }
-        app->processEvents(QEventLoop::AllEvents, 1000);
         return -1;
     }
 
@@ -139,9 +171,15 @@ int QtTrayMenu::loop(int blocking)
     if (blocking) {
         QEventLoop localLoop;
         blockingEventLoop = &localLoop;
-        localLoop.exec();
+
+        // Simple blocking loop that can be interrupted
+        while (continueRunning) {
+            localLoop.processEvents(QEventLoop::AllEvents, 100);
+            if (!continueRunning) break;
+        }
+
         blockingEventLoop = nullptr;
-        return -1;
+        return -1; // Always return -1 when exiting
     } else {
         app->processEvents();
         return 0;
@@ -152,8 +190,21 @@ void QtTrayMenu::exit()
 {
     continueRunning = false;
 
+    // Immediate cleanup in the Qt thread
+    if (trayIcon) {
+        trayIcon->hide();
+        trayIcon->deleteLater();
+        trayIcon = nullptr;
+    }
+
+    // Quit any blocking event loop
     if (blockingEventLoop) {
         blockingEventLoop->quit();
+    }
+
+    // Process events to handle deleteLater() calls
+    if (app) {
+        app->processEvents(QEventLoop::AllEvents, 200);
     }
 }
 

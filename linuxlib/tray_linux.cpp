@@ -40,26 +40,14 @@ TRAY_EXPORT void tray_update(struct tray *tray)
 
 TRAY_EXPORT void tray_exit(void)
 {
-    if (trayMenuInstance)
-    {
-        // First signal the tray to exit
-        trayMenuInstance->exit();
-        
-        // Process events to ensure exit signal is processed
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-        
-        // Schedule deletion of the tray instance
-        trayMenuInstance->deleteLater();
-        
-        // Process events multiple times with smaller timeouts to allow
-        // proper cleanup of GLib context between event processing cycles
-        for (int i = 0; i < 5; i++) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 200);
-        }
-        
-        // Clear the pointer after processing events
-        trayMenuInstance = nullptr;
-    }
+    if (!trayMenuInstance)
+        return;
+
+    // Signal exit() et deleteLater() dans le thread Qt
+    QMetaObject::invokeMethod(trayMenuInstance, "exit", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(trayMenuInstance, "deleteLater", Qt::QueuedConnection);
+
+    trayMenuInstance = nullptr;
 }
 
 } // extern "C"
