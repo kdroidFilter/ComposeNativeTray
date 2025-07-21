@@ -13,7 +13,7 @@ import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.util.function.Consumer
 
 @Composable
-fun isMenuInDarkMode(): Boolean {
+fun isMenuBarInDarkMode(): Boolean {
     return when (getOperatingSystem()) {
         MACOS -> isMacOsMenuBarInDarkMode()
         WINDOWS -> isSystemInDarkMode()

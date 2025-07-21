@@ -14,7 +14,7 @@ import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.MenuContentHash
 import com.kdroid.composetray.utils.extractToTempIfDifferent
-import com.kdroid.composetray.utils.isMenuInDarkMode
+import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import com.kdroid.kmplog.Log
 import com.kdroid.kmplog.d
 import com.kdroid.kmplog.e
@@ -243,7 +243,7 @@ fun ApplicationScope.Tray(
     primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
-    val isDark = isMenuInDarkMode()  // Observe menu bar theme to trigger recomposition on changes
+    val isDark = isMenuBarInDarkMode()  // Observe menu bar theme to trigger recomposition on changes
 
     val os = getOperatingSystem()
     // Calculate a hash of the rendered composable content to detect changes, including theme state
