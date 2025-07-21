@@ -8,6 +8,7 @@ import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
 import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
+import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
@@ -54,7 +55,8 @@ internal class NativeTray {
             when (os) {
                 LINUX -> LinuxTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                 WINDOWS -> WindowsTrayInitializer.update(windowsIconPath, tooltip, primaryAction, menuContent)
-                MACOS, UNKNOWN -> {
+                MACOS -> MacTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
+                UNKNOWN -> {
                     AwtTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                     awtTrayUsed.set(true)
                 }
@@ -69,7 +71,8 @@ internal class NativeTray {
         when (os) {
             LINUX -> LinuxTrayInitializer.dispose()
             WINDOWS -> WindowsTrayInitializer.dispose()
-            MACOS, UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
+            MACOS -> MacTrayInitializer.dispose()
+            UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
             else -> {}
         }
         initialized = false
@@ -107,6 +110,12 @@ internal class NativeTray {
                         WindowsTrayInitializer.initialize(windowsIconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
+                    
+                    MACOS -> {
+                        Log.d("NativeTray", "Initializing macOS tray with icon path: $iconPath")
+                        MacTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
+                        trayInitialized = true
+                    }
 
                     else -> {}
                 }
@@ -114,7 +123,7 @@ internal class NativeTray {
                 Log.e("NativeTray", "Error initializing tray:", th)
             }
 
-            val awtTrayRequired = os == MACOS || os == UNKNOWN || !trayInitialized
+            val awtTrayRequired = os == UNKNOWN || !trayInitialized
             if (awtTrayRequired) {
                 if (AwtTrayInitializer.isSupported()) {
                     try {

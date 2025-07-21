@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.jna)
             implementation(libs.jna.platform)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.kmp.log)
             implementation(libs.platformtools.core)
         }
@@ -54,6 +55,12 @@ val buildWin: TaskProvider<Exec> = tasks.register<Exec>("buildNativeWin") {
     commandLine("cmd", "/c", "build.bat")
 }
 
+val buildMac: TaskProvider<Exec> = tasks.register<Exec>("buildNativeMac") {
+    onlyIf { System.getProperty("os.name").startsWith("Mac") }
+    workingDir(rootDir.resolve("maclib"))
+    commandLine("sh", "build.sh")
+}
+
 val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
     onlyIf { System.getProperty("os.name").toLowerCase().contains("linux") }
     workingDir(rootDir.resolve("linuxlib"))
@@ -61,7 +68,7 @@ val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
 }
 
 tasks.register("buildNativeLibraries") {
-    dependsOn(buildWin, buildLinux)
+    dependsOn(buildWin, buildLinux, buildMac)
 }
 
 mavenPublishing {
