@@ -5,10 +5,63 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <fcntl.h>
+#include <QTimer>
+#include <QDesktopServices>
+#include <QUrl>
+
+#ifdef Q_OS_LINUX
+#include <QProcess>
+#include <QStandardPaths>
+#include <QDir>
+#endif
 
 int argc = 1;
 char *argvArray[] = {(char *)"TrayMenuApp", nullptr};
 bool debug = false;
+
+// Forward declarations
+bool isGnomeDesktop();
+void simulateMenuBarClick();
+
+// Helper function to apply the GNOME workaround after a callback
+void applyGnomeWorkaround() {
+    if (isGnomeDesktop()) {
+        QTimer::singleShot(100, []() {
+            simulateMenuBarClick();
+        });
+    }
+}
+
+// Function to detect the GNOME desktop environment
+bool isGnomeDesktop() {
+    const QString desktop = qEnvironmentVariable("XDG_CURRENT_DESKTOP");
+    const QString session = qEnvironmentVariable("GNOME_DESKTOP_SESSION_ID");
+    const QString gdmSession = qEnvironmentVariable("GDMSESSION");
+
+    return desktop.contains("GNOME", Qt::CaseInsensitive) ||
+           !session.isEmpty() ||
+           gdmSession.contains("gnome", Qt::CaseInsensitive);
+}
+
+// Function to simulate a click on the menu bar (GNOME workaround)
+void simulateMenuBarClick() {
+    if (!isGnomeDesktop()) {
+        return; // Apply the workaround only on GNOME
+    }
+
+#ifdef Q_OS_LINUX
+    // Method 1: Use gdbus to interact with GNOME Shell
+    QProcess gdbus;
+    gdbus.start("gdbus", QStringList()
+        << "call"
+        << "--session"
+        << "--dest" << "org.gnome.Shell"
+        << "--object-path" << "/org/gnome/Shell"
+        << "--method" << "org.gnome.Shell.Eval"
+        << "Main.panel._updatePanel()");
+    gdbus.waitForFinished(1000);
+#endif
+}
 
 // Suppress GLib messages by redirecting stderr temporarily
 void suppressGLibMessages() {
@@ -154,6 +207,9 @@ void QtTrayMenu::update(struct tray *tray)
             existingMenu->clear();
             createMenu(tray->menu, existingMenu);
         }
+
+        // GNOME WORKAROUND: Apply after the update
+        applyGnomeWorkaround();
     }, Qt::QueuedConnection);
 }
 
@@ -222,7 +278,7 @@ void QtTrayMenu::createMenu(struct tray_menu_item *items, QMenu *menu)
         auto *action = new QAction(QString::fromUtf8(items->text), menu);
         action->setDisabled(items->disabled == 1);
 
-        // ✅ NEW: make the action checkable only when appropriate
+        // NEW: make the action checkable only when appropriate
         const bool isCheckable = (items->checked == 0 || items->checked == 1);
         action->setCheckable(isCheckable);
         if (isCheckable) {
@@ -253,6 +309,9 @@ void QtTrayMenu::onTrayActivated(QSystemTrayIcon::ActivationReason reason)
 {
     if (reason == QSystemTrayIcon::Trigger && trayStruct && trayStruct->cb) {
         trayStruct->cb(trayStruct);
+
+        // GNOME WORKAROUND: Apply after EACH callback
+        applyGnomeWorkaround();
     }
 }
 
@@ -263,6 +322,9 @@ void QtTrayMenu::onMenuItemTriggered()
 
     if (menuItem && menuItem->cb) {
         menuItem->cb(menuItem);
+
+        // GNOME WORKAROUND: Apply after EACH menu callback
+        applyGnomeWorkaround();
     }
 }
 
