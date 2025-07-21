@@ -51,7 +51,7 @@ fun main() = application {
     if (showTray) {
         // Using the ImageVector API with the AcademicCap vector
         Tray(
-            icon = Deployed_code_update,  // Using the ImageVector directly
+            icon = AcademicCap,  // Using the ImageVector directly
             tint = iconTint,     // Using the tint parameter (null means auto-adapt to theme)
             tooltip = "Academic Cap Demo",
             primaryAction = {
