@@ -18,7 +18,7 @@ internal class WindowsTrayManager(
     private val updateLock = ReentrantLock()
 
     // Maintain a reference to all callbacks to avoid GC
-    private val callbackReferences: MutableList<StdCallCallback> = mutableListOf()
+    private val callbackReferences: MutableList<com.sun.jna.win32.StdCallLibrary.StdCallCallback> = mutableListOf()
     private val nativeMenuItemsReferences: MutableList<WindowsNativeTrayMenuItem> = mutableListOf()
 
     // Keep a reference to the tray callback
@@ -161,6 +161,9 @@ internal class WindowsTrayManager(
             null
         }
         tray.cb = trayCallback
+        if (trayCallback != null) {
+            callbackReferences.add(trayCallback!!)
+        }
     }
 
     private fun setupMenu(menuItems: List<MenuItem>) {
