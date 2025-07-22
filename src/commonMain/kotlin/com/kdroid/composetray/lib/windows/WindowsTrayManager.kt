@@ -3,6 +3,8 @@ package com.kdroid.composetray.lib.windows
 import com.sun.jna.Native
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 internal class WindowsTrayManager(
     private var iconPath: String,
@@ -10,9 +12,10 @@ internal class WindowsTrayManager(
     private var onLeftClick: (() -> Unit)? = null
 ) {
     private val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
-    private val tray: WindowsNativeTray = WindowsNativeTray()
+    private var tray: WindowsNativeTray = WindowsNativeTray()
     private val running = AtomicBoolean(false)
     private val initialized = AtomicBoolean(false)
+    private val updateLock = ReentrantLock()
 
     // Maintain a reference to all callbacks to avoid GC
     private val callbackReferences: MutableList<StdCallCallback> = mutableListOf()
@@ -24,6 +27,12 @@ internal class WindowsTrayManager(
     // Coroutine for running the tray loop
     private var trayJob: Job? = null
     private val trayScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    companion object {
+        private fun log(message: String) {
+            println("[WindowsTrayManager] $message")
+        }
+    }
 
     init {
         tray.icon_filepath = iconPath
@@ -41,11 +50,14 @@ internal class WindowsTrayManager(
     )
 
     fun initialize(menuItems: List<MenuItem>) {
-        if (initialized.get()) {
-            return
-        }
+        log("initialize() called with ${menuItems.size} menu items")
+        updateLock.withLock {
+            if (initialized.get()) {
+                log("Already initialized, delegating to update()")
+                update(iconPath, tooltip, onLeftClick, menuItems)
+                return
+            }
 
-        synchronized(tray) {
             // Set up the left click callback
             setupLeftClickCallback()
 
@@ -53,7 +65,9 @@ internal class WindowsTrayManager(
             setupMenu(menuItems)
 
             // Initialize the tray
+            log("Calling tray_init()")
             val initResult = trayLib.tray_init(tray)
+            log("tray_init() returned: $initResult")
             if (initResult != 0) {
                 throw RuntimeException("Failed to initialize tray: $initResult")
             }
@@ -67,26 +81,40 @@ internal class WindowsTrayManager(
     }
 
     fun update(newIconPath: String, newTooltip: String, newOnLeftClick: (() -> Unit)?, newMenuItems: List<MenuItem>) {
-        if (!initialized.get()) {
-            // If not initialized, store the values and initialize
-            iconPath = newIconPath
-            tooltip = newTooltip
-            onLeftClick = newOnLeftClick
-            tray.icon_filepath = newIconPath
-            tray.tooltip = newTooltip
-            initialize(newMenuItems)
-            return
-        }
+        log("update() called - icon: $newIconPath, tooltip: $newTooltip, menuItems: ${newMenuItems.size}")
+        updateLock.withLock {
+            if (!initialized.get()) {
+                log("Not initialized, calling initialize()")
+                iconPath = newIconPath
+                tooltip = newTooltip
+                onLeftClick = newOnLeftClick
+                initialize(newMenuItems)
+                return
+            }
 
-        synchronized(tray) {
+            // Stop current message loop temporarily
+            val wasRunning = running.get()
+            log("Current running state: $wasRunning")
+            if (wasRunning) {
+                running.set(false)
+                log("Stopping message loop...")
+                runBlocking {
+                    trayJob?.cancelAndJoin()
+                }
+                log("Message loop stopped")
+            }
+
             // Update properties
             iconPath = newIconPath
             tooltip = newTooltip
             onLeftClick = newOnLeftClick
+            val oldCallbackCount = callbackReferences.size
 
-            // Update tray structure
-            tray.icon_filepath = newIconPath
-            tray.tooltip = newTooltip
+            // Create a new tray structure to ensure clean state
+            tray = WindowsNativeTray().apply {
+                icon_filepath = newIconPath
+                tooltip = newTooltip
+            }
 
             // Update left click callback
             setupLeftClickCallback()
@@ -94,21 +122,42 @@ internal class WindowsTrayManager(
             // Clear old references
             callbackReferences.clear()
             nativeMenuItemsReferences.clear()
+            log("Cleared $oldCallbackCount old callbacks")
 
             // Set up new menu
             setupMenu(newMenuItems)
+            log("New callbacks count: ${callbackReferences.size}")
 
             // Update the native tray
+            log("Calling tray_update()")
             trayLib.tray_update(tray)
+            log("tray_update() completed")
+
+            // Restart message loop
+            if (wasRunning) {
+                running.set(true)
+                startMessageLoop()
+                log("Message loop restarted")
+            }
         }
     }
 
     private fun setupLeftClickCallback() {
         trayCallback = if (onLeftClick != null) {
-            WindowsNativeTray.TrayCallback {
-                onLeftClick?.invoke()
+            log("Setting up left click callback")
+            object : WindowsNativeTray.TrayCallback {
+                override fun invoke(tray: WindowsNativeTray) {
+                    log("Left click callback invoked")
+                    try {
+                        onLeftClick?.invoke()
+                    } catch (e: Exception) {
+                        log("Error in left click callback: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
             }
         } else {
+            log("No left click callback set")
             null
         }
         tray.cb = trayCallback
@@ -116,10 +165,12 @@ internal class WindowsTrayManager(
 
     private fun setupMenu(menuItems: List<MenuItem>) {
         if (menuItems.isEmpty()) {
+            log("No menu items to set up")
             tray.menu = null
             return
         }
 
+        log("Setting up ${menuItems.size} menu items")
         val menuItemPrototype = WindowsNativeTrayMenuItem()
         val nativeMenuItems = menuItemPrototype.toArray(menuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
 
@@ -144,13 +195,23 @@ internal class WindowsTrayManager(
 
         // Create the menu item callback
         menuItem.onClick?.let { onClick ->
-            val callback = StdCallCallback { item ->
-                if (running.get()) {
-                    onClick()
-                    if (menuItem.isCheckable) {
-                        item.checked = if (item.checked == 0) 1 else 0
-                        item.write()
-                        trayLib.tray_update(tray)
+            val callback = object : StdCallCallback {
+                override fun invoke(item: WindowsNativeTrayMenuItem) {
+                    log("Menu item clicked: ${menuItem.text}")
+                    try {
+                        if (running.get()) {
+                            onClick()
+                            if (menuItem.isCheckable) {
+                                item.checked = if (item.checked == 0) 1 else 0
+                                item.write()
+                                updateLock.withLock {
+                                    trayLib.tray_update(tray)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        log("Error in menu item callback: ${e.message}")
+                        e.printStackTrace()
                     }
                 }
             }
@@ -177,29 +238,90 @@ internal class WindowsTrayManager(
     }
 
     private fun startMessageLoop() {
+        log("Starting message loop")
+        trayJob?.cancel() // Cancel any existing job
+
         trayJob = trayScope.launch {
+            // Add a small delay to ensure Windows has processed the update
+            delay(50)
+
+            var loopCount = 0
             while (running.get() && isActive) {
-                val result = trayLib.tray_loop(0) // Non-blocking
-                if (result != 0) break
-                delay(10) // Small delay to avoid CPU spinning
+                try {
+                    val result = trayLib.tray_loop(0) // Non-blocking
+                    if (loopCount % 1000 == 0) {
+                        log("Message loop running... (iteration $loopCount, result: $result)")
+                    }
+                    loopCount++
+
+                    when (result) {
+                        -1 -> {
+                            log("tray_loop returned -1 (error or quit)")
+                            if (running.get() && initialized.get()) {
+                                // Try to recover by re-adding the tray icon
+                                delay(100)
+                                try {
+                                    updateLock.withLock {
+                                        log("Attempting to recover tray...")
+                                        trayLib.tray_update(tray)
+                                    }
+                                } catch (e: Exception) {
+                                    log("Failed to recover: ${e.message}")
+                                    e.printStackTrace()
+                                }
+                            } else {
+                                break
+                            }
+                        }
+                        0 -> {
+                            // Normal operation
+                            delay(10)
+                        }
+                        else -> {
+                            log("tray_loop returned unexpected value: $result")
+                            delay(10)
+                        }
+                    }
+                } catch (e: Exception) {
+                    log("Exception in message loop: ${e.message}")
+                    if (running.get()) {
+                        e.printStackTrace()
+                        delay(100)
+                    } else {
+                        break
+                    }
+                }
             }
+            log("Message loop ended")
         }
     }
 
     fun stopTray() {
-        running.set(false)
+        log("stopTray() called")
+        updateLock.withLock {
+            running.set(false)
 
-        // Cancel the coroutine
-        trayJob?.cancel()
+            // Cancel the coroutine
+            runBlocking {
+                trayJob?.cancelAndJoin()
+            }
 
-        if (initialized.get()) {
-            trayLib.tray_exit()
-            initialized.set(false)
+            if (initialized.get()) {
+                try {
+                    log("Calling tray_exit()")
+                    trayLib.tray_exit()
+                } catch (e: Exception) {
+                    log("Error in tray_exit(): ${e.message}")
+                    e.printStackTrace()
+                }
+                initialized.set(false)
+            }
+
+            // Clear all references
+            callbackReferences.clear()
+            nativeMenuItemsReferences.clear()
+            trayCallback = null
+            log("Tray stopped and cleaned up")
         }
-
-        // Clear all references
-        callbackReferences.clear()
-        nativeMenuItemsReferences.clear()
-        trayCallback = null
     }
 }
