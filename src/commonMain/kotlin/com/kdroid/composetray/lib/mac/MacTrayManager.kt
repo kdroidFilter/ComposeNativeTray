@@ -155,11 +155,11 @@ internal class MacTrayManager(
 
                     // Run the event loop
                     while (running.get()) {
-                        val result = trayLib.tray_loop(1)
+                        val result = trayLib.tray_loop(0)
                         if (result != 0) {
                             break
                         }
-                        Thread.sleep(10)
+                        Thread.sleep(100)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()

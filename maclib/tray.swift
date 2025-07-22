@@ -1,4 +1,3 @@
-// Modified tray.swift (reduce debounce to 0.1s and asyncAfter to 0.01s for faster detection)
 import Cocoa
 import Foundation
 
@@ -7,7 +6,7 @@ public typealias TrayCallback = @convention(c) (UnsafeMutableRawPointer?) -> Voi
 public typealias MenuItemCallback = @convention(c) (UnsafeMutableRawPointer?) -> Void
 public typealias ThemeCallback = @convention(c) (Int32) -> Void
 
-// Static variables
+// MARK: - Static globals (kept for C interop)
 private var loopStatus: Int32 = 0
 private var trayInstance: UnsafeMutableRawPointer? = nil
 private var app: NSApplication? = nil
@@ -15,242 +14,207 @@ private var statusBar: NSStatusBar? = nil
 private var statusItem: NSStatusItem? = nil
 private var themeCallback: ThemeCallback? = nil
 
-// Delegate for the menu
-class MenuDelegate: NSObject, NSMenuDelegate {
+// MARK: - Menu delegate
+private class MenuDelegate: NSObject, NSMenuDelegate {
     @objc func menuItemClicked(_ sender: NSMenuItem) {
-        // Get the pointer to the menu item structure
         guard let menuItemPtr = sender.representedObject as? UnsafeMutableRawPointer else { return }
-
-        // Read the callback from the structure (offset 16)
-        let callbackPtr = menuItemPtr.advanced(by: 16).assumingMemoryBound(to: MenuItemCallback?.self)
-        if let callback = callbackPtr.pointee {
-            callback(menuItemPtr)
-        }
+        let callbackPtr = menuItemPtr.advanced(by: 16)
+            .assumingMemoryBound(to: MenuItemCallback?.self)
+        callbackPtr.pointee?(menuItemPtr)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        if menu == statusItem?.menu, let currentEvent = NSApp.currentEvent, currentEvent.buttonNumber == 0 {
-            // For a left click, cancel the menu display and call the callback
-            menu.cancelTracking()
+        guard menu == statusItem?.menu,
+              let currentEvent = NSApp.currentEvent,
+              currentEvent.buttonNumber == 0,
+              let trayPtr = trayInstance else { return }
 
-            if let trayPtr = trayInstance {
-                // Read the callback from the tray structure (offset 24 bytes)
-                let callbackPtr = trayPtr.advanced(by: 24).assumingMemoryBound(to: TrayCallback?.self)
-                if let callback = callbackPtr.pointee {
-                    callback(trayPtr)
-                }
-            }
-        }
+        // Left‑click: cancel menu & fire callback immediately
+        menu.cancelTracking()
+        let callbackPtr = trayPtr.advanced(by: 24)
+            .assumingMemoryBound(to: TrayCallback?.self)
+        callbackPtr.pointee?(trayPtr)
     }
 }
 
-// Button click handler
-@objc class ButtonClickHandler: NSObject {
+// MARK: - Left‑click handler when no menu is present
+@objc private class ButtonClickHandler: NSObject {
     @objc func handleClick(_ sender: NSStatusBarButton) {
-        if let trayPtr = trayInstance {
-            // Read the callback from the tray structure (offset 24 bytes)
-            let callbackPtr = trayPtr.advanced(by: 24).assumingMemoryBound(to: TrayCallback?.self)
-            if let callback = callbackPtr.pointee {
-                callback(trayPtr)
-            }
-        }
+        guard let trayPtr = trayInstance else { return }
+        let callbackPtr = trayPtr.advanced(by: 24)
+            .assumingMemoryBound(to: TrayCallback?.self)
+        callbackPtr.pointee?(trayPtr)
     }
 }
 
-// Appearance observer
-class MenuBarAppearanceObserver: NSObject {
-    var debounceTimer: Timer?
-    var lastAppearanceName: NSAppearance.Name?
+// MARK: - Appearance observer with ultra‑low latency
+/// Detects menu‑bar theme changes in <60 ms using KVO + GCD debouncing.
+private class MenuBarAppearanceObserver {
+    private var observation: NSKeyValueObservation?
+    private var workItem: DispatchWorkItem?
+    private var lastAppearance: NSAppearance.Name?
 
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "button.effectiveAppearance" {
-            debounceTimer?.invalidate()
-            debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
-                guard let self = self,
-                      let statusItem = object as? NSStatusItem,
-                      let appearance = statusItem.button?.effectiveAppearance else { return }
-                self.updateForAppearance(appearance)
-            }
+    /// Debounce delay before first evaluation (keep tiny but non‑zero).
+    private let debounce: TimeInterval = 0.04   // 40 ms
+    /// Settling delay to avoid reporting intermediate states.
+    private let settle: TimeInterval  = 0.005   // 5 ms
+
+    func startObserving(_ statusItem: NSStatusItem) {
+        observation = statusItem.button?.observe(
+            \.effectiveAppearance,
+            options: [.initial, .new]
+        ) { [weak self] button, _ in
+            self?.scheduleCheck(for: button.effectiveAppearance)
         }
     }
 
-    func updateForAppearance(_ appearance: NSAppearance) {
-        let name = appearance.bestMatch(from: [.darkAqua, .aqua])
-        guard name != lastAppearanceName else { return }
+    private func scheduleCheck(for appearance: NSAppearance) {
+        workItem?.cancel()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
-            guard let self = self,
-                  let currentAppearance = statusItem?.button?.effectiveAppearance else { return }
-            let currentName = currentAppearance.bestMatch(from: [.darkAqua, .aqua])
-            guard currentName == name && currentName != self.lastAppearanceName else { return }
-            self.lastAppearanceName = currentName
-            let isDark = currentName == .darkAqua ? Int32(1) : Int32(0)
-            if let cb = themeCallback {
-                cb(isDark)
-            }
+        let item = DispatchWorkItem { [weak self] in
+            self?.evaluate(appearance)
         }
+        workItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + debounce, execute: item)
+    }
+
+    private func evaluate(_ appearance: NSAppearance) {
+        guard let matched = appearance.bestMatch(from: [.darkAqua, .aqua]),
+              matched != lastAppearance else { return }
+        lastAppearance = matched
+
+        // Allow the system a single run‑loop to settle, then notify.
+        DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
+            themeCallback?(matched == .darkAqua ? 1 : 0)
+        }
+    }
+
+    func invalidate() {
+        observation?.invalidate()
+        observation = nil
+        workItem?.cancel()
     }
 }
 
-// Delegate instances
-private var menuDelegate: MenuDelegate? = nil
-private var buttonClickHandler: ButtonClickHandler? = nil
-private var appearanceObserver: MenuBarAppearanceObserver? = nil
+// MARK: - Globals that need to live for app lifetime
+private var menuDelegate: MenuDelegate?
+private var buttonClickHandler: ButtonClickHandler?
+private var appearanceObserver: MenuBarAppearanceObserver?
 
-// Function to create a native menu from a C structure
+// MARK: - Helpers
 private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
     let menu = NSMenu()
     menu.autoenablesItems = false
     menu.delegate = menuDelegate
 
     var currentPtr = menuPtr
-
     while true {
-        // Read the pointer to the text
-        let textPtr = currentPtr.load(as: UnsafePointer<CChar>?.self)
+        guard let textPtr = currentPtr.load(as: UnsafePointer<CChar>?.self) else { break }
+        let title = String(cString: textPtr)
 
-        // If text is nil, we've reached the end
-        guard let text = textPtr else { break }
-
-        let textString = String(cString: text)
-
-        if textString == "-" {
+        if title == "-" {
             menu.addItem(NSMenuItem.separator())
         } else {
-            // Read the other fields
-            let disabled = currentPtr.advanced(by: 8).load(as: Int32.self)
-            let checked = currentPtr.advanced(by: 12).load(as: Int32.self)
-            let callbackPtr = currentPtr.advanced(by: 16).load(as: MenuItemCallback?.self)
-            let submenuPtr = currentPtr.advanced(by: 24).load(as: UnsafeMutableRawPointer?.self)
+            let disabled = currentPtr.advanced(by: 8).load(as: Int32.self) == 1
+            let checked  = currentPtr.advanced(by: 12).load(as: Int32.self) == 1
+            let callback = currentPtr.advanced(by: 16).load(as: MenuItemCallback?.self)
+            let submenu  = currentPtr.advanced(by: 24).load(as: UnsafeMutableRawPointer?.self)
 
-            let menuItem = NSMenuItem(title: textString, action: nil, keyEquivalent: "")
-            menuItem.isEnabled = disabled == 0
-            menuItem.state = checked == 1 ? .on : .off
-            menuItem.representedObject = currentPtr
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.isEnabled = !disabled
+            item.state = checked ? .on : .off
+            item.representedObject = currentPtr
 
-            // If the item has a callback, set the action
-            if callbackPtr != nil {
-                menuItem.target = menuDelegate
-                menuItem.action = #selector(MenuDelegate.menuItemClicked(_:))
+            if callback != nil {
+                item.target = menuDelegate
+                item.action = #selector(MenuDelegate.menuItemClicked(_:))
             }
+            menu.addItem(item)
 
-            menu.addItem(menuItem)
-
-            // Handle submenus
-            if let submenuPtr = submenuPtr {
-                menu.setSubmenu(nativeMenu(from: submenuPtr), for: menuItem)
+            if let submenuPtr = submenu {
+                menu.setSubmenu(nativeMenu(from: submenuPtr), for: item)
             }
         }
 
-        // Move to the next element (32 bytes)
         currentPtr = currentPtr.advanced(by: 32)
     }
-
     return menu
 }
 
-// C API functions for JNA
+// MARK: - C shim
 @_cdecl("tray_get_instance")
-public func tray_get_instance() -> UnsafeMutableRawPointer? {
-    return trayInstance
-}
+public func tray_get_instance() -> UnsafeMutableRawPointer? { trayInstance }
 
 @_cdecl("tray_init")
 public func tray_init(_ tray: UnsafeMutableRawPointer) -> Int32 {
-    // Execute on the main thread
+    // Guarantee work is on main thread.
     if !Thread.isMainThread {
-        var result: Int32 = -1
-        DispatchQueue.main.sync {
-            result = tray_init(tray)
-        }
-        return result
+        return DispatchQueue.main.sync { tray_init(tray) }
     }
 
-    // Reset loopStatus to allow reuse
     loopStatus = 0
-
     menuDelegate = MenuDelegate()
     buttonClickHandler = ButtonClickHandler()
     appearanceObserver = MenuBarAppearanceObserver()
+
     app = NSApplication.shared
     statusBar = NSStatusBar.system
     statusItem = statusBar?.statusItem(withLength: NSStatusItem.variableLength)
-    statusItem?.addObserver(appearanceObserver!, forKeyPath: "button.effectiveAppearance", options: [.initial, .new], context: nil)
+
+    if let statusItem = statusItem {
+        appearanceObserver?.startObserving(statusItem)
+    }
 
     tray_update(tray)
-
     return 0
 }
 
 @_cdecl("tray_loop")
 public func tray_loop(_ blocking: Int32) -> Int32 {
-    // Execute on the main thread
     if !Thread.isMainThread {
-        var result: Int32 = -1
-        DispatchQueue.main.sync {
-            result = tray_loop(blocking)
-        }
-        return result
+        return DispatchQueue.main.sync { tray_loop(blocking) }
     }
 
     let until = blocking != 0 ? Date.distantFuture : Date.distantPast
-
     if let event = app?.nextEvent(matching: .any, until: until, inMode: .default, dequeue: true) {
         app?.sendEvent(event)
     }
-
     return loopStatus
 }
 
 @_cdecl("tray_update")
 public func tray_update(_ tray: UnsafeMutableRawPointer) {
-    // Execute on the main thread
     if !Thread.isMainThread {
-        DispatchQueue.main.async {
-            tray_update(tray)
-        }
-        return
+        return DispatchQueue.main.async { tray_update(tray) }
     }
 
     trayInstance = tray
 
-    // Read the fields from the tray structure
-    let iconPathPtr = tray.load(as: UnsafePointer<CChar>?.self)
-    let tooltipPtr = tray.advanced(by: 8).load(as: UnsafePointer<CChar>?.self)
-    let menuPtr = tray.advanced(by: 16).load(as: UnsafeMutableRawPointer?.self)
-    let callbackPtr = tray.advanced(by: 24).load(as: TrayCallback?.self)
+    let iconPathPtr  = tray.load(as: UnsafePointer<CChar>?.self)
+    let tooltipPtr   = tray.advanced(by: 8).load(as: UnsafePointer<CChar>?.self)
+    let menuPtr      = tray.advanced(by: 16).load(as: UnsafeMutableRawPointer?.self)
+    let callbackPtr  = tray.advanced(by: 24).load(as: TrayCallback?.self)
 
-    // Update the icon
-    if let iconPath = iconPathPtr {
-        let iconString = String(cString: iconPath)
-        let iconHeight = NSStatusBar.system.thickness
-
-        if let image = NSImage(contentsOfFile: iconString) {
-            let width = image.size.width * (iconHeight / image.size.height)
-            image.size = NSSize(width: width, height: iconHeight)
-            statusItem?.button?.image = image
-        }
+    if let iconPath = iconPathPtr.flatMap({ String(cString: $0) }),
+       let image = NSImage(contentsOfFile: iconPath) {
+        let height = NSStatusBar.system.thickness
+        let width  = image.size.width * (height / image.size.height)
+        image.size = NSSize(width: width, height: height)
+        statusItem?.button?.image = image
     }
 
-    // Update the tooltip
-    if let tooltip = tooltipPtr {
-        statusItem?.button?.toolTip = String(cString: tooltip)
-    }
+    statusItem?.button?.toolTip = tooltipPtr.flatMap { String(cString: $0) }
 
-    // Update the menu or handle click
     if let menuPtr = menuPtr {
         statusItem?.menu = nativeMenu(from: menuPtr)
-        // Remove any existing click handler when there's a menu
         statusItem?.button?.target = nil
         statusItem?.button?.action = nil
     } else if callbackPtr != nil {
-        // No menu, but there's a callback - handle direct click
         statusItem?.menu = nil
         statusItem?.button?.target = buttonClickHandler
         statusItem?.button?.action = #selector(ButtonClickHandler.handleClick(_:))
         statusItem?.button?.sendAction(on: [.leftMouseUp])
     } else {
-        // No menu and no callback
         statusItem?.menu = nil
         statusItem?.button?.target = nil
         statusItem?.button?.action = nil
@@ -259,32 +223,22 @@ public func tray_update(_ tray: UnsafeMutableRawPointer) {
 
 @_cdecl("tray_exit")
 public func tray_exit() {
-    // Execute on the main thread
     if !Thread.isMainThread {
-        DispatchQueue.main.async {
-            tray_exit()
-        }
-        return
+        return DispatchQueue.main.async { tray_exit() }
     }
 
     loopStatus = -1
+    appearanceObserver?.invalidate()
 
-    // Remove the observer
-    if let observer = appearanceObserver {
-        statusItem?.removeObserver(observer, forKeyPath: "button.effectiveAppearance")
-    }
-    appearanceObserver = nil
-
-    // Remove the status bar item
     if let statusItem = statusItem {
         NSStatusBar.system.removeStatusItem(statusItem)
     }
 
-    // Reset the variables
     trayInstance = nil
     statusItem = nil
     menuDelegate = nil
     buttonClickHandler = nil
+    appearanceObserver = nil
 }
 
 @_cdecl("tray_set_theme_callback")
@@ -294,10 +248,8 @@ public func tray_set_theme_callback(_ cb: @escaping ThemeCallback) {
 
 @_cdecl("tray_is_menu_dark")
 public func tray_is_menu_dark() -> Int32 {
-    guard let button = statusItem?.button else {
-        return 1 // Default to true (dark) if not available
+    guard let name = statusItem?.button?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) else {
+        return 1 // assume dark if unknown
     }
-    let appearance = button.effectiveAppearance
-    let name = appearance.bestMatch(from: [.darkAqua, .aqua])
     return name == .darkAqua ? 1 : 0
 }
