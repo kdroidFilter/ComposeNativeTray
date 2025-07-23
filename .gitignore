@@ -48,3 +48,4 @@ bin/
 tray_position.properties
 
 linuxlib/build-x86-64
+linuxlibdbus/build-x86-64
