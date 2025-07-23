@@ -1,349 +1,348 @@
-// ---------------------------------------------------------------------------
-//  sni_wrapper.cpp – C++ back-end + couche C pour JNA **et** applications C
-// ---------------------------------------------------------------------------
-
-#include "sni_wrapper.h"            // Définitions des callbacks + EXPORT
+// File: linuxlibdbus/src/sni_wrapper.cpp
+#include "sni_wrapper.h"
 #include "statusnotifieritem.h"
-
+#include "dbustypes.h"
 #include <QApplication>
+#include <QDebug>
+#include <QThread>
+#include <QEventLoop>
+#include <QTimer>
+#include <QDBusConnection>
 #include <QMenu>
 #include <QAction>
-#include <QPointer>
-#include <QIcon> // Ajout pour gérer les icônes
-#include <mutex>
-#include <QDebug> // Ajout pour le débogage
-#include <QProcessEnvironment> // Pour set env
-#include <cstdio> // Pour printf
+#include <QIcon>
+#include <QMetaObject>
+#include <QObject>
+#include <QSystemTrayIcon> // For notification, if needed
+#include <QPoint>
 
-// ---------------------------------------------------------------------------
-//  Helpers internes
-// ---------------------------------------------------------------------------
-namespace {
+static bool debug = false;
 
-int            g_argc   = 0;
-char**         g_argv   = nullptr;       // Qt exige un argv non nul
-QApplication*  g_app    = nullptr;       // Unique QApplication de la lib
-std::mutex     g_mutex;                  // Appels possibles depuis >1 thread
-
-inline void ensureQtApp()
-{
-    if (!g_app) {
-        // Forcer Qt à utiliser xcb (X11) pour éviter issues Wayland
-        qputenv("QT_QPA_PLATFORM", "xcb");
-        g_app = new QApplication(g_argc, g_argv);
-        qDebug() << "Qt application created with platform:" << g_app->platformName();
+// Custom message handler to filter warnings
+void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    if (msg.contains("QObject::killTimer: Timers cannot be stopped from another thread") ||
+        msg.contains("QObject::~QObject: Timers cannot be stopped from another thread") ||
+        msg.contains("g_main_context_pop_thread_default") ||
+        msg.contains("QtDBus: cannot relay signals") ||
+        msg.contains("QApplication was not created in the main() thread")) {
+        return;
+    }
+    const QByteArray localMsg = msg.toLocal8Bit();
+    switch (type) {
+    case QtDebugMsg:
+        if (debug) fprintf(stderr, "Debug: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtInfoMsg:
+        fprintf(stderr, "Info: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtWarningMsg:
+        fprintf(stderr, "Warning: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtCriticalMsg:
+        fprintf(stderr, "Critical: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        break;
+    case QtFatalMsg:
+        fprintf(stderr, "Fatal: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
+        abort();
     }
 }
 
-inline StatusNotifierItem* fromHandle(void* h)
-{
-    return reinterpret_cast<StatusNotifierItem*>(h);
-}
-
-} // namespace
-
-// ---------------------------------------------------------------------------
-//  API « sni_ » (interne / Java / JNA)
-// ---------------------------------------------------------------------------
-extern "C" {
-
-// Opaque pour le monde C / Java
-using SNIHandle = void*;
-
-// -- cycle de vie -----------------------------------------------------------
-SNIHandle sni_create(const char* id)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    ensureQtApp();
-    try {
-        return reinterpret_cast<SNIHandle>(new StatusNotifierItem(QString::fromUtf8(id)));
-    } catch (...) {
-        return nullptr;
-    }
-}
-
-void sni_destroy(SNIHandle h)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    delete fromHandle(h);
-}
-
-// -- propriétés -------------------------------------------------------------
-void sni_set_title(SNIHandle h, const char* t) {
-    std::lock_guard<std::mutex> L(g_mutex);
-    if (auto* s = fromHandle(h)) s->setTitle(QString::fromUtf8(t));
-}
-void sni_set_status(SNIHandle h, const char* s) {
-    std::lock_guard<std::mutex> L(g_mutex);
-    if (auto* n = fromHandle(h)) n->setStatus(QString::fromUtf8(s));
-}
-void sni_set_icon_name(SNIHandle h, const char* i) {
-    std::lock_guard<std::mutex> L(g_mutex);
-    if (auto* n = fromHandle(h)) n->setIconByName(QString::fromUtf8(i));
-}
-void sni_set_icon_path(SNIHandle h, const char* path)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h)) {
-        printf("Entering set_icon_by_path for path %s\n", path);
-        qDebug() << "Loading initial icon from path:" << path;
-        QIcon icon(QString::fromUtf8(path));
-        qDebug() << "Initial icon cache key before pixmap:" << icon.cacheKey() << "isNull:" << icon.isNull();
-        if (icon.isNull()) {
-            printf("Icon is null for path %s\n", path);
-            qWarning() << "Failed to load initial icon from" << path;
-            return;
+class SNIWrapperManager : public QObject {
+    Q_OBJECT
+public:
+    static SNIWrapperManager* instance() {
+        static SNIWrapperManager* mgr = nullptr;
+        if (!mgr) {
+            mgr = new SNIWrapperManager();
         }
-        QPixmap dummy = icon.pixmap(QSize(24, 24));  // Force le rendu pour générer une clé de cache valide
-        qDebug() << "Initial icon cache key after pixmap:" << icon.cacheKey();
-        printf("Setting initial icon\n");
-        n->setIconByPixmap(icon);
+        return mgr;
     }
-}
-void sni_update_icon_path(SNIHandle h, const char* path)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h)) {
-        printf("Entering update_icon_by_path for path %s\n", path);
-        qDebug() << "Updating icon to path:" << path;
-        QPixmap pm(QString::fromUtf8(path));
-        if (pm.isNull()) {
-            printf("Pixmap is null for path %s\n", path);
-            qWarning() << "Failed to load pixmap from" << path;
-            return;
-        }
-        printf("Pixmap loaded, size %d x %d\n", pm.width(), pm.height());
-        QIcon icon(pm);
-        printf("New icon cache key before pixmap: %lld\n", (long long)icon.cacheKey());
-        qDebug() << "New icon cache key before pixmap:" << icon.cacheKey() << "isNull:" << icon.isNull();
-        QPixmap dummy = icon.pixmap(QSize(24, 24));  // Force le rendu pour générer une clé de cache valide
-        printf("New icon cache key after pixmap: %lld\n", (long long)icon.cacheKey());
-        qDebug() << "New icon cache key after pixmap:" << icon.cacheKey();
-        printf("Setting updated icon\n");
-        n->setIconByPixmap(icon);
+
+    QThread* qtThread;
+    QApplication* app;
+    bool createdApp;
+
+    ~SNIWrapperManager() {
+        QMetaObject::invokeMethod(this, [this]() {
+            if (app) {
+                app->quit();
+                if (createdApp) delete app;
+            }
+        }, Qt::BlockingQueuedConnection);
+        qtThread->quit();
+        qtThread->wait();
+        delete qtThread;
     }
-}
 
-void sni_set_overlay_icon_name(SNIHandle h, const char* i) {
-    std::lock_guard<std::mutex> L(g_mutex);
-    if (auto* n = fromHandle(h)) n->setOverlayIconByName(QString::fromUtf8(i));
-}
-void sni_set_attention_icon_name(SNIHandle h, const char* i) {
-    std::lock_guard<std::mutex> L(g_mutex);
-    if (auto* n = fromHandle(h)) n->setAttentionIconByName(QString::fromUtf8(i));
-}
-
-// tooltip complet (précédente API Java)
-void sni_set_tooltip(SNIHandle h, const char* title, const char* subtitle)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h)) {
-        n->setToolTipTitle(QString::fromUtf8(title));
-        n->setToolTipSubTitle(QString::fromUtf8(subtitle));
+private:
+    SNIWrapperManager() : QObject(), qtThread(new QThread()), app(nullptr), createdApp(false) {
+        moveToThread(qtThread);
+        connect(qtThread, &QThread::started, this, &SNIWrapperManager::initialize);
+        qtThread->start();
     }
-}
 
-// notification
-void sni_show_message(SNIHandle h, const char* ttl, const char* msg, const char* icon, int secs)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h))
-        n->showMessage(QString::fromUtf8(ttl), QString::fromUtf8(msg),
-                       QString::fromUtf8(icon), secs);
-}
+signals:
+    void exited();
 
-// -- boucle Qt --------------------------------------------------------------
-int sni_exec()
-{
-    {
-        std::lock_guard<std::mutex> l(g_mutex);
-        ensureQtApp();
+private slots:
+    void initialize() {
+        int argc = 1;
+        const char* argv_const[] = {"sni_app", nullptr};
+        char** argv = const_cast<char**>(argv_const);
+        app = new QApplication(argc, argv);
+        createdApp = true;
+        qInstallMessageHandler(customMessageHandler);
+        setenv("G_MESSAGES_DEBUG", "", 1);
+        setenv("G_DEBUG", "", 1);
+        // Ensure DBus session bus is initialized in this thread
+        QDBusConnection::sessionBus();
     }
-    return g_app->exec();
-}
-void sni_process_events()
-{
-    {
-        std::lock_guard<std::mutex> l(g_mutex);
-        ensureQtApp();
+
+public:
+    void startEventLoop() {
+        QMetaObject::invokeMethod(this, [this]() {
+            app->exec();
+            emit exited();
+        }, Qt::QueuedConnection);
     }
-    g_app->processEvents();
-}
 
-} // extern "C"
-
-// ---------------------------------------------------------------------------
-//  Couche d’aliases C « promise » par sni_wrapper.h
-// ---------------------------------------------------------------------------
-extern "C" {
-
-//   -- cycle de vie ---------------------------------------------------------
-EXPORT int init_tray_system()            { /* bootstrap paresseux → rien */ return 0; }
-
-EXPORT void shutdown_tray_system()
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_app) {
-        g_app->quit();
-        delete g_app;
-        g_app = nullptr;
+    StatusNotifierItem* createSNI(const char* id) {
+        StatusNotifierItem* sni = nullptr;
+        QMetaObject::invokeMethod(this, [this, &sni, id]() {
+            sni = new StatusNotifierItem(QString(id), this);
+        }, Qt::BlockingQueuedConnection);
+        return sni;
     }
-}
 
-EXPORT void* create_tray(const char* id) { return sni_create(id); }
-EXPORT void  destroy_handle(void* h)     { sni_destroy(h); }
-
-//   -- setters simples -------------------------------------------------------
-EXPORT void set_title(void* h, const char* t)           { sni_set_title(h, t); }
-EXPORT void set_status(void* h, const char* s)          { sni_set_status(h, s); }
-EXPORT void set_icon_by_name(void* h, const char* n)    { sni_set_icon_name(h, n); }
-EXPORT void set_icon_by_path(void* h, const char* path) { sni_set_icon_path(h, path); }
-EXPORT void update_icon_by_path(void* h, const char* path) { sni_update_icon_path(h, path); }
-
-// Tooltip fractionné
-EXPORT void set_tooltip_title   (void* h, const char* t) { std::lock_guard<std::mutex> L(g_mutex); if (auto* n = fromHandle(h)) n->setToolTipTitle(QString::fromUtf8(t)); }
-EXPORT void set_tooltip_subtitle(void* h, const char* t) { std::lock_guard<std::mutex> L(g_mutex); if (auto* n = fromHandle(h)) n->setToolTipSubTitle(QString::fromUtf8(t)); }
-
-//   -- menus -----------------------------------------------------------------
-EXPORT void* create_menu()
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    ensureQtApp();
-    return new QMenu();
-}
-
-EXPORT void* add_menu_action(void* m, const char* txt, ActionCallback cb, void* data)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* menu = static_cast<QMenu*>(m)) {
-        QAction* act = menu->addAction(QString::fromUtf8(txt));
-        QObject::connect(act, &QAction::triggered, [cb, data] { if (cb) cb(data); });
-        return act; // Retourne le handle de l'action
+    void destroySNI(StatusNotifierItem* sni) {
+        QMetaObject::invokeMethod(this, [sni]() {
+            sni->deleteLater();
+        }, Qt::QueuedConnection);
     }
-    return nullptr;
-}
 
-EXPORT void add_checkable_menu_action(void* m, const char* txt, int checked, ActionCallback cb, void* data)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* menu = static_cast<QMenu*>(m)) {
-        QAction* act = menu->addAction(QString::fromUtf8(txt));
-        act->setCheckable(true);
-        act->setChecked(checked != 0); // Convertir l'entier C en booléen Qt
-        QObject::connect(act, &QAction::toggled, [cb, data](bool checked) {
-            if (cb) cb(data); // Appeler le callback lors du changement d'état
-        });
+    void processEvents() {
+        QMetaObject::invokeMethod(this, [this]() {
+            app->processEvents();
+        }, Qt::QueuedConnection);
     }
+};
+
+int init_tray_system(void) {
+    SNIWrapperManager::instance();
+    return 0;
 }
 
-EXPORT void* create_submenu(void* m, const char* txt)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* menu = static_cast<QMenu*>(m)) {
-        QMenu* submenu = menu->addMenu(QString::fromUtf8(txt));
-        return submenu;
-    }
-    return nullptr;
+void shutdown_tray_system(void) {
+    delete SNIWrapperManager::instance();
 }
 
-EXPORT void add_menu_separator(void* m)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* menu = static_cast<QMenu*>(m))
+void* create_tray(const char* id) {
+    return SNIWrapperManager::instance()->createSNI(id);
+}
+
+void destroy_handle(void* handle) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    SNIWrapperManager::instance()->destroySNI(sni);
+}
+
+void set_title(void* handle, const char* title) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, title]() {
+        sni->setTitle(QString(title));
+    }, Qt::QueuedConnection);
+}
+
+void set_status(void* handle, const char* status) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, status]() {
+        sni->setStatus(QString(status));
+    }, Qt::QueuedConnection);
+}
+
+void set_icon_by_name(void* handle, const char* name) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, name]() {
+        sni->setIconByName(QString(name));
+    }, Qt::QueuedConnection);
+}
+
+void set_icon_by_path(void* handle, const char* path) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, path]() {
+        sni->setIconByPixmap(QIcon(QString(path)));
+    }, Qt::QueuedConnection);
+}
+
+void update_icon_by_path(void* handle, const char* path) {
+    set_icon_by_path(handle, path);
+}
+
+void set_tooltip_title(void* handle, const char* title) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, title]() {
+        sni->setToolTipTitle(QString(title));
+    }, Qt::QueuedConnection);
+}
+
+void set_tooltip_subtitle(void* handle, const char* subTitle) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, subTitle]() {
+        sni->setToolTipSubTitle(QString(subTitle));
+    }, Qt::QueuedConnection);
+}
+
+void* create_menu(void) {
+    void* menu = nullptr;
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [&menu]() {
+        menu = new QMenu();
+    }, Qt::BlockingQueuedConnection);
+    return menu;
+}
+
+void set_context_menu(void* handle, void* menu_handle) {
+    if (!handle || !menu_handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMenu* menu = static_cast<QMenu*>(menu_handle);
+    QMetaObject::invokeMethod(sni, [sni, menu]() {
+        sni->setContextMenu(menu);
+    }, Qt::QueuedConnection);
+}
+
+void* add_menu_action(void* menu_handle, const char* text, ActionCallback cb, void* data) {
+    if (!menu_handle) return nullptr;
+    QMenu* menu = static_cast<QMenu*>(menu_handle);
+    QAction* action = nullptr;
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [&action, menu, text, cb, data]() {
+        action = menu->addAction(QString(text));
+        QObject::connect(action, &QAction::triggered, [cb, data]() { cb(data); });
+    }, Qt::BlockingQueuedConnection);
+    return action;
+}
+
+void* add_disabled_menu_action(void* menu_handle, const char* text, ActionCallback cb, void* data) {
+    if (!menu_handle) return nullptr;
+    QMenu* menu = static_cast<QMenu*>(menu_handle);
+    QAction* action = nullptr;
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [&action, menu, text, cb, data]() {
+        action = menu->addAction(QString(text));
+        action->setEnabled(false);
+        QObject::connect(action, &QAction::triggered, [cb, data]() { cb(data); });
+    }, Qt::BlockingQueuedConnection);
+    return action;
+}
+
+void add_checkable_menu_action(void* menu_handle, const char* text, int checked, ActionCallback cb, void* data) {
+    if (!menu_handle) return;
+    QMenu* menu = static_cast<QMenu*>(menu_handle);
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [menu, text, checked, cb, data]() {
+        QAction* action = menu->addAction(QString(text));
+        action->setCheckable(true);
+        action->setChecked(checked != 0);
+        QObject::connect(action, &QAction::triggered, [cb, data]() { cb(data); });
+    }, Qt::QueuedConnection);
+}
+
+void add_menu_separator(void* menu_handle) {
+    if (!menu_handle) return;
+    QMenu* menu = static_cast<QMenu*>(menu_handle);
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [menu]() {
         menu->addSeparator();
+    }, Qt::QueuedConnection);
 }
 
-EXPORT void set_context_menu(void* h, void* menu)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h))
-        n->setContextMenu(static_cast<QMenu*>(menu));
+void* create_submenu(void* menu_handle, const char* text) {
+    if (!menu_handle) return nullptr;
+    QMenu* parentMenu = static_cast<QMenu*>(menu_handle);
+    QMenu* subMenu = nullptr;
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [&subMenu, parentMenu, text]() {
+        QAction* action = parentMenu->addAction(QString(text));
+        subMenu = new QMenu();
+        action->setMenu(subMenu);
+    }, Qt::BlockingQueuedConnection);
+    return subMenu;
 }
 
-EXPORT void set_menu_item_text(void* menu_item_handle, const char* text)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* action = static_cast<QAction*>(menu_item_handle)) {
-        action->setText(QString::fromUtf8(text));
-        printf("Menu item text changed to: %s\n", text);
-    } else {
-        printf("Failed to change menu item text: invalid handle\n");
-    }
+void set_menu_item_text(void* menu_item_handle, const char* text) {
+    if (!menu_item_handle) return;
+    QAction* action = static_cast<QAction*>(menu_item_handle);
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [action, text]() {
+        action->setText(QString(text));
+    }, Qt::QueuedConnection);
 }
 
-EXPORT void remove_menu_item(void* menu_handle, void* menu_item_handle)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* menu = static_cast<QMenu*>(menu_handle)) {
-        if (auto* action = static_cast<QAction*>(menu_item_handle)) {
-            menu->removeAction(action);
-            delete action; // Libère la mémoire de l'action
-            printf("Menu item removed\n");
-        } else {
-            printf("Failed to remove menu item: invalid item handle\n");
-        }
-    } else {
-        printf("Failed to remove menu item: invalid menu handle\n");
-    }
-}
-
-EXPORT void* add_disabled_menu_action(void* m, const char* txt, ActionCallback cb, void* data)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* menu = static_cast<QMenu*>(m)) {
-        QAction* act = menu->addAction(QString::fromUtf8(txt));
-        act->setEnabled(false);
-        QObject::connect(act, &QAction::triggered, [cb, data] { if (cb) cb(data); });
-        return act; // Retourne le handle de l'action
-    }
-    return nullptr;
-}
-
-EXPORT void set_menu_item_enabled(void* menu_item_handle, int enabled)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* action = static_cast<QAction*>(menu_item_handle)) {
+void set_menu_item_enabled(void* menu_item_handle, int enabled) {
+    if (!menu_item_handle) return;
+    QAction* action = static_cast<QAction*>(menu_item_handle);
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [action, enabled]() {
         action->setEnabled(enabled != 0);
-        printf("Menu item enabled: %d\n", enabled);
-    } else {
-        printf("Failed to set menu item enabled: invalid handle\n");
-    }
+    }, Qt::QueuedConnection);
 }
 
-//   -- callbacks SNI → C ----------------------------------------------------
-EXPORT void set_activate_callback(void* h, ActivateCallback cb, void* d)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h))
-        QObject::connect(n, &StatusNotifierItem::activateRequested,
-                         [cb, d](const QPoint& p) { if (cb) cb(p.x(), p.y(), d); });
+void remove_menu_item(void* menu_handle, void* menu_item_handle) {
+    if (!menu_handle || !menu_item_handle) return;
+    QMenu* menu = static_cast<QMenu*>(menu_handle);
+    QAction* action = static_cast<QAction*>(menu_item_handle);
+    QMetaObject::invokeMethod(SNIWrapperManager::instance(), [menu, action]() {
+        menu->removeAction(action);
+        action->deleteLater();
+    }, Qt::QueuedConnection);
 }
 
-EXPORT void set_secondary_activate_callback(void* h, SecondaryActivateCallback cb, void* d)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h))
-        QObject::connect(n, &StatusNotifierItem::secondaryActivateRequested,
-                         [cb, d](const QPoint& p) { if (cb) cb(p.x(), p.y(), d); });
+void set_activate_callback(void* handle, ActivateCallback cb, void* data) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, cb, data]() {
+        QObject::connect(sni, &StatusNotifierItem::activateRequested, sni, [cb, data](const QPoint& pos) {
+            cb(pos.x(), pos.y(), data);
+        }, Qt::DirectConnection);
+    }, Qt::QueuedConnection);
 }
 
-EXPORT void set_scroll_callback(void* h, ScrollCallback cb, void* d)
-{
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (auto* n = fromHandle(h))
-        QObject::connect(n, &StatusNotifierItem::scrollRequested,
-                         [cb, d](int delta, Qt::Orientation o) { if (cb) cb(delta, o == Qt::Horizontal ? 1 : 0, d); });
+void set_secondary_activate_callback(void* handle, SecondaryActivateCallback cb, void* data) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, cb, data]() {
+        QObject::connect(sni, &StatusNotifierItem::secondaryActivateRequested, sni, [cb, data](const QPoint& pos) {
+            cb(pos.x(), pos.y(), data);
+        }, Qt::DirectConnection);
+    }, Qt::QueuedConnection);
 }
 
-//   -- notification ----------------------------------------------------------
-EXPORT void show_notification(void* h, const char* ttl, const char* msg,
-                              const char* icon, int secs)
-{
-    sni_show_message(h, ttl, msg, icon, secs);
+void set_scroll_callback(void* handle, ScrollCallback cb, void* data) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, cb, data]() {
+        QObject::connect(sni, &StatusNotifierItem::scrollRequested, sni, [cb, data](int delta, Qt::Orientation orientation) {
+            cb(delta, orientation == Qt::Horizontal ? 1 : 0, data);
+        }, Qt::DirectConnection);
+    }, Qt::QueuedConnection);
 }
 
-} // extern "C"
+void show_notification(void* handle, const char* title, const char* msg, const char* iconName, int secs) {
+    if (!handle) return;
+    StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
+    QMetaObject::invokeMethod(sni, [sni, title, msg, iconName, secs]() {
+        sni->showMessage(QString(title), QString(msg), QString(iconName), secs * 1000);
+    }, Qt::QueuedConnection);
+}
 
-// ---------------------------------------------------------------------------
-//  Fin du fichier
-// ---------------------------------------------------------------------------
+int sni_exec(void) {
+    SNIWrapperManager* mgr = SNIWrapperManager::instance();
+    QEventLoop loop;
+    QObject::connect(mgr, &SNIWrapperManager::exited, &loop, &QEventLoop::quit);
+    mgr->startEventLoop();
+    return loop.exec();
+}
+
+void sni_process_events(void) {
+    SNIWrapperManager::instance()->processEvents();
+}
+
+#include "sni_wrapper.moc"
