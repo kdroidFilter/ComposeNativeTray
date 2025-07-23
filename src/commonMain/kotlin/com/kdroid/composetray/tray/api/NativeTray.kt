@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
-import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
+import com.kdroid.composetray.tray.impl.LinuxDBusTrayInitializer
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.*
@@ -51,7 +51,7 @@ internal class NativeTray {
 
         try {
             when (os) {
-                LINUX -> LinuxTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                LINUX -> LinuxDBusTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                 WINDOWS -> WindowsTrayInitializer.update(windowsIconPath, tooltip, primaryAction, menuContent)
                 MACOS -> MacTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                 UNKNOWN -> {
@@ -67,7 +67,7 @@ internal class NativeTray {
 
     fun dispose() {
         when (os) {
-            LINUX -> LinuxTrayInitializer.dispose()
+            LINUX -> LinuxDBusTrayInitializer.dispose()
             WINDOWS -> WindowsTrayInitializer.dispose()
             MACOS -> MacTrayInitializer.dispose()
             UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
@@ -99,7 +99,7 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         debugln { "NativeTray: Initializing Linux tray with icon path: $iconPath" }
-                        LinuxTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                        LinuxDBusTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
                         trayInitialized = true
                     }
 
