@@ -370,3 +370,8 @@ IconPixmapList StatusNotifierItem::iconToPixmapList(const QIcon &icon)
 
     return pixmapList;
 }
+
+void StatusNotifierItem::unregister() {
+    mSessionBus.unregisterObject(QLatin1String("/StatusNotifierItem"));
+    QDBusConnection::disconnectFromBus(mService);
+}

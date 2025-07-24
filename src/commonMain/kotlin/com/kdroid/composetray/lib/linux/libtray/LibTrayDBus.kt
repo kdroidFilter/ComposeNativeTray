@@ -4,10 +4,6 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 
-/**
- * JNA interface for the linuxlibdbus native library.
- * This library uses DBus for system tray integration, which fixes issues with GNOME.
- */
 internal interface LibTrayDBus : Library {
     companion object {
         val INSTANCE: LibTrayDBus = Native.load("tray", LibTrayDBus::class.java)
@@ -42,6 +38,9 @@ internal interface LibTrayDBus : Library {
     fun set_menu_item_enabled(menuItemHandle: Pointer, enabled: Int)
     fun remove_menu_item(menuHandle: Pointer, menuItemHandle: Pointer)
 
+    // Optional helper if you decide to expose it
+    // fun destroy_menu(menuHandle: Pointer)
+
     // Tray event callbacks
     fun set_activate_callback(handle: Pointer, cb: ActivateCallback, data: Pointer?)
     fun set_secondary_activate_callback(handle: Pointer, cb: SecondaryActivateCallback, data: Pointer?)
@@ -54,7 +53,6 @@ internal interface LibTrayDBus : Library {
     fun sni_exec(): Int
     fun sni_process_events()
 
-    // Callback interfaces
     interface ActionCallback : com.sun.jna.Callback {
         fun invoke(userData: Pointer?)
     }

@@ -145,7 +145,7 @@ public Q_SLOTS:
     void Scroll(int delta, const QString &orientation);
 
     void showMessage(const QString &title, const QString &msg, const QString &iconName, int secs);
-
+    void unregister();
 private:
     void registerToHost();
     IconPixmapList iconToPixmapList(const QIcon &icon);
