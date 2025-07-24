@@ -70,7 +70,7 @@ object LinuxDBusTrayInitializer {
         disposeLatch.set(null)
 
         // Shutdown the tray system
-        trayLib.shutdown_tray_system()
+//        trayLib.shutdown_tray_system()
 
         debugln { "LinuxDBusTrayInitializer: Disposal complete" }
     }

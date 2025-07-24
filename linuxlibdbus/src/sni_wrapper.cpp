@@ -15,8 +15,11 @@
 #include <QObject>
 #include <QSystemTrayIcon> // For notification, if needed
 #include <QPoint>
+#include <QMutex>
+#include <QWaitCondition>
 
 static bool debug = false;
+static int trayCount = 0;
 
 // Custom message handler to filter warnings
 void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
@@ -24,7 +27,8 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
         msg.contains("QObject::~QObject: Timers cannot be stopped from another thread") ||
         msg.contains("g_main_context_pop_thread_default") ||
         msg.contains("QtDBus: cannot relay signals") ||
-        msg.contains("QApplication was not created in the main() thread")) {
+        msg.contains("QApplication was not created in the main() thread") ||
+        msg.contains("QWidget: Cannot create a QWidget without QApplication")) {
         return;
     }
     const QByteArray localMsg = msg.toLocal8Bit();
@@ -43,7 +47,11 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
         break;
     case QtFatalMsg:
         fprintf(stderr, "Fatal: %s (%s:%u, %s)\n", localMsg.constData(), context.file, context.line, context.function);
-        abort();
+        // Do not abort for filtered fatals
+        if (!msg.contains("QWidget: Cannot create a QWidget without QApplication")) {
+            abort();
+        }
+        break;
     }
 }
 
@@ -61,24 +69,32 @@ public:
     QThread* qtThread;
     QApplication* app;
     bool createdApp;
+    QMutex initMutex;
+    QWaitCondition initCond;
+    bool initialized;
 
     ~SNIWrapperManager() {
         QMetaObject::invokeMethod(this, [this]() {
             if (app) {
                 app->quit();
+                app->processEvents(QEventLoop::AllEvents, 2000);
                 if (createdApp) delete app;
+                app = nullptr;
             }
         }, Qt::BlockingQueuedConnection);
         qtThread->quit();
-        qtThread->wait();
+        qtThread->wait(5000); // Wait up to 5 seconds
         delete qtThread;
     }
 
 private:
-    SNIWrapperManager() : QObject(), qtThread(new QThread()), app(nullptr), createdApp(false) {
+    SNIWrapperManager() : QObject(), qtThread(new QThread()), app(nullptr), createdApp(false), initialized(false) {
         moveToThread(qtThread);
         connect(qtThread, &QThread::started, this, &SNIWrapperManager::initialize);
+        initMutex.lock();
         qtThread->start();
+        initCond.wait(&initMutex);
+        initMutex.unlock();
     }
 
 signals:
@@ -96,6 +112,8 @@ private slots:
         setenv("G_DEBUG", "", 1);
         // Ensure DBus session bus is initialized in this thread
         QDBusConnection::sessionBus();
+        initialized = true;
+        initCond.wakeAll();
     }
 
 public:
@@ -116,14 +134,15 @@ public:
 
     void destroySNI(StatusNotifierItem* sni) {
         QMetaObject::invokeMethod(this, [sni]() {
+            QDBusConnection::sessionBus().unregisterObject("/StatusNotifierItem");
             sni->deleteLater();
-        }, Qt::QueuedConnection);
+        }, Qt::BlockingQueuedConnection);
     }
 
     void processEvents() {
         QMetaObject::invokeMethod(this, [this]() {
-            app->processEvents();
-        }, Qt::QueuedConnection);
+            app->processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents, 100);
+        }, Qt::BlockingQueuedConnection);
     }
 };
 
@@ -137,6 +156,7 @@ void shutdown_tray_system(void) {
 }
 
 void* create_tray(const char* id) {
+    trayCount++;
     return SNIWrapperManager::instance()->createSNI(id);
 }
 
@@ -144,6 +164,10 @@ void destroy_handle(void* handle) {
     if (!handle) return;
     StatusNotifierItem* sni = static_cast<StatusNotifierItem*>(handle);
     SNIWrapperManager::instance()->destroySNI(sni);
+    trayCount--;
+    if (trayCount <= 0) {
+        shutdown_tray_system();
+    }
 }
 
 void set_title(void* handle, const char* title) {
