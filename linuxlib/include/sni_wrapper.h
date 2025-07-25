@@ -8,6 +8,33 @@
 #endif
 
 #ifdef __cplusplus
+#include <QObject>
+#include <QApplication>
+
+// Déclaration anticipée
+class StatusNotifierItem;
+
+class SNIWrapperManager : public QObject {
+    Q_OBJECT
+public:
+    static SNIWrapperManager* instance();
+    static void shutdown();
+    static SNIWrapperManager* s_instance;
+
+    QApplication* app;
+
+    ~SNIWrapperManager() override;
+    void startEventLoop();
+    StatusNotifierItem* createSNI(const char* id);
+    void destroySNI(StatusNotifierItem* sni);
+    void processEvents();
+
+private:
+    SNIWrapperManager();
+};
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 

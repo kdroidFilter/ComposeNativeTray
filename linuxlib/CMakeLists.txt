@@ -1,40 +1,72 @@
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10)
+project(StatusNotifierItemExample LANGUAGES CXX C)  # Ajout de C pour le support C
 
-project(tray LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)  # Enable automatic moc generation
+set(CMAKE_AUTORCC ON)  # Enable automatic rcc generation
+set(CMAKE_AUTOUIC ON)  # Enable automatic uic generation
+set(CMAKE_INCLUDE_CURRENT_DIR ON)  # Include current directory for generated files
 
-# Generate 'compile_commands.json' for clang_complete
-set(CMAKE_COLOR_MAKEFILE ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Qt5
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets DBus)
 
+# DBusMenu (pour QMenu via DBus)
 find_package(PkgConfig REQUIRED)
+pkg_check_modules(DBUSMENU REQUIRED dbusmenu-qt5)
 
-# Sources for libtray - Linux only
-list(APPEND SRCS
-		${CMAKE_CURRENT_SOURCE_DIR}/tray_linux.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/QtTrayMenu.cpp
+# Génère l’adaptateur D-Bus depuis l’interface XML
+qt5_add_dbus_adaptor(
+        statusnotifier_adaptor_src
+        ${CMAKE_SOURCE_DIR}/org.kde.StatusNotifierItem.xml
+        ${CMAKE_SOURCE_DIR}/include/statusnotifieritem.h
+        StatusNotifierItem
+        statusnotifieritemadaptor
 )
 
-add_library(tray SHARED ${SRCS})
-set_property(TARGET tray PROPERTY C_STANDARD 99)
-target_compile_definitions(tray PRIVATE TRAY_EXPORTS)
-set_target_properties(tray PROPERTIES C_VISIBILITY_PRESET hidden)
+# Include paths
+include_directories(
+        ${CMAKE_SOURCE_DIR}/include
+        ${DBUSMENU_INCLUDE_DIRS}
+)
 
-# Linux Qt6 configuration
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/QtTrayMenu.cpp PROPERTY LANGUAGE CXX)
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/tray_linux.cpp PROPERTY LANGUAGE CXX)
-find_package(Qt6 COMPONENTS Core Widgets Gui DBus REQUIRED)
-target_link_libraries(tray PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::DBus)
-set_target_properties(tray PROPERTIES LINKER_LANGUAGE CXX AUTOMOC ON)
-target_compile_definitions(tray PRIVATE TRAY_QT6=1)
+# Fichiers sources
+set(SOURCES
+        src/statusnotifieritem.cpp
+        src/dbustypes.cpp
+        src/sni_wrapper.cpp  # Ajout du wrapper
+        src/qtthreadmanager.cpp  # Ajout du thread manager
+        ${statusnotifier_adaptor_src}
+)
 
-INSTALL(TARGETS tray DESTINATION lib)
-INSTALL(FILES tray.h DESTINATION include)
+set(HEADERS
+        include/statusnotifieritem.h
+        include/dbustypes.h
+        include/sni_wrapper.h  # Ajout du header pour le wrapper
+        include/qtthreadmanager.h  # Ajout du header pour le thread manager
+)
 
-# Tray Example
-add_executable(tray_example ${CMAKE_CURRENT_SOURCE_DIR}/example.c)
-target_link_libraries(tray_example PRIVATE tray)
-add_dependencies(tray_example tray)
+# S'assurer que le fichier d'adaptateur généré est reconnu
+set_source_files_properties(${statusnotifier_adaptor_src} PROPERTIES SKIP_AUTOMOC TRUE)
 
-# Copy Linux icon files
-configure_file(${CMAKE_CURRENT_LIST_DIR}/icon-24px.png ${CMAKE_BINARY_DIR}/icon-24px.png COPYONLY)
-configure_file(${CMAKE_CURRENT_LIST_DIR}/icon2-24px.png ${CMAKE_BINARY_DIR}/icon2-24px.png COPYONLY)
+# Librairie partagée pour JNA
+add_library(tray SHARED ${SOURCES} ${HEADERS})
+target_link_libraries(tray
+        Qt5::Core Qt5::Gui Qt5::Widgets Qt5::DBus
+        ${DBUSMENU_LIBRARIES}
+)
+
+# Librairie statique pour la démo
+add_library(statusnotifier STATIC ${SOURCES} ${HEADERS})
+target_link_libraries(statusnotifier
+        Qt5::Core Qt5::Gui Qt5::Widgets Qt5::DBus
+        ${DBUSMENU_LIBRARIES}
+)
+
+# Démo simple en C++
+add_executable(tray-demo src/main.cpp)
+target_link_libraries(tray-demo statusnotifier)
+
+# Démo en C utilisant le wrapper
+add_executable(tray-c-demo src/exemple.c)
+target_link_libraries(tray-c-demo tray)

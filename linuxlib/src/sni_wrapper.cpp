@@ -1,6 +1,9 @@
+// File: sni_wrapper.cpp
+
 #include "sni_wrapper.h"
 #include "statusnotifieritem.h"
 #include "dbustypes.h"
+#include "qtthreadmanager.h"
 
 #include <QApplication>
 #include <QDebug>
@@ -14,8 +17,12 @@
 #include <QObject>
 #include <QThread>
 #include <QPoint>
+#include <QMutex>
+#include <unistd.h>  // For sleep in sni_exec
+#include <atomic>
 
-static bool debug = false;
+static std::atomic<bool> sni_running{true};
+static bool debug = true;
 static int  trayCount = 0;
 
 // -----------------------------------------------------------------------------
@@ -60,87 +67,80 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
 // Helper: get safe connection type to avoid deadlocks when already on Qt thread
 // -----------------------------------------------------------------------------
 static inline Qt::ConnectionType safeConn(QObject* receiver) {
-    return (QThread::currentThread() == receiver->thread())
-           ? Qt::DirectConnection
-           : Qt::BlockingQueuedConnection;
+    if (QThread::currentThread() == receiver->thread()) {
+        return Qt::DirectConnection;
+    } else {
+        return Qt::BlockingQueuedConnection;
+    }
 }
 
-class SNIWrapperManager : public QObject {
-    Q_OBJECT
-public:
-    static SNIWrapperManager* instance() {
-        if (!s_instance) {
-            s_instance = new SNIWrapperManager();
-        }
-        return s_instance;
-    }
+// Implémentation de SNIWrapperManager
+SNIWrapperManager* SNIWrapperManager::s_instance = nullptr;
 
-    static void shutdown() {
+SNIWrapperManager* SNIWrapperManager::instance() {
+    static QMutex mutex;
+
+    if (!s_instance) {
+        QMutexLocker locker(&mutex);
+        if (!s_instance) {
+            // Utiliser QtThreadManager pour créer SNIWrapperManager dans le thread Qt
+            QtThreadManager::instance()->runBlocking([] {
+                s_instance = new SNIWrapperManager();
+            });
+        }
+    }
+    return s_instance;
+}
+
+void SNIWrapperManager::shutdown() {
+    if (s_instance) {
         delete s_instance;
         s_instance = nullptr;
     }
+}
 
-    static SNIWrapperManager* s_instance;
+SNIWrapperManager::~SNIWrapperManager() {
+    // No app quit or delete here; handled by QtThreadManager
+}
 
-    QApplication* app;
-    bool          createdApp;
+SNIWrapperManager::SNIWrapperManager() : QObject(), app(qApp) {
+    qInstallMessageHandler(customMessageHandler);
+    setenv("G_MESSAGES_DEBUG", "", 1);
+    setenv("G_DEBUG", "", 1);
+    // Ensure DBus session bus is initialized in this thread
+    QDBusConnection::sessionBus();
+}
 
-    ~SNIWrapperManager() override {
-        if (app) {
-            app->quit();
-            app->processEvents(QEventLoop::AllEvents, 2000);
-            if (createdApp) delete app;
-            app = nullptr;
-        }
-    }
+void SNIWrapperManager::startEventLoop() {
+    // No-op; event loop is managed by QtThreadManager
+}
 
-private:
-    SNIWrapperManager() : QObject(), app(nullptr), createdApp(false) {
-        int argc = 1;
-        const char* argv_const[] = {"sni_app", nullptr};
-        char** argv = const_cast<char**>(argv_const);
-        app = new QApplication(argc, argv);
-        createdApp = true;
-        qInstallMessageHandler(customMessageHandler);
-        setenv("G_MESSAGES_DEBUG", "", 1);
-        setenv("G_DEBUG", "", 1);
-        // Ensure DBus session bus is initialized in this thread
-        QDBusConnection::sessionBus();
-    }
+StatusNotifierItem* SNIWrapperManager::createSNI(const char* id) {
+    return new StatusNotifierItem(QString(id), this);
+}
 
-public:
-    void startEventLoop() {
-        app->exec();
-    }
+void SNIWrapperManager::destroySNI(StatusNotifierItem* sni) {
+    if (!sni) return;
+    sni->unregister();
+    sni->deleteLater();
+}
 
-    StatusNotifierItem* createSNI(const char* id) {
-        return new StatusNotifierItem(QString(id), this);
-    }
-
-    void destroySNI(StatusNotifierItem* sni) {
-        if (!sni) return;
-        sni->unregister();
-        sni->deleteLater();
-    }
-
-    void processEvents() {
-        app->processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents, 100);
-    }
-};
-
-SNIWrapperManager* SNIWrapperManager::s_instance = nullptr;
+void SNIWrapperManager::processEvents() {
+    app->processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents, 100);
+}
 
 // -----------------------------------------------------------------------------
 // C API Implementation
 // -----------------------------------------------------------------------------
 
 int init_tray_system(void) {
-    SNIWrapperManager::instance();
+    SNIWrapperManager::instance();  // Ensures creation in Qt thread
     return 0;
 }
 
 void shutdown_tray_system(void) {
     SNIWrapperManager::shutdown();
+    QtThreadManager::shutdown(); // Va maintenant quitter proprement QApplication
 }
 
 void* create_tray(const char* id) {
@@ -389,13 +389,28 @@ void show_notification(void* handle, const char* title, const char* msg, const c
 // ------------------- Event loop management -------------------
 
 int sni_exec(void) {
-    SNIWrapperManager* mgr = SNIWrapperManager::instance();
-    mgr->startEventLoop();
+    while (sni_running.load()) {
+        try {
+            sni_process_events();
+            usleep(100000); // 100ms
+        } catch (const std::exception& e) {
+            fprintf(stderr, "Exception dans sni_exec: %s\n", e.what());
+        } catch (...) {
+            fprintf(stderr, "Exception inconnue dans sni_exec\n");
+        }
+    }
+    sni_running.store(true); // Reset for reuse
     return 0;
 }
 
-void sni_process_events(void) {
-    SNIWrapperManager::instance()->processEvents();
+EXPORT void sni_stop_exec(void) {
+    sni_running.store(false);
 }
 
-#include "sni_wrapper.moc"
+void sni_process_events(void) {
+    QtThreadManager::instance()->runBlocking([] {
+        SNIWrapperManager::instance()->processEvents();
+    });
+}
+
+// Pas besoin d'inclure le fichier .moc - AUTOMOC s'en chargera
