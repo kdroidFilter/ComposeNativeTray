@@ -1,5 +1,6 @@
 package com.kdroid.composetray.tray.impl
 
+import com.kdroid.composetray.lib.linux.LinuxTrayManager
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import java.util.concurrent.locks.ReentrantLock

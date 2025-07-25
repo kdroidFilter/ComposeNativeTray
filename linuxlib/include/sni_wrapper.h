@@ -85,6 +85,7 @@ EXPORT void show_notification(void* handle, const char* title, const char* msg, 
 /* Event loop management */
 EXPORT int  sni_exec(void);
 EXPORT void sni_process_events(void);
+EXPORT void sni_stop_exec(void);
 
 #ifdef __cplusplus
 }

@@ -1,8 +1,7 @@
 package com.kdroid.composetray.menu.impl
 
-import com.kdroid.composetray.lib.linux.SNIWrapper
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
-import com.kdroid.composetray.tray.impl.LinuxTrayManager
+import com.kdroid.composetray.lib.linux.LinuxTrayManager
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 

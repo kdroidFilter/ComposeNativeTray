@@ -1,8 +1,6 @@
-package com.kdroid.composetray.tray.impl
+package com.kdroid.composetray.lib.linux
 
-import com.kdroid.composetray.lib.linux.SNIWrapper
 import com.sun.jna.Pointer
-import kotlinx.coroutines.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -22,6 +20,7 @@ internal class LinuxTrayManager(
     private val lock = ReentrantLock()
     private var trayThread: Thread? = null
     private val initLatch = CountDownLatch(1)
+    private var shutdownHook: Thread? = null
 
     // Maintain references to callbacks and menu items to prevent GC
     private val callbackReferences: MutableList<Any> = mutableListOf()
@@ -120,6 +119,13 @@ internal class LinuxTrayManager(
         lock.withLock {
             if (running.get()) return
             running.set(true)
+        }
+
+        // Add a shutdown hook for cleanup on JVM exit
+        shutdownHook = Thread {
+            stopTray()
+        }.also {
+            Runtime.getRuntime().addShutdownHook(it)
         }
 
         // Start the event loop in a separate thread
@@ -288,6 +294,8 @@ internal class LinuxTrayManager(
 
             // Shutdown tray system
             sni.shutdown_tray_system()
+
+            println("LinuxTrayManager: Cleaning up tray resources")
         }
     }
 
@@ -300,12 +308,25 @@ internal class LinuxTrayManager(
         // Stop the event loop
         sni.sni_stop_exec()
 
-        // Wait for thread to finish
+        // Interrupt the thread to break any blocking calls
+        trayThread?.interrupt()
+
+        // Wait for thread to finish with better handling
         trayThread?.let { thread ->
             try {
-                thread.join(5000) // Wait up to 5 seconds
+                thread.join(5000)
+                if (thread.isAlive) {
+                    println("Warning: Tray thread did not terminate in time, forcing interrupt again")
+                    thread.interrupt()
+                    thread.join(2000) // Second attempt
+                }
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
+            } finally {
+                if (shutdownHook != null) {
+                    Runtime.getRuntime().removeShutdownHook(shutdownHook)
+                    shutdownHook = null
+                }
             }
         }
 
