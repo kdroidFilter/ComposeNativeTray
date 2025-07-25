@@ -69,226 +69,223 @@ interface SNIWrapper : Library {
     fun sni_process_events()
     fun sni_stop_exec()
 }
-// Kotlin example
-fun main() {
-    // Initialize the tray system
-    SNIWrapper.INSTANCE.init_tray_system()
-
-    // Create tray
-    val tray = SNIWrapper.INSTANCE.create_tray("my_tray_example")
-    if (tray == null) {
-        System.err.println("Failed to create tray")
-        return
-    }
-
-    SNIWrapper.INSTANCE.set_title(tray, "My Tray Example")
-    SNIWrapper.INSTANCE.set_status(tray, "Active")
-    // Use an icon from a file path (adjust path as needed)
-    SNIWrapper.INSTANCE.set_icon_by_path(tray, "/usr/share/icons/hicolor/48x48/apps/openjdk-17.png")
-    SNIWrapper.INSTANCE.set_tooltip_title(tray, "My App")
-    SNIWrapper.INSTANCE.set_tooltip_subtitle(tray, "Example Tooltip")
-
-    // Set callbacks for tray events
-    SNIWrapper.INSTANCE.set_activate_callback(tray, object : SNIWrapper.ActivateCallback {
-        override fun invoke(x: Int, y: Int, data: Pointer?) {
-            println("Tray activated at ($x, $y)")
-        }
-    }, null)
-
-    SNIWrapper.INSTANCE.set_secondary_activate_callback(tray, object : SNIWrapper.SecondaryActivateCallback {
-        override fun invoke(x: Int, y: Int, data: Pointer?) {
-            println("Secondary activate at ($x, $y)")
-        }
-    }, null)
-
-    SNIWrapper.INSTANCE.set_scroll_callback(tray, object : SNIWrapper.ScrollCallback {
-        override fun invoke(delta: Int, orientation: Int, data: Pointer?) {
-            println("Scroll: delta=$delta, orientation=$orientation")
-        }
-    }, null)
-
-    // Create menu
-    val menu = SNIWrapper.INSTANCE.create_menu()
-    if (menu == null) {
-        System.err.println("Failed to create menu")
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Add a standard action
-    SNIWrapper.INSTANCE.add_menu_action(menu, "Action 1", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Action 1 clicked!")
-        }
-    }, null)
-
-    // Add a checkable action
-    SNIWrapper.INSTANCE.add_checkable_menu_action(menu, "Toggle Me", 1, object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Checkable action toggled!")
-        }
-    }, null)
-
-    // Add separator
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-
-    // Create submenu
-    val submenu = SNIWrapper.INSTANCE.create_submenu(menu, "Submenu")
-    if (submenu == null) {
-        System.err.println("Failed to create submenu")
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Add actions to submenu
-    SNIWrapper.INSTANCE.add_menu_action(submenu, "Submenu Action", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Submenu action clicked!")
-        }
-    }, null)
-    SNIWrapper.INSTANCE.add_menu_separator(submenu)
-    SNIWrapper.INSTANCE.add_menu_action(submenu, "Action 2", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Action 2 clicked!")
-        }
-    }, null)
-
-    // Add item to change icon dynamically
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    SNIWrapper.INSTANCE.add_menu_action(menu, "Change Icon", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Changing icon dynamically!")
-            val newIconPath = "/usr/share/icons/hicolor/48x48/apps/firefox.png"  // Example: Firefox icon
-            SNIWrapper.INSTANCE.update_icon_by_path(tray, newIconPath)
-        }
-    }, null)
-
-    // Item that changes name when clicked
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    var changeNameItem: Pointer? = null
-    changeNameItem = SNIWrapper.INSTANCE.add_menu_action(menu, "Clique moi pour changer", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Changing item name!")
-            SNIWrapper.INSTANCE.set_menu_item_text(changeNameItem, "Nouveau Nom")
-        }
-    }, null)
-    if (changeNameItem == null) {
-        System.err.println("Failed to create change name item")
-        SNIWrapper.INSTANCE.destroy_menu(submenu)
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Item that adds a new item when clicked
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    val addItemButton = SNIWrapper.INSTANCE.add_menu_action(menu, "Ajoute un item", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Adding new item dynamically!")
-            SNIWrapper.INSTANCE.add_menu_action(menu, "Nouvel Item Ajouté", null, null)
-        }
-    }, null)
-    if (addItemButton == null) {
-        System.err.println("Failed to create add item button")
-        SNIWrapper.INSTANCE.destroy_menu(submenu)
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Item that disappears when clicked
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    var disappearItem: Pointer? = null
-    disappearItem = SNIWrapper.INSTANCE.add_menu_action(menu, "Clique moi pour disparaître", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Making item disappear!")
-            SNIWrapper.INSTANCE.remove_menu_item(menu, disappearItem)
-            disappearItem = null  // Reset pointer after removal
-        }
-    }, null)
-    if (disappearItem == null) {
-        System.err.println("Failed to create disappear item")
-        SNIWrapper.INSTANCE.destroy_menu(submenu)
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Toggleable item (initially enabled)
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    var toggleItem = SNIWrapper.INSTANCE.add_menu_action(menu, "Item à toggler", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Toggle item clicked!")
-        }
-    }, null)
-    if (toggleItem == null) {
-        System.err.println("Failed to create toggle item")
-        SNIWrapper.INSTANCE.destroy_menu(submenu)
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Submenu for enabling/disabling the item
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    val toggleSubmenu = SNIWrapper.INSTANCE.create_submenu(menu, "Toggle Item")
-    if (toggleSubmenu == null) {
-        System.err.println("Failed to create toggle submenu")
-        SNIWrapper.INSTANCE.destroy_menu(submenu)
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    SNIWrapper.INSTANCE.add_menu_action(toggleSubmenu, "Activer", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Enabling item!")
-            SNIWrapper.INSTANCE.set_menu_item_enabled(toggleItem, 1)
-        }
-    }, null)
-
-    SNIWrapper.INSTANCE.add_menu_action(toggleSubmenu, "Désactiver", object : SNIWrapper.ActionCallback {
-        override fun invoke(data: Pointer?) {
-            println("Disabling item!")
-            SNIWrapper.INSTANCE.set_menu_item_enabled(toggleItem, 0)
-        }
-    }, null)
-
-    // Add a disabled item
-    SNIWrapper.INSTANCE.add_menu_separator(menu)
-    val disabledItem = SNIWrapper.INSTANCE.add_disabled_menu_action(menu, "Item Disabled", null, null)
-    if (disabledItem == null) {
-        System.err.println("Failed to create disabled item")
-        SNIWrapper.INSTANCE.destroy_menu(toggleSubmenu)
-        SNIWrapper.INSTANCE.destroy_menu(submenu)
-        SNIWrapper.INSTANCE.destroy_menu(menu)
-        SNIWrapper.INSTANCE.destroy_handle(tray)
-        SNIWrapper.INSTANCE.shutdown_tray_system()
-        return
-    }
-
-    // Set context menu
-    SNIWrapper.INSTANCE.set_context_menu(tray, menu)
-
-    // Show a notification
-    SNIWrapper.INSTANCE.show_notification(tray, "Hello", "This is a test notification", "dialog-information", 5000)
-
-    // Run the event loop (blocking)
-    println("Tray is running. Press Ctrl+C to exit.")
-    SNIWrapper.INSTANCE.sni_exec()
-
-    // Cleanup
-    SNIWrapper.INSTANCE.destroy_menu(toggleSubmenu)
-    SNIWrapper.INSTANCE.destroy_menu(submenu)
-    SNIWrapper.INSTANCE.destroy_menu(menu)
-    SNIWrapper.INSTANCE.destroy_handle(tray)
-    SNIWrapper.INSTANCE.shutdown_tray_system()
-}
+//// Kotlin example
+//fun main() {
+//    // Initialize the tray system
+//    SNIWrapper.INSTANCE.init_tray_system()
+//
+//    // Create tray
+//    val tray = SNIWrapper.INSTANCE.create_tray("my_tray_example")
+//    if (tray == null) {
+//        System.err.println("Failed to create tray")
+//        return
+//    }
+//
+//    SNIWrapper.INSTANCE.set_title(tray, "My Tray Example")
+//    SNIWrapper.INSTANCE.set_status(tray, "Active")
+//    // Use an icon from a file path (adjust path as needed)
+//    SNIWrapper.INSTANCE.set_icon_by_path(tray, "/usr/share/icons/hicolor/48x48/apps/openjdk-17.png")
+//    SNIWrapper.INSTANCE.set_tooltip_title(tray, "My App")
+//    SNIWrapper.INSTANCE.set_tooltip_subtitle(tray, "Example Tooltip")
+//
+//    // Set callbacks for tray events
+//    SNIWrapper.INSTANCE.set_activate_callback(tray, object : SNIWrapper.ActivateCallback {
+//        override fun invoke(x: Int, y: Int, data: Pointer?) {
+//            println("Tray activated at ($x, $y)")
+//        }
+//    }, null)
+//
+//    SNIWrapper.INSTANCE.set_secondary_activate_callback(tray, object : SNIWrapper.SecondaryActivateCallback {
+//        override fun invoke(x: Int, y: Int, data: Pointer?) {
+//            println("Secondary activate at ($x, $y)")
+//        }
+//    }, null)
+//
+//    SNIWrapper.INSTANCE.set_scroll_callback(tray, object : SNIWrapper.ScrollCallback {
+//        override fun invoke(delta: Int, orientation: Int, data: Pointer?) {
+//            println("Scroll: delta=$delta, orientation=$orientation")
+//        }
+//    }, null)
+//
+//    // Create menu
+//    val menu = SNIWrapper.INSTANCE.create_menu()
+//    if (menu == null) {
+//        System.err.println("Failed to create menu")
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Add a standard action
+//    SNIWrapper.INSTANCE.add_menu_action(menu, "Action 1", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Action 1 clicked!")
+//        }
+//    }, null)
+//
+//    // Add a checkable action
+//    SNIWrapper.INSTANCE.add_checkable_menu_action(menu, "Toggle Me", 1, object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Checkable action toggled!")
+//        }
+//    }, null)
+//
+//    // Add separator
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//
+//    // Create submenu
+//    val submenu = SNIWrapper.INSTANCE.create_submenu(menu, "Submenu")
+//    if (submenu == null) {
+//        System.err.println("Failed to create submenu")
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Add actions to submenu
+//    SNIWrapper.INSTANCE.add_menu_action(submenu, "Submenu Action", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Submenu action clicked!")
+//        }
+//    }, null)
+//    SNIWrapper.INSTANCE.add_menu_separator(submenu)
+//    SNIWrapper.INSTANCE.add_menu_action(submenu, "Action 2", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Action 2 clicked!")
+//        }
+//    }, null)
+//
+//    // Add item to change icon dynamically
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    SNIWrapper.INSTANCE.add_menu_action(menu, "Change Icon", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Changing icon dynamically!")
+//            val newIconPath = "/usr/share/icons/hicolor/48x48/apps/firefox.png"  // Example: Firefox icon
+//            SNIWrapper.INSTANCE.update_icon_by_path(tray, newIconPath)
+//        }
+//    }, null)
+//
+//    // Item that changes name when clicked
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    var changeNameItem: Pointer? = null
+//    changeNameItem = SNIWrapper.INSTANCE.add_menu_action(menu, "Clique moi pour changer", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Changing item name!")
+//            SNIWrapper.INSTANCE.set_menu_item_text(changeNameItem, "Nouveau Nom")
+//        }
+//    }, null)
+//    if (changeNameItem == null) {
+//        System.err.println("Failed to create change name item")
+//        SNIWrapper.INSTANCE.destroy_menu(submenu)
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Item that adds a new item when clicked
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    val addItemButton = SNIWrapper.INSTANCE.add_menu_action(menu, "Ajoute un item", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Adding new item dynamically!")
+//            SNIWrapper.INSTANCE.add_menu_action(menu, "Nouvel Item Ajouté", null, null)
+//        }
+//    }, null)
+//    if (addItemButton == null) {
+//        System.err.println("Failed to create add item button")
+//        SNIWrapper.INSTANCE.destroy_menu(submenu)
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Item that disappears when clicked
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    var disappearItem: Pointer? = null
+//    disappearItem = SNIWrapper.INSTANCE.add_menu_action(menu, "Clique moi pour disparaître", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Making item disappear!")
+//            SNIWrapper.INSTANCE.remove_menu_item(menu, disappearItem)
+//            disappearItem = null  // Reset pointer after removal
+//        }
+//    }, null)
+//    if (disappearItem == null) {
+//        System.err.println("Failed to create disappear item")
+//        SNIWrapper.INSTANCE.destroy_menu(submenu)
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Toggleable item (initially enabled)
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    var toggleItem = SNIWrapper.INSTANCE.add_menu_action(menu, "Item à toggler", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Toggle item clicked!")
+//        }
+//    }, null)
+//    if (toggleItem == null) {
+//        System.err.println("Failed to create toggle item")
+//        SNIWrapper.INSTANCE.destroy_menu(submenu)
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Submenu for enabling/disabling the item
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    val toggleSubmenu = SNIWrapper.INSTANCE.create_submenu(menu, "Toggle Item")
+//    if (toggleSubmenu == null) {
+//        System.err.println("Failed to create toggle submenu")
+//        SNIWrapper.INSTANCE.destroy_menu(submenu)
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    SNIWrapper.INSTANCE.add_menu_action(toggleSubmenu, "Activer", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Enabling item!")
+//            SNIWrapper.INSTANCE.set_menu_item_enabled(toggleItem, 1)
+//        }
+//    }, null)
+//
+//    SNIWrapper.INSTANCE.add_menu_action(toggleSubmenu, "Désactiver", object : SNIWrapper.ActionCallback {
+//        override fun invoke(data: Pointer?) {
+//            println("Disabling item!")
+//            SNIWrapper.INSTANCE.set_menu_item_enabled(toggleItem, 0)
+//        }
+//    }, null)
+//
+//    // Add a disabled item
+//    SNIWrapper.INSTANCE.add_menu_separator(menu)
+//    val disabledItem = SNIWrapper.INSTANCE.add_disabled_menu_action(menu, "Item Disabled", null, null)
+//    if (disabledItem == null) {
+//        System.err.println("Failed to create disabled item")
+//        SNIWrapper.INSTANCE.destroy_menu(toggleSubmenu)
+//        SNIWrapper.INSTANCE.destroy_menu(submenu)
+//        SNIWrapper.INSTANCE.destroy_menu(menu)
+//        SNIWrapper.INSTANCE.destroy_handle(tray)
+//        SNIWrapper.INSTANCE.shutdown_tray_system()
+//        return
+//    }
+//
+//    // Set context menu
+//    SNIWrapper.INSTANCE.set_context_menu(tray, menu)
+//
+//    // Run the event loop (blocking)
+//    println("Tray is running. Press Ctrl+C to exit.")
+//    SNIWrapper.INSTANCE.sni_exec()
+//
+//    // Cleanup
+//    SNIWrapper.INSTANCE.destroy_menu(toggleSubmenu)
+//    SNIWrapper.INSTANCE.destroy_menu(submenu)
+//    SNIWrapper.INSTANCE.destroy_menu(menu)
+//    SNIWrapper.INSTANCE.destroy_handle(tray)
+//    SNIWrapper.INSTANCE.shutdown_tray_system()
+//}

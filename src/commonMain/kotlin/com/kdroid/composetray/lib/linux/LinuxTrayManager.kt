@@ -1,16 +1,9 @@
 package com.kdroid.composetray.tray.impl
 
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.application
 import com.kdroid.composetray.lib.linux.SNIWrapper
-import com.kdroid.composetray.tray.api.Tray
 import com.sun.jna.Pointer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import java.awt.EventQueue
+import kotlinx.coroutines.*
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -18,7 +11,7 @@ import kotlin.concurrent.withLock
 internal class LinuxTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
-    onLeftClick: (() -> Unit)? = null,
+    private var onLeftClick: (() -> Unit)? = null,
     private var primaryActionLabel: String
 ) {
     private val sni = SNIWrapper.INSTANCE
@@ -28,17 +21,17 @@ internal class LinuxTrayManager(
     private val running = AtomicBoolean(false)
     private val lock = ReentrantLock()
     private var trayThread: Thread? = null
-
-    // Coroutine scopes for callback handling
-    private var mainScope: CoroutineScope? = null
-    private var ioScope: CoroutineScope? = null
+    private val initLatch = CountDownLatch(1)
 
     // Maintain references to callbacks and menu items to prevent GC
     private val callbackReferences: MutableList<Any> = mutableListOf()
-    private val menuItemReferences: MutableMap<String, Pointer> = mutableMapOf() // Keyed by label for updates
-    private val onLeftClickCallback = onLeftClick
+    private val menuItemReferences: MutableMap<String, Pointer> = mutableMapOf()
 
-    // Top level MenuItem class (similar to Mac)
+    // Store callbacks as instance variables to prevent GC
+    private var activateCallback: SNIWrapper.ActivateCallback? = null
+    private var secondaryActivateCallback: SNIWrapper.SecondaryActivateCallback? = null
+    private var scrollCallback: SNIWrapper.ScrollCallback? = null
+
     data class MenuItem(
         val text: String,
         val isEnabled: Boolean = true,
@@ -54,7 +47,6 @@ internal class LinuxTrayManager(
         }
     }
 
-    // Update a menu item's checked state
     fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
         lock.withLock {
             val index = menuItems.indexOfFirst { it.text == label }
@@ -66,18 +58,23 @@ internal class LinuxTrayManager(
         }
     }
 
-    // Update the tray with new properties and menu items
-    fun update(newIconPath: String, newTooltip: String, newOnLeftClick: (() -> Unit)?, newPrimaryActionLabel: String, newMenuItems: List<MenuItem>? = null) {
+    fun update(
+        newIconPath: String,
+        newTooltip: String,
+        newOnLeftClick: (() -> Unit)?,
+        newPrimaryActionLabel: String,
+        newMenuItems: List<MenuItem>? = null
+    ) {
         lock.withLock {
             if (!running.get() || trayHandle == null) return
 
             // Update properties
             val iconChanged = this.iconPath != newIconPath
             val tooltipChanged = this.tooltip != newTooltip
-            val primaryActionLabelChanged = this.primaryActionLabel != newPrimaryActionLabel
 
             this.iconPath = newIconPath
             this.tooltip = newTooltip
+            this.onLeftClick = newOnLeftClick
             this.primaryActionLabel = newPrimaryActionLabel
 
             if (iconChanged) {
@@ -85,12 +82,6 @@ internal class LinuxTrayManager(
             }
             if (tooltipChanged) {
                 sni.set_tooltip_title(trayHandle, newTooltip)
-                // Subtitle if needed, but example uses title only
-                sni.set_tooltip_subtitle(trayHandle, "")
-            }
-            if (primaryActionLabelChanged || newOnLeftClick != null) {
-                // Reinitialize callbacks if needed
-                initializeCallbacks()
             }
 
             // Update menu items if provided
@@ -102,7 +93,6 @@ internal class LinuxTrayManager(
         }
     }
 
-    // Recreate the menu with updated state
     private fun recreateMenu() {
         if (!running.get() || trayHandle == null) return
 
@@ -115,94 +105,99 @@ internal class LinuxTrayManager(
         menuItemReferences.clear()
 
         // Recreate the menu
-        initializeTrayMenu()
-
-        // Set the new menu
-        sni.set_context_menu(trayHandle, menuHandle)
+        if (menuItems.isNotEmpty()) {
+            menuHandle = sni.create_menu()
+            if (menuHandle != null) {
+                menuItems.forEach { item ->
+                    addNativeMenuItem(menuHandle!!, item)
+                }
+                sni.set_context_menu(trayHandle, menuHandle)
+            }
+        }
     }
 
-    // Start the tray
     fun startTray() {
         lock.withLock {
-            if (running.get()) {
-                return
-            }
-
+            if (running.get()) return
             running.set(true)
+        }
 
-            // Create new coroutine scopes
-            mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-            ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-            // Initialize the tray system
-            val initResult = sni.init_tray_system()
-            if (initResult != 0) {
-                throw IllegalStateException("Failed to initialize tray system: $initResult")
-            }
-
-            // Create the tray handle
-            trayHandle = sni.create_tray("composetray")
-            if (trayHandle == null) {
-                throw IllegalStateException("Failed to create tray")
-            }
-
-            // Set initial properties
-            sni.set_title(trayHandle, "Compose Tray")
-            sni.set_status(trayHandle, "Active")
-            sni.set_icon_by_path(trayHandle, iconPath)
-            sni.set_tooltip_title(trayHandle, tooltip)
-            sni.set_tooltip_subtitle(trayHandle, "")
-
-            // Initialize callbacks
-            initializeCallbacks()
-
-            // Initialize menu if any
-            initializeTrayMenu()
-
-            // Start the event loop in a separate thread
-            trayThread = Thread {
-                try {
-                    sni.sni_exec() // Blocking event loop
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                } finally {
-                    cleanupTray()
+        // Start the event loop in a separate thread
+        trayThread = Thread {
+            try {
+                // Initialize the tray system in the same thread as the event loop
+                val initResult = sni.init_tray_system()
+                if (initResult != 0) {
+                    throw IllegalStateException("Failed to initialize tray system: $initResult")
                 }
-            }.apply {
-                name = "LinuxTray-Thread"
-                isDaemon = true
-                start()
+
+                // Create the tray handle
+                trayHandle = sni.create_tray("composetray-${System.currentTimeMillis()}")
+                if (trayHandle == null) {
+                    sni.shutdown_tray_system()
+                    throw IllegalStateException("Failed to create tray")
+                }
+
+                // Set initial properties
+                sni.set_title(trayHandle, "Compose Tray")
+                sni.set_status(trayHandle, "Active")
+                sni.set_icon_by_path(trayHandle, iconPath)
+                sni.set_tooltip_title(trayHandle, tooltip)
+                sni.set_tooltip_subtitle(trayHandle, "")
+
+                // Initialize callbacks
+                initializeCallbacks()
+
+                // Initialize menu if any
+                initializeTrayMenu()
+
+                // Signal that initialization is complete
+                initLatch.countDown()
+
+                // Run the blocking event loop
+                sni.sni_exec()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                cleanupTray()
             }
+        }.apply {
+            name = "LinuxTray-Thread"
+            isDaemon = true
+            start()
+        }
+
+        // Wait for initialization to complete
+        try {
+            initLatch.await()
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
         }
     }
 
     private fun initializeCallbacks() {
         trayHandle?.let { handle ->
-            val activateCb = object : SNIWrapper.ActivateCallback {
+            // Create and store callbacks as instance variables
+            activateCallback = object : SNIWrapper.ActivateCallback {
                 override fun invoke(x: Int, y: Int, data: Pointer?) {
-                    EventQueue.invokeLater {
-                        onLeftClickCallback?.invoke()
-                    }
+                    onLeftClick?.invoke()
                 }
             }
-            sni.set_activate_callback(handle, activateCb, null)
-            callbackReferences.add(activateCb)
+            sni.set_activate_callback(handle, activateCallback, null)
 
-            val secondaryCb = object : SNIWrapper.SecondaryActivateCallback {
+            secondaryActivateCallback = object : SNIWrapper.SecondaryActivateCallback {
                 override fun invoke(x: Int, y: Int, data: Pointer?) {
-                    // Handle secondary if desired
+                    // Handle secondary click if needed
                 }
             }
-            sni.set_secondary_activate_callback(handle, secondaryCb, null)
-            callbackReferences.add(secondaryCb)
+            sni.set_secondary_activate_callback(handle, secondaryActivateCallback, null)
 
-            val scrollCb = object : SNIWrapper.ScrollCallback {
+            scrollCallback = object : SNIWrapper.ScrollCallback {
                 override fun invoke(delta: Int, orientation: Int, data: Pointer?) {
-                    // Handle scroll if desired
+                    // Handle scroll if needed
                 }
             }
-            sni.set_scroll_callback(handle, scrollCb, null)
-            callbackReferences.add(scrollCb)
+            sni.set_scroll_callback(handle, scrollCallback, null)
         }
     }
 
@@ -211,104 +206,109 @@ internal class LinuxTrayManager(
 
         menuHandle = sni.create_menu()
         if (menuHandle == null) {
-            throw IllegalStateException("Failed to create menu")
+            println("Failed to create menu")
+            return
         }
 
         menuItems.forEach { item ->
             addNativeMenuItem(menuHandle!!, item)
         }
-        trayHandle?.let { sni.set_context_menu(it, menuHandle) }
+
+        trayHandle?.let {
+            sni.set_context_menu(it, menuHandle)
+        }
     }
 
     private fun addNativeMenuItem(parentMenu: Pointer, menuItem: MenuItem) {
-        val nativeItem: Pointer? = if (menuItem.isCheckable) {
-            val cb = object : SNIWrapper.ActionCallback {
-                override fun invoke(data: Pointer?) {
-                    if (!running.get()) return
-                    EventQueue.invokeLater {
-                        menuItem.onClick?.invoke()
+        when {
+            menuItem.text == "-" -> {
+                sni.add_menu_separator(parentMenu)
+            }
+            menuItem.subMenuItems.isNotEmpty() -> {
+                val submenu = sni.create_submenu(parentMenu, menuItem.text)
+                if (submenu != null) {
+                    menuItemReferences[menuItem.text] = submenu
+                    menuItem.subMenuItems.forEach { subItem ->
+                        addNativeMenuItem(submenu, subItem)
                     }
                 }
             }
-            val item = sni.add_checkable_menu_action(parentMenu, menuItem.text, if (menuItem.isChecked) 1 else 0, cb, null)
-            callbackReferences.add(cb)
-            item
-        } else if (menuItem.subMenuItems.isNotEmpty()) {
-            sni.create_submenu(parentMenu, menuItem.text)
-        } else if (menuItem.text == "-") {
-            sni.add_menu_separator(parentMenu)
-            null
-        } else {
-            val cb = object : SNIWrapper.ActionCallback {
-                override fun invoke(data: Pointer?) {
-                    if (!running.get()) return
-                    EventQueue.invokeLater {
-                        menuItem.onClick?.invoke()
-                    }
+            menuItem.isCheckable -> {
+                val cb = createActionCallback(menuItem)
+                val item = sni.add_checkable_menu_action(
+                    parentMenu,
+                    menuItem.text,
+                    if (menuItem.isChecked) 1 else 0,
+                    cb,
+                    null
+                )
+                callbackReferences.add(cb)
+                item?.let { menuItemReferences[menuItem.text] = it }
+            }
+            else -> {
+                val cb = createActionCallback(menuItem)
+                val item = if (menuItem.isEnabled) {
+                    sni.add_menu_action(parentMenu, menuItem.text, cb, null)
+                } else {
+                    sni.add_disabled_menu_action(parentMenu, menuItem.text, cb, null)
                 }
+                callbackReferences.add(cb)
+                item?.let { menuItemReferences[menuItem.text] = it }
             }
-            val item = if (menuItem.isEnabled) {
-                sni.add_menu_action(parentMenu, menuItem.text, cb, null)
-            } else {
-                sni.add_disabled_menu_action(parentMenu, menuItem.text, cb, null)
-            }
-            callbackReferences.add(cb)
-            item
         }
+    }
 
-        nativeItem?.let {
-            menuItemReferences[menuItem.text] = it
-        }
-
-        if (menuItem.subMenuItems.isNotEmpty() && nativeItem != null) {
-            menuItem.subMenuItems.forEach { subItem ->
-                addNativeMenuItem(nativeItem, subItem)
+    private fun createActionCallback(menuItem: MenuItem): SNIWrapper.ActionCallback {
+        return object : SNIWrapper.ActionCallback {
+            override fun invoke(data: Pointer?) {
+                if (running.get()) {
+                    menuItem.onClick?.invoke()
+                }
             }
         }
     }
 
     private fun cleanupTray() {
         lock.withLock {
-            trayHandle?.let {
-                menuHandle?.let { mh -> sni.destroy_menu(mh) }
-                sni.destroy_handle(it)
-                sni.shutdown_tray_system()
-            }
+            running.set(false)
 
-            // Clear all references
+            // Clear callbacks first
+            activateCallback = null
+            secondaryActivateCallback = null
+            scrollCallback = null
             callbackReferences.clear()
             menuItemReferences.clear()
-            menuItems.clear()
-            trayHandle = null
+
+            // Destroy menu and tray
+            menuHandle?.let { sni.destroy_menu(it) }
+            trayHandle?.let { sni.destroy_handle(it) }
+
             menuHandle = null
+            trayHandle = null
+
+            // Shutdown tray system
+            sni.shutdown_tray_system()
         }
     }
 
     fun stopTray() {
         lock.withLock {
-            if (!running.get()) {
-                return
-            }
-
+            if (!running.get()) return
             running.set(false)
         }
 
-        // Interrupt the event loop if necessary; but sni_exec is blocking, so we may need to handle shutdown
-        // For SNI, shutdown_tray_system should be called, but since it's in the thread, it will cleanup on exit
+        // Stop the event loop
+        sni.sni_stop_exec()
 
+        // Wait for thread to finish
         trayThread?.let { thread ->
             try {
-                thread.interrupt() // If needed to break the loop
                 thread.join(5000) // Wait up to 5 seconds
             } catch (e: InterruptedException) {
-                e.printStackTrace()
+                Thread.currentThread().interrupt()
             }
         }
 
-        running.set(false)
-        sni.sni_stop_exec()
-        trayThread?.join(5000)
         trayThread = null
     }
 }
-
