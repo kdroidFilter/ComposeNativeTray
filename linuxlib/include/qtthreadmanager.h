@@ -5,34 +5,46 @@
 #include <QApplication>
 #include <QMutex>
 #include <QWaitCondition>
-#include <functional>
 #include <QEventLoop>
-#include <QSemaphore>  // Optional, but useful for alternatives
+#include <functional>
 
+/**
+ * QtThreadManager
+ * ---------------
+ * • Singleton paresseux : un nouvel objet QThread est créé
+ *   si le précédent est inexistant **ou** déjà terminé.
+ * • Peut donc être arrêté puis recréé indéfiniment.
+ */
 class QtThreadManager : public QThread
 {
     Q_OBJECT
 public:
+    /** Renvoie une instance *active* du thread Qt */
     static QtThreadManager* instance();
+
+    /** Arrête proprement le thread et la QApplication (idempotent) */
     static void shutdown();
 
-    // Execute fn in the Qt thread and block until it finishes
+    /** Exécute `fn` dans le thread Qt puis bloque jusqu’à son retour */
     void runBlocking(const std::function<void()>& fn);
 
-    // Execute fn in the Qt thread asynchronously
+    /** Exécute `fn` dans le thread Qt de façon asynchrone */
     void runAsync(const std::function<void()>& fn);
 
-    // Access to the QApplication instance
+    /** Accès direct (lecture seule) à la QApplication */
     QApplication* app() const { return m_app; }
 
 protected:
-    void run() override;  // creates QApplication and starts the event loop
+    void run() override;      // point d’entrée du QThread
 
 private:
-    QtThreadManager();
+    QtThreadManager();        // construction privée
     ~QtThreadManager() override = default;
 
-    QApplication* m_app = nullptr;
-    QMutex        readyMutex;
+    /** Initialisation commune (création + attente de QApplication) */
+    static QtThreadManager* createAndStart();
+
+    QApplication*  m_app      = nullptr;
+    QMutex         readyMutex;
     QWaitCondition readyCond;
 };
