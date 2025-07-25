@@ -1,6 +1,7 @@
 package com.kdroid.composetray.lib.linux
 
 import com.sun.jna.Pointer
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -31,6 +32,9 @@ internal class LinuxTrayManager(
     private var secondaryActivateCallback: SNIWrapper.SecondaryActivateCallback? = null
     private var scrollCallback: SNIWrapper.ScrollCallback? = null
 
+    private val taskQueue = java.util.concurrent.ConcurrentLinkedQueue<() -> Unit>()
+    private fun runOnTrayThread(action: () -> Unit) { taskQueue += action }
+
     data class MenuItem(
         val text: String,
         val isEnabled: Boolean = true,
@@ -51,8 +55,10 @@ internal class LinuxTrayManager(
             val index = menuItems.indexOfFirst { it.text == label }
             if (index != -1) {
                 menuItems[index] = menuItems[index].copy(isChecked = isChecked)
-                // Recreate the menu to reflect changes
-                recreateMenu()
+                // Queue menu recreation to be executed in the tray thread
+                runOnTrayThread {
+                    recreateMenu()
+                }
             }
         }
     }
@@ -76,18 +82,16 @@ internal class LinuxTrayManager(
             this.onLeftClick = newOnLeftClick
             this.primaryActionLabel = newPrimaryActionLabel
 
-            if (iconChanged) {
-                sni.update_icon_by_path(trayHandle, newIconPath)
-            }
-            if (tooltipChanged) {
-                sni.set_tooltip_title(trayHandle, newTooltip)
-            }
+            taskQueue += {
+                // === Ces instructions s'exécutent maintenant dans le même thread GLib ===
+                if (iconChanged)    sni.update_icon_by_path(trayHandle, newIconPath)
+                if (tooltipChanged) sni.set_tooltip_title(trayHandle, newTooltip)
 
-            // Update menu items if provided
-            if (newMenuItems != null) {
-                menuItems.clear()
-                menuItems.addAll(newMenuItems)
-                recreateMenu()
+                if (newMenuItems != null) {
+                    menuItems.clear()
+                    menuItems.addAll(newMenuItems)
+                    recreateMenu()              // recréation sûre du menu
+                }
             }
         }
     }
@@ -160,8 +164,11 @@ internal class LinuxTrayManager(
                 // Signal that initialization is complete
                 initLatch.countDown()
 
-                // Run the blocking event loop
-                sni.sni_exec()
+                while (running.get()) {
+                    sni.sni_process_events()     // traite une itération GLib non bloquante
+                    while (true) taskQueue.poll()?.invoke() ?: break
+                    Thread.sleep(16)            // petit yield
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

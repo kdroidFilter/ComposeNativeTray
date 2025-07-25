@@ -37,15 +37,27 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean
     ) {
         lock.withLock {
+            // Create a mutable reference to the current checked state
+            // This will be used in the onClick callback to get the current state
+            // instead of capturing the initial state
+            val initialChecked = checked
+            
             val menuItem = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 isCheckable = true,
-                isChecked = checked,
+                isChecked = initialChecked,
                 onClick = {
                     lock.withLock {
-                        val newChecked = !checked
+                        // Find the current menu item to get its current state
+                        val currentMenuItem = menuItems.find { it.text == label }
+                        // Toggle based on the current state, not the initial state
+                        val currentChecked = currentMenuItem?.isChecked ?: initialChecked
+                        val newChecked = !currentChecked
+                        
+                        // Call the onCheckedChange callback with the new state
                         onCheckedChange(newChecked)
+                        
                         // Update the tray manager to reflect the new state
                         trayManager?.updateMenuItemCheckedState(label, newChecked)
                     }
