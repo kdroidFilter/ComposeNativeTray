@@ -56,6 +56,10 @@ interface SNIWrapper : Library {
     fun set_menu_item_enabled(menu_item_handle: Pointer?, enabled: Int)
     fun remove_menu_item(menu_handle: Pointer?, menu_item_handle: Pointer?)
 
+    fun tray_update(handle: Pointer?)
+
+    fun clear_menu(menu_handle: Pointer?)
+
     // Tray event callbacks
     fun set_activate_callback(handle: Pointer?, cb: ActivateCallback?, data: Pointer?)
     fun set_secondary_activate_callback(handle: Pointer?, cb: SecondaryActivateCallback?, data: Pointer?)

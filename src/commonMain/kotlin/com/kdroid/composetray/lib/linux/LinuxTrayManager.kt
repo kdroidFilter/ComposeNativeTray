@@ -33,7 +33,9 @@ internal class LinuxTrayManager(
     private var scrollCallback: SNIWrapper.ScrollCallback? = null
 
     private val taskQueue = java.util.concurrent.ConcurrentLinkedQueue<() -> Unit>()
-    private fun runOnTrayThread(action: () -> Unit) { taskQueue += action }
+    private fun runOnTrayThread(action: () -> Unit) {
+        taskQueue += action
+    }
 
     data class MenuItem(
         val text: String,
@@ -55,10 +57,8 @@ internal class LinuxTrayManager(
             val index = menuItems.indexOfFirst { it.text == label }
             if (index != -1) {
                 menuItems[index] = menuItems[index].copy(isChecked = isChecked)
-                // Queue menu recreation to be executed in the tray thread
-                runOnTrayThread {
-                    recreateMenu()
-                }
+                // Call recreateMenu directly instead of queuing it
+                recreateMenu()
             }
         }
     }
@@ -73,49 +73,104 @@ internal class LinuxTrayManager(
         lock.withLock {
             if (!running.get() || trayHandle == null) return
 
-            // Update properties
-            val iconChanged = this.iconPath != newIconPath
-            val tooltipChanged = this.tooltip != newTooltip
+            val iconChanged = iconPath != newIconPath
+            val tooltipChanged = tooltip != newTooltip
 
-            this.iconPath = newIconPath
-            this.tooltip = newTooltip
-            this.onLeftClick = newOnLeftClick
-            this.primaryActionLabel = newPrimaryActionLabel
+            // MàJ des propriétés internes
+            iconPath = newIconPath
+            tooltip = newTooltip
+            onLeftClick = newOnLeftClick
+            primaryActionLabel = newPrimaryActionLabel
 
-            taskQueue += {
-                // === Ces instructions s'exécutent maintenant dans le même thread GLib ===
-                if (iconChanged)    sni.update_icon_by_path(trayHandle, newIconPath)
-                if (tooltipChanged) sni.set_tooltip_title(trayHandle, newTooltip)
+            // Update icon and tooltip if changed
+            if (iconChanged) sni.update_icon_by_path(trayHandle, newIconPath)
+            if (tooltipChanged) sni.set_tooltip_title(trayHandle, newTooltip)
 
-                if (newMenuItems != null) {
-                    menuItems.clear()
-                    menuItems.addAll(newMenuItems)
-                    recreateMenu()              // recréation sûre du menu
-                }
+            // Update menu if provided
+            if (newMenuItems != null) {
+                menuItems.clear()
+                menuItems.addAll(newMenuItems)
+                // Call recreateMenu directly, don't use runOnTrayThread
+                recreateMenu()
             }
         }
     }
 
     private fun recreateMenu() {
-        if (!running.get() || trayHandle == null) return
+        println("LinuxTrayManager: Recreating menu")
+        if (!running.get() || trayHandle == null) {
+            println("LinuxTrayManager: Cannot recreate menu, tray is not running or trayHandle is null")
+            return
+        }
 
-        // Destroy old menu
-        menuHandle?.let { sni.destroy_menu(it) }
-        menuHandle = null
+        try {
+            // Clear callback references
+            callbackReferences.clear()
+            menuItemReferences.clear()
 
-        // Clear old references
-        callbackReferences.clear()
-        menuItemReferences.clear()
+            // If we have menu items to show
+            if (menuItems.isNotEmpty()) {
+                // Create menu if it doesn't exist
+                if (menuHandle == null) {
+                    menuHandle = sni.create_menu()
+                    if (menuHandle == null) {
+                        println("LinuxTrayManager: Failed to create menu")
+                        return
+                    }
+                    println("LinuxTrayManager: Menu created")
+                } else {
+                    // Clear existing menu instead of destroying it
+                    try {
+                        sni.clear_menu(menuHandle)
+                        println("LinuxTrayManager: Menu cleared")
+                    } catch (e: Exception) {
+                        // If clear_menu is not available, fall back to recreating
+                        println("LinuxTrayManager: clear_menu not available, recreating menu")
+                        val oldMenu = menuHandle
+                        menuHandle = sni.create_menu()
+                        if (menuHandle != null) {
+                            sni.set_context_menu(trayHandle, null)
+                            Thread.sleep(50)
+                            sni.destroy_menu(oldMenu!!)
+                        } else {
+                            menuHandle = oldMenu
+                            return
+                        }
+                    }
+                }
 
-        // Recreate the menu
-        if (menuItems.isNotEmpty()) {
-            menuHandle = sni.create_menu()
-            if (menuHandle != null) {
+                // Add all menu items
                 menuItems.forEach { item ->
                     addNativeMenuItem(menuHandle!!, item)
                 }
+
+                // Set the menu on the tray
                 sni.set_context_menu(trayHandle, menuHandle)
+                println("LinuxTrayManager: Context menu set")
+
+            } else {
+                // No menu items, remove the menu
+                if (menuHandle != null) {
+                    sni.set_context_menu(trayHandle, null)
+                    Thread.sleep(100) // Wait for DBus to process
+                    sni.destroy_menu(menuHandle!!)
+                    menuHandle = null
+                    println("LinuxTrayManager: Menu removed")
+                }
             }
+
+            // Force update if available
+            try {
+                sni.tray_update(trayHandle)
+                println("LinuxTrayManager: Tray update forced")
+            } catch (e: Exception) {
+                // tray_update might not be available
+                println("LinuxTrayManager: tray_update not available: ${e.message}")
+            }
+
+        } catch (e: Exception) {
+            println("LinuxTrayManager: Error recreating menu: ${e.message}")
+            e.printStackTrace()
         }
     }
 
@@ -237,6 +292,7 @@ internal class LinuxTrayManager(
             menuItem.text == "-" -> {
                 sni.add_menu_separator(parentMenu)
             }
+
             menuItem.subMenuItems.isNotEmpty() -> {
                 val submenu = sni.create_submenu(parentMenu, menuItem.text)
                 if (submenu != null) {
@@ -246,6 +302,7 @@ internal class LinuxTrayManager(
                     }
                 }
             }
+
             menuItem.isCheckable -> {
                 val cb = createActionCallback(menuItem)
                 val item = sni.add_checkable_menu_action(
@@ -258,6 +315,7 @@ internal class LinuxTrayManager(
                 callbackReferences.add(cb)
                 item?.let { menuItemReferences[menuItem.text] = it }
             }
+
             else -> {
                 val cb = createActionCallback(menuItem)
                 val item = if (menuItem.isEnabled) {
