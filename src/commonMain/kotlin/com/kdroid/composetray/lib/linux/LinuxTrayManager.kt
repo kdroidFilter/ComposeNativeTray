@@ -222,10 +222,13 @@ internal class LinuxTrayManager(
                 while (running.get()) {
                     sni.sni_process_events()     // traite une itération GLib non bloquante
                     while (true) taskQueue.poll()?.invoke() ?: break
-                    Thread.sleep(16)            // petit yield
+                    Thread.sleep(8)            // petit yield
                 }
+            } catch (e: InterruptedException) {
+                // Ignore interrupted exception during shutdown (expected behavior)
+                Thread.currentThread().interrupt()  // Restore interrupt flag for proper handling elsewhere
             } catch (e: Exception) {
-                e.printStackTrace()
+                e.printStackTrace()  // Print only for unexpected exceptions
             } finally {
                 cleanupTray()
             }
