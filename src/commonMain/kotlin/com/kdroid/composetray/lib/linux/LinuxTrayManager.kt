@@ -403,10 +403,14 @@ internal class LinuxTrayManager(
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
             } finally {
-                if (shutdownHook != null) {
-                    Runtime.getRuntime().removeShutdownHook(shutdownHook)
-                    shutdownHook = null
+                if (shutdownHook != null && Thread.currentThread() != shutdownHook) {
+                    try {
+                        Runtime.getRuntime().removeShutdownHook(shutdownHook)
+                    } catch (e : IllegalStateException) {
+                        // La JVM est déjà en cours d'arrêt : rien à faire.
+                    }
                 }
+                shutdownHook = null
             }
         }
 
