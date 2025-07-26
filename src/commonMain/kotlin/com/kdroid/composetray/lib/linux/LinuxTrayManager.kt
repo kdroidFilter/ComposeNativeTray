@@ -52,16 +52,24 @@ internal class LinuxTrayManager(
         }
     }
 
+    private fun schedule(action: () -> Unit) {
+        taskQueue += action        // petite aide utilitaire
+    }
+
     fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
+        var needRefresh = false
         lock.withLock {
-            val index = menuItems.indexOfFirst { it.text == label }
-            if (index != -1) {
-                menuItems[index] = menuItems[index].copy(isChecked = isChecked)
-                // Call recreateMenu directly instead of queuing it
-                recreateMenu()
+            val idx = menuItems.indexOfFirst { it.text == label }
+            if (idx != -1) {
+                menuItems[idx] = menuItems[idx].copy(isChecked = isChecked)
+                needRefresh = true
             }
         }
+        if (needRefresh) {
+            schedule { recreateMenu() }   // ← exécuté dans la boucle tray
+        }
     }
+
 
     fun update(
         newIconPath: String,
@@ -70,29 +78,33 @@ internal class LinuxTrayManager(
         newPrimaryActionLabel: String,
         newMenuItems: List<MenuItem>? = null
     ) {
+        var iconChanged: Boolean
+        var tooltipChanged: Boolean
+        var needsMenuRefresh = false
+
         lock.withLock {
             if (!running.get() || trayHandle == null) return
 
-            val iconChanged = iconPath != newIconPath
-            val tooltipChanged = tooltip != newTooltip
+            iconChanged = iconPath != newIconPath
+            tooltipChanged = tooltip != newTooltip
 
-            // MàJ des propriétés internes
             iconPath = newIconPath
             tooltip = newTooltip
             onLeftClick = newOnLeftClick
             primaryActionLabel = newPrimaryActionLabel
 
-            // Update icon and tooltip if changed
-            if (iconChanged) sni.update_icon_by_path(trayHandle, newIconPath)
-            if (tooltipChanged) sni.set_tooltip_title(trayHandle, newTooltip)
-
-            // Update menu if provided
             if (newMenuItems != null) {
                 menuItems.clear()
                 menuItems.addAll(newMenuItems)
-                // Call recreateMenu directly, don't use runOnTrayThread
-                recreateMenu()
+                needsMenuRefresh = true
             }
+        }
+
+        if (iconChanged)   sni.update_icon_by_path(trayHandle, newIconPath)
+        if (tooltipChanged) sni.set_tooltip_title(trayHandle, newTooltip)
+
+        if (needsMenuRefresh) {
+            runOnTrayThread { recreateMenu() }
         }
     }
 
@@ -152,7 +164,7 @@ internal class LinuxTrayManager(
                 // No menu items, remove the menu
                 if (menuHandle != null) {
                     sni.set_context_menu(trayHandle, null)
-                    Thread.sleep(100) // Wait for DBus to process
+                    Thread.sleep(50) // Wait for DBus to process
                     sni.destroy_menu(menuHandle!!)
                     menuHandle = null
                     println("LinuxTrayManager: Menu removed")
@@ -222,7 +234,7 @@ internal class LinuxTrayManager(
                 while (running.get()) {
                     sni.sni_process_events()     // traite une itération GLib non bloquante
                     while (true) taskQueue.poll()?.invoke() ?: break
-                    Thread.sleep(8)            // petit yield
+                    Thread.sleep(50)            // petit yield
                 }
             } catch (e: InterruptedException) {
                 // Ignore interrupted exception during shutdown (expected behavior)
