@@ -1,5 +1,9 @@
 package com.kdroid.composetray.lib.linux
 
+import com.kdroid.composetray.utils.debugln
+import com.kdroid.composetray.utils.errorln
+import com.kdroid.composetray.utils.infoln
+import com.kdroid.composetray.utils.warnln
 import com.sun.jna.Pointer
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -53,7 +57,7 @@ internal class LinuxTrayManager(
     }
 
     private fun schedule(action: () -> Unit) {
-        taskQueue += action        // petite aide utilitaire
+        taskQueue += action        // small utility helper
     }
 
     fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
@@ -66,7 +70,7 @@ internal class LinuxTrayManager(
             }
         }
         if (needRefresh) {
-            schedule { recreateMenu() }   // ← exécuté dans la boucle tray
+            schedule { recreateMenu() }   // ← executed in the tray loop
         }
     }
 
@@ -109,9 +113,9 @@ internal class LinuxTrayManager(
     }
 
     private fun recreateMenu() {
-        println("LinuxTrayManager: Recreating menu")
+        infoln { "LinuxTrayManager: Recreating menu" }
         if (!running.get() || trayHandle == null) {
-            println("LinuxTrayManager: Cannot recreate menu, tray is not running or trayHandle is null")
+            warnln { "LinuxTrayManager: Cannot recreate menu, tray is not running or trayHandle is null" }
             return
         }
 
@@ -126,18 +130,18 @@ internal class LinuxTrayManager(
                 if (menuHandle == null) {
                     menuHandle = sni.create_menu()
                     if (menuHandle == null) {
-                        println("LinuxTrayManager: Failed to create menu")
+                        errorln { "LinuxTrayManager: Failed to create menu" }
                         return
                     }
-                    println("LinuxTrayManager: Menu created")
+                    infoln { "LinuxTrayManager: Menu created" }
                 } else {
                     // Clear existing menu instead of destroying it
                     try {
                         sni.clear_menu(menuHandle)
-                        println("LinuxTrayManager: Menu cleared")
+                        infoln { "LinuxTrayManager: Menu cleared" }
                     } catch (e: Exception) {
                         // If clear_menu is not available, fall back to recreating
-                        println("LinuxTrayManager: clear_menu not available, recreating menu")
+                        warnln { "LinuxTrayManager: clear_menu not available, recreating menu" }
                         val oldMenu = menuHandle
                         menuHandle = sni.create_menu()
                         if (menuHandle != null) {
@@ -158,7 +162,7 @@ internal class LinuxTrayManager(
 
                 // Set the menu on the tray
                 sni.set_context_menu(trayHandle, menuHandle)
-                println("LinuxTrayManager: Context menu set")
+                infoln { "LinuxTrayManager: Context menu set" }
 
             } else {
                 // No menu items, remove the menu
@@ -167,21 +171,21 @@ internal class LinuxTrayManager(
                     Thread.sleep(50) // Wait for DBus to process
                     sni.destroy_menu(menuHandle!!)
                     menuHandle = null
-                    println("LinuxTrayManager: Menu removed")
+                    infoln { "LinuxTrayManager: Menu removed" }
                 }
             }
 
             // Force update if available
             try {
                 sni.tray_update(trayHandle)
-                println("LinuxTrayManager: Tray update forced")
+                infoln { "LinuxTrayManager: Tray update forced" }
             } catch (e: Exception) {
                 // tray_update might not be available
-                println("LinuxTrayManager: tray_update not available: ${e.message}")
+                warnln { "LinuxTrayManager: tray_update not available: ${e.message}" }
             }
 
         } catch (e: Exception) {
-            println("LinuxTrayManager: Error recreating menu: ${e.message}")
+            errorln { "LinuxTrayManager: Error recreating menu: ${e.message}" }
             e.printStackTrace()
         }
     }
@@ -232,9 +236,9 @@ internal class LinuxTrayManager(
                 initLatch.countDown()
 
                 while (running.get()) {
-                    sni.sni_process_events()     // traite une itération GLib non bloquante
+                    sni.sni_process_events()     // processes a non-blocking GLib iteration
                     while (true) taskQueue.poll()?.invoke() ?: break
-                    Thread.sleep(50)            // petit yield
+                    Thread.sleep(50)            // small yield
                 }
             } catch (e: InterruptedException) {
                 // Ignore interrupted exception during shutdown (expected behavior)
@@ -289,7 +293,7 @@ internal class LinuxTrayManager(
 
         menuHandle = sni.create_menu()
         if (menuHandle == null) {
-            println("Failed to create menu")
+            errorln { "Failed to create menu" }
             return
         }
 
@@ -375,7 +379,7 @@ internal class LinuxTrayManager(
             // Shutdown tray system
             sni.shutdown_tray_system()
 
-            println("LinuxTrayManager: Cleaning up tray resources")
+            infoln { "LinuxTrayManager: Cleaning up tray resources" }
         }
     }
 
@@ -396,7 +400,7 @@ internal class LinuxTrayManager(
             try {
                 thread.join(5000)
                 if (thread.isAlive) {
-                    println("Warning: Tray thread did not terminate in time, forcing interrupt again")
+                    warnln { "Warning: Tray thread did not terminate in time, forcing interrupt again" }
                     thread.interrupt()
                     thread.join(2000) // Second attempt
                 }
@@ -407,7 +411,7 @@ internal class LinuxTrayManager(
                     try {
                         Runtime.getRuntime().removeShutdownHook(shutdownHook)
                     } catch (e : IllegalStateException) {
-                        // La JVM est déjà en cours d'arrêt : rien à faire.
+                        // The JVM is already shutting down: nothing to do.
                     }
                 }
                 shutdownHook = null

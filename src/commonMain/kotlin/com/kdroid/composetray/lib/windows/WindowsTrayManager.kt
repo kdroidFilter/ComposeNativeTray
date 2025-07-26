@@ -1,5 +1,6 @@
 package com.kdroid.composetray.lib.windows
 
+import com.kdroid.composetray.utils.debugln
 import com.sun.jna.Native
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,7 +31,7 @@ internal class WindowsTrayManager(
 
     companion object {
         private fun log(message: String) {
-            println("[WindowsTrayManager] $message")
+            debugln { "[WindowsTrayManager] $message" }
         }
     }
 
