@@ -1,9 +1,6 @@
 package com.kdroid.composetray.lib.linux
 
-import com.kdroid.composetray.utils.debugln
-import com.kdroid.composetray.utils.errorln
-import com.kdroid.composetray.utils.infoln
-import com.kdroid.composetray.utils.warnln
+import com.kdroid.composetray.utils.*
 import com.sun.jna.Pointer
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -23,7 +20,8 @@ import kotlin.concurrent.withLock
  *   sur un `recreateMenu()` complet qu'en cas de besoin (fallback).<br/>
  * • <em>Nouveau :</em> mise à jour incrémentale de l'icône sans reconstruire
  *   tout le menu : `updateIconPath()` utilise la voie native rapide et ne tombe
- *   sur un fallback qu'en cas d'erreur.
+ *   sur un fallback qu'en cas d'erreur.<br/>
+ * • <em>Nouveau :</em> capture de la position du clic pour placement précis des fenêtres.
  */
 internal class LinuxTrayManager(
     private var iconPath: String,
@@ -301,12 +299,22 @@ internal class LinuxTrayManager(
     private fun initializeCallbacks() {
         trayHandle?.let { handle ->
             activateCallback = object : SNIWrapper.ActivateCallback {
-                override fun invoke(x: Int, y: Int, data: Pointer?) { onLeftClick?.invoke() }
+                override fun invoke(x: Int, y: Int, data: Pointer?) {
+                    // Capture click position
+                    TrayClickTracker.updateClickPosition(x, y)
+                    debugln { "LinuxTrayManager: Tray clicked at position ($x, $y)" }
+                    onLeftClick?.invoke()
+                }
             }
             sni.set_activate_callback(handle, activateCallback, null)
 
             secondaryActivateCallback = object : SNIWrapper.SecondaryActivateCallback {
-                override fun invoke(x: Int, y: Int, data: Pointer?) { /* secondary click */ }
+                override fun invoke(x: Int, y: Int, data: Pointer?) {
+                    // Also capture right-click position
+                    TrayClickTracker.updateClickPosition(x, y)
+                    debugln { "LinuxTrayManager: Tray right-clicked at position ($x, $y)" }
+                    /* secondary click */
+                }
             }
             sni.set_secondary_activate_callback(handle, secondaryActivateCallback, null)
 
