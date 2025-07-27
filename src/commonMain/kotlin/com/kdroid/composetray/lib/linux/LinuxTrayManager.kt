@@ -8,18 +8,22 @@ import com.sun.jna.Pointer
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
  * Manages an SNI‑based tray icon on Linux.
  *
- * The previous implementation unintentionally executed [recreateMenu] twice when
- * both [update] and [updateMenuItemCheckedState] requested a refresh in quick
- * succession.  We now funnel all refresh requests through a single
- * [requestMenuRefresh] gate protected by the [refreshPending] flag.  As long as
- * a refresh is already queued, additional requests are ignored until the menu
- * has actually been rebuilt.
+ * <h3>Changelog 2025‑07‑26</h3>
+ * • Déduplication du rafraîchissement du menu via `refreshPending`.<br/>
+ * • <em>Nouveau :</em> mise à jour incrémentale de l'état cochable d'un item sans
+ *   reconstruire tout le menu : `updateMenuItemCheckedState()` utilise la voie
+ *   native rapide quand le pointeur GTK/Qt de l'item est connu, et ne tombe
+ *   sur un `recreateMenu()` complet qu'en cas de besoin (fallback).<br/>
+ * • <em>Nouveau :</em> mise à jour incrémentale de l'icône sans reconstruire
+ *   tout le menu : `updateIconPath()` utilise la voie native rapide et ne tombe
+ *   sur un fallback qu'en cas d'erreur.
  */
 internal class LinuxTrayManager(
     private var iconPath: String,
@@ -54,10 +58,17 @@ internal class LinuxTrayManager(
 
     // ----------------------------------------------------------------------- menu refresh gate
     private val refreshPending = AtomicBoolean(false)
+    private val lastRefreshRequest = AtomicLong(0)
+    private val REFRESH_WINDOW_MS = 120L // fusionne les refresh rapprochés
 
     private fun requestMenuRefresh() {
+        lastRefreshRequest.set(System.currentTimeMillis())
         if (refreshPending.compareAndSet(false, true)) {
             runOnTrayThread {
+                // petite fenêtre de debounce
+                while (System.currentTimeMillis() - lastRefreshRequest.get() < REFRESH_WINDOW_MS) {
+                    Thread.sleep(REFRESH_WINDOW_MS)
+                }
                 try {
                     recreateMenu()
                 } finally {
@@ -90,16 +101,43 @@ internal class LinuxTrayManager(
         lock.withLock { menuItems.add(menuItem) }
     }
 
+    /**
+     * Met à jour en temps réel l'état <i>checked / unchecked</i> d'un item sans
+     * déclencher un rebuild complet du menu, chaque fois que c'est possible.
+     */
     fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
-        var needRefresh = false
+        var fallbackRefreshNeeded = false
         lock.withLock {
+            // 1. Mettre à jour le modèle mémoire ---------------------------------------------
             val idx = menuItems.indexOfFirst { it.text == label }
             if (idx != -1) {
                 menuItems[idx] = menuItems[idx].copy(isChecked = isChecked)
-                needRefresh = true
+            }
+
+            // 2. Chemin rapide : on possède déjà le pointeur natif de l'item ⇒ mise à jour GTK/Qt
+            val ptr = menuItemReferences[label]
+            if (ptr != null && trayHandle != null) {
+                try {
+                    // Méthode à exposer dans SNIWrapper :
+                    //    int set_menu_item_checked(Pointer menuItem, int checked)
+                    val ok = sni.set_menu_item_checked(ptr, if (isChecked) 1 else 0)
+                    if (ok == 0) {
+                        // SNI l'a fait, on force le repaint global (léger)
+                        sni.tray_update(trayHandle)
+                    } else {
+                        // Implé pas dispo ou erreur : on repassera par recreateMenu
+                        fallbackRefreshNeeded = true
+                    }
+                } catch (_: UnsatisfiedLinkError) {
+                    // Version de lib sans cette fonction : on repassera par recreateMenu
+                    fallbackRefreshNeeded = true
+                }
+            } else {
+                // Pointeur pas encore connu (menu pas construit) : on refera un refresh complet
+                fallbackRefreshNeeded = true
             }
         }
-        if (needRefresh) requestMenuRefresh()
+        if (fallbackRefreshNeeded) requestMenuRefresh()
     }
 
     // ---------------------------------------------------------------------------------- update

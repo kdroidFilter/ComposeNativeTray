@@ -54,6 +54,7 @@ interface SNIWrapper : Library {
     fun create_submenu(menu_handle: Pointer?, text: String?): Pointer?
     fun set_menu_item_text(menu_item_handle: Pointer?, text: String?)
     fun set_menu_item_enabled(menu_item_handle: Pointer?, enabled: Int)
+    fun set_menu_item_checked(menu_item_handle: Pointer?, checked: Int): Int
     fun remove_menu_item(menu_handle: Pointer?, menu_item_handle: Pointer?)
 
     fun tray_update(handle: Pointer?)
