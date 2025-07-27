@@ -6,7 +6,9 @@ import androidx.compose.ui.window.WindowPosition
 import com.kdroid.composetray.lib.mac.MacTrayManager
 import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
+import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
+import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.Toolkit
 import java.io.File
@@ -115,6 +117,12 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
  * - On Windows, it uses the platform's native library to determine the tray position.
  * - On macOS, it defaults to a specific standard position.
  * - On Linux, the position is fetched from click coordinates or properties file.
+ *   If no position data is available, it uses desktop environment-specific defaults:
+ *   - GNOME: TOP_RIGHT
+ *   - KDE: BOTTOM_RIGHT
+ *   - XFCE: TOP_RIGHT
+ *   - CINNAMON: BOTTOM_RIGHT
+ *   - MATE: TOP_RIGHT
  * - For unknown or unsupported operating systems, a default position is returned.
  *
  * @return The computed tray position as a [TrayPosition] enum value.
@@ -154,6 +162,17 @@ fun getTrayPosition(): TrayPosition {
                         TrayPosition.TOP_RIGHT
                     }
                 }
+            }
+            
+            // If no position is found, use desktop environment-specific defaults
+            return when (detectLinuxDesktopEnvironment()) {
+                LinuxDesktopEnvironment.GNOME -> TrayPosition.TOP_RIGHT
+                LinuxDesktopEnvironment.KDE -> TrayPosition.BOTTOM_RIGHT
+                LinuxDesktopEnvironment.XFCE -> TrayPosition.TOP_RIGHT
+                LinuxDesktopEnvironment.CINNAMON -> TrayPosition.BOTTOM_RIGHT
+                LinuxDesktopEnvironment.MATE -> TrayPosition.TOP_RIGHT
+                LinuxDesktopEnvironment.UNKNOWN -> TrayPosition.TOP_RIGHT
+                null -> TrayPosition.TOP_RIGHT
             }
         }
         OperatingSystem.UNKNOWN -> return TrayPosition.TOP_RIGHT
