@@ -1,6 +1,7 @@
 package com.kdroid.composetray.tray.api
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -18,6 +19,7 @@ import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.*
 import io.github.kdroidfilter.platformtools.OperatingSystem.*
+import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -291,6 +293,7 @@ fun ApplicationScope.Tray(
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode()
+    val isSystemInDarkTheme = isSystemInDarkMode()
 
     // Define the icon content lambda
     val iconContent: @Composable () -> Unit = {
@@ -311,6 +314,7 @@ fun ApplicationScope.Tray(
     // Updated contentHash to include icon and tint for proper recomposition on changes
     val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) +
             isDark.hashCode() +
+            isSystemInDarkTheme.hashCode() +
             icon.hashCode() +
             (tint?.hashCode() ?: 0)  // Include tint if set; 0 as fallback when null
 

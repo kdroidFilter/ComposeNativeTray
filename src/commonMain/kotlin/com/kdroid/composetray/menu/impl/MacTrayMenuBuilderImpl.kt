@@ -13,6 +13,7 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
+import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -79,7 +80,7 @@ internal class MacTrayMenuBuilderImpl(
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
-            val isDark = isMenuBarInDarkMode()
+            val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
@@ -189,7 +190,7 @@ internal class MacTrayMenuBuilderImpl(
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
-            val isDark = isMenuBarInDarkMode()
+            val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
@@ -256,7 +257,7 @@ internal class MacTrayMenuBuilderImpl(
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
-            val isDark = isMenuBarInDarkMode()
+            val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
