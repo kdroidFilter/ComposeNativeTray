@@ -1,5 +1,8 @@
 package com.kdroid.composetray.utils
 
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 var allowComposeNativeTrayLogging: Boolean = false
 var composeNativeTrayloggingLevel: ComposeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.VERBOSE
 
@@ -19,34 +22,40 @@ private const val COLOR_LIGHT_GRAY = "\u001b[37m"
 private const val COLOR_ORANGE = "\u001b[38;2;255;165;0m"
 private const val COLOR_RESET = "\u001b[0m"
 
+// Formatter pour l'heure
+private val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
+private fun getCurrentTimestamp(): String {
+    return LocalDateTime.now().format(timeFormatter)
+}
+
 internal fun debugln(message: () -> String) {
     if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.DEBUG.priority) {
-        println(message())
+        println("[${getCurrentTimestamp()}] ${message()}")
     }
 }
 
 internal fun verboseln(message: () -> String) {
     if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.VERBOSE.priority) {
-        println(message(), COLOR_LIGHT_GRAY)
+        println("[${getCurrentTimestamp()}] ${message()}", COLOR_LIGHT_GRAY)
     }
 }
 
-
 internal fun infoln(message: () -> String) {
     if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.INFO.priority) {
-        println(message(), COLOR_AQUA)
+        println("[${getCurrentTimestamp()}] ${message()}", COLOR_AQUA)
     }
 }
 
 internal fun warnln(message: () -> String) {
     if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.WARN.priority) {
-        println(message(), COLOR_ORANGE)
+        println("[${getCurrentTimestamp()}] ${message()}", COLOR_ORANGE)
     }
 }
 
 internal fun errorln(message: () -> String) {
     if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.ERROR.priority) {
-        println(message(), COLOR_RED)
+        println("[${getCurrentTimestamp()}] ${message()}", COLOR_RED)
     }
 }
 
