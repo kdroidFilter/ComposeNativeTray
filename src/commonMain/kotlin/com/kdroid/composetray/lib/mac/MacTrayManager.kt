@@ -41,6 +41,7 @@ internal class MacTrayManager(
     // Top level MenuItem class
     data class MenuItem(
         val text: String,
+        val icon: String? = null,
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,

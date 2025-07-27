@@ -115,15 +115,26 @@ private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
         if title == "-" {
             menu.addItem(NSMenuItem.separator())
         } else {
-            let disabled = currentPtr.advanced(by: 8).load(as: Int32.self) == 1
-            let checked  = currentPtr.advanced(by: 12).load(as: Int32.self) == 1
-            let callback = currentPtr.advanced(by: 16).load(as: MenuItemCallback?.self)
-            let submenu  = currentPtr.advanced(by: 24).load(as: UnsafeMutableRawPointer?.self)
+            // Charger les champs avec les nouveaux offsets
+            let iconPathPtr = currentPtr.advanced(by: 8).load(as: UnsafePointer<CChar>?.self)
+            let disabled = currentPtr.advanced(by: 16).load(as: Int32.self) == 1
+            let checked  = currentPtr.advanced(by: 20).load(as: Int32.self) == 1
+            let callback = currentPtr.advanced(by: 24).load(as: MenuItemCallback?.self)
+            let submenu  = currentPtr.advanced(by: 32).load(as: UnsafeMutableRawPointer?.self)
 
             let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
             item.isEnabled = !disabled
             item.state = checked ? .on : .off
             item.representedObject = currentPtr
+
+            // Ajouter l'icône si disponible
+            if let iconPath = iconPathPtr.flatMap({ String(cString: $0) }),
+               let image = NSImage(contentsOfFile: iconPath) {
+                // Redimensionner l'icône à une taille appropriée pour le menu
+                let menuIconSize = NSSize(width: 16, height: 16)
+                image.size = menuIconSize
+                item.image = image
+            }
 
             if callback != nil {
                 item.target = menuDelegate
@@ -136,7 +147,7 @@ private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
             }
         }
 
-        currentPtr = currentPtr.advanced(by: 32)
+        currentPtr = currentPtr.advanced(by: 40)  // Nouveau offset avec le champ icon_filepath
     }
     return menu
 }

@@ -1,7 +1,12 @@
 package com.kdroid.composetray.menu.impl
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.lib.windows.WindowsTrayManager
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
+import com.kdroid.composetray.utils.IconRenderProperties
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -27,6 +32,43 @@ internal class WindowsTrayMenuBuilderImpl(
             persistentMenuItems.add(menuItem) // Store reference to prevent GC
         }
     }
+    
+    override fun Item(
+        label: String,
+        iconContent: @Composable () -> Unit,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        onClick: () -> Unit
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        Item(label, isEnabled, onClick)
+    }
+    
+    override fun Item(
+        label: String,
+        icon: ImageVector,
+        iconTint: Color?,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        onClick: () -> Unit
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        Item(label, isEnabled, onClick)
+    }
+    
+    override fun Item(
+        label: String,
+        icon: Painter,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        onClick: () -> Unit
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        Item(label, isEnabled, onClick)
+    }
 
     override fun CheckableItem(
         label: String,
@@ -50,6 +92,46 @@ internal class WindowsTrayMenuBuilderImpl(
             persistentMenuItems.add(menuItem) // Store reference to prevent GC
         }
     }
+    
+    override fun CheckableItem(
+        label: String,
+        iconContent: @Composable () -> Unit,
+        iconRenderProperties: IconRenderProperties,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        CheckableItem(label, checked, onCheckedChange, isEnabled)
+    }
+    
+    override fun CheckableItem(
+        label: String,
+        icon: ImageVector,
+        iconTint: Color?,
+        iconRenderProperties: IconRenderProperties,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        CheckableItem(label, checked, onCheckedChange, isEnabled)
+    }
+    
+    override fun CheckableItem(
+        label: String,
+        icon: Painter,
+        iconRenderProperties: IconRenderProperties,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        CheckableItem(label, checked, onCheckedChange, isEnabled)
+    }
 
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
         val subMenuItems = mutableListOf<WindowsTrayManager.MenuItem>()
@@ -66,6 +148,43 @@ internal class WindowsTrayMenuBuilderImpl(
             menuItems.add(subMenu)
             persistentMenuItems.add(subMenu) // Store reference to prevent GC
         }
+    }
+    
+    override fun SubMenu(
+        label: String,
+        iconContent: @Composable () -> Unit,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        SubMenu(label, isEnabled, submenuContent)
+    }
+    
+    override fun SubMenu(
+        label: String,
+        icon: ImageVector,
+        iconTint: Color?,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        SubMenu(label, isEnabled, submenuContent)
+    }
+    
+    override fun SubMenu(
+        label: String,
+        icon: Painter,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        // Minimal implementation to make it compile
+        // Actual icon integration will be handled by the issue creator
+        SubMenu(label, isEnabled, submenuContent)
     }
 
     override fun Divider() {

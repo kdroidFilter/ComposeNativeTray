@@ -2,7 +2,11 @@ package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.currentComposer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
+import com.kdroid.composetray.utils.IconRenderProperties
 import java.security.MessageDigest
 
 /**
@@ -39,6 +43,37 @@ object MenuContentHash {
         override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
             operations.add("Item:$label:$isEnabled")
         }
+        
+        override fun Item(
+            label: String,
+            iconContent: @Composable () -> Unit,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            onClick: () -> Unit
+        ) {
+            operations.add("ItemWithComposableIcon:$label:$isEnabled")
+        }
+        
+        override fun Item(
+            label: String,
+            icon: ImageVector,
+            iconTint: Color?,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            onClick: () -> Unit
+        ) {
+            operations.add("ItemWithImageVectorIcon:$label:${iconTint != null}:$isEnabled")
+        }
+        
+        override fun Item(
+            label: String,
+            icon: Painter,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            onClick: () -> Unit
+        ) {
+            operations.add("ItemWithPainterIcon:$label:$isEnabled")
+        }
 
         override fun CheckableItem(
             label: String,
@@ -48,6 +83,40 @@ object MenuContentHash {
         ) {
             operations.add("CheckableItem:$label:$checked:$isEnabled")
         }
+        
+        override fun CheckableItem(
+            label: String,
+            iconContent: @Composable () -> Unit,
+            iconRenderProperties: IconRenderProperties,
+            checked: Boolean,
+            onCheckedChange: (Boolean) -> Unit,
+            isEnabled: Boolean
+        ) {
+            operations.add("CheckableItemWithComposableIcon:$label:$checked:$isEnabled")
+        }
+        
+        override fun CheckableItem(
+            label: String,
+            icon: ImageVector,
+            iconTint: Color?,
+            iconRenderProperties: IconRenderProperties,
+            checked: Boolean,
+            onCheckedChange: (Boolean) -> Unit,
+            isEnabled: Boolean
+        ) {
+            operations.add("CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled")
+        }
+        
+        override fun CheckableItem(
+            label: String,
+            icon: Painter,
+            iconRenderProperties: IconRenderProperties,
+            checked: Boolean,
+            onCheckedChange: (Boolean) -> Unit,
+            isEnabled: Boolean
+        ) {
+            operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled")
+        }
 
         override fun SubMenu(
             label: String,
@@ -55,6 +124,52 @@ object MenuContentHash {
             submenuContent: (TrayMenuBuilder.() -> Unit)?
         ) {
             operations.add("SubMenu:$label:$isEnabled")
+            if (submenuContent != null) {
+                operations.add("SubMenuStart")
+                submenuContent.invoke(this)
+                operations.add("SubMenuEnd")
+            }
+        }
+        
+        override fun SubMenu(
+            label: String,
+            iconContent: @Composable () -> Unit,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            submenuContent: (TrayMenuBuilder.() -> Unit)?
+        ) {
+            operations.add("SubMenuWithComposableIcon:$label:$isEnabled")
+            if (submenuContent != null) {
+                operations.add("SubMenuStart")
+                submenuContent.invoke(this)
+                operations.add("SubMenuEnd")
+            }
+        }
+        
+        override fun SubMenu(
+            label: String,
+            icon: ImageVector,
+            iconTint: Color?,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            submenuContent: (TrayMenuBuilder.() -> Unit)?
+        ) {
+            operations.add("SubMenuWithImageVectorIcon:$label:${iconTint != null}:$isEnabled")
+            if (submenuContent != null) {
+                operations.add("SubMenuStart")
+                submenuContent.invoke(this)
+                operations.add("SubMenuEnd")
+            }
+        }
+        
+        override fun SubMenu(
+            label: String,
+            icon: Painter,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            submenuContent: (TrayMenuBuilder.() -> Unit)?
+        ) {
+            operations.add("SubMenuWithPainterIcon:$label:$isEnabled")
             if (submenuContent != null) {
                 operations.add("SubMenuStart")
                 submenuContent.invoke(this)

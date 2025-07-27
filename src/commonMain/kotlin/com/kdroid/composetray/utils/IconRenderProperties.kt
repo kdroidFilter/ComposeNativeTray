@@ -78,5 +78,40 @@ data class IconRenderProperties(
             targetWidth = sceneWidth,
             targetHeight = sceneHeight
         )
+
+        /**
+         * Provides an [IconRenderProperties] configured for menu items.
+         *
+         * Menu items typically require smaller icons than tray icons.
+         * The default sizes are optimized for each operating system:
+         * - Windows: 16x16 pixels (standard menu icon size)
+         * - macOS: 16x16 pixels (NSMenu standard)
+         * - Linux: 16x16 pixels (GTK menu standard)
+         *
+         * @param sceneWidth Width of the [androidx.compose.ui.ImageComposeScene] in pixels. Defaults to 64.
+         * @param sceneHeight Height of the [androidx.compose.ui.ImageComposeScene] in pixels. Defaults to 64.
+         * @param density Density of the [androidx.compose.ui.ImageComposeScene]. Defaults to 2.0 for high-DPI support.
+         * @return An instance of [IconRenderProperties] with the appropriate target width and height for menu items.
+         */
+        fun forMenuItem(
+            sceneWidth: Int = 64,
+            sceneHeight: Int = 64,
+            density: Density = Density(2f)
+        ): IconRenderProperties {
+            val (targetWidth, targetHeight) = when (getOperatingSystem()) {
+                OperatingSystem.WINDOWS -> 16 to 16
+                OperatingSystem.MACOS -> 16 to 16
+                OperatingSystem.LINUX -> 16 to 16
+                else -> 16 to 16
+            }
+
+            return IconRenderProperties(
+                sceneWidth = sceneWidth,
+                sceneHeight = sceneHeight,
+                sceneDensity = density,
+                targetWidth = targetWidth,
+                targetHeight = targetHeight
+            )
+        }
     }
 }
