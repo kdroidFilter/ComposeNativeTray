@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import co.touchlab.kermit.Logger
 import com.kdroid.composetray.demo.svg.AcademicCap
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
@@ -24,13 +23,12 @@ import org.jetbrains.compose.resources.painterResource
  * This demo uses the AcademicCap vector as the tray icon.
  */
 fun main() = application {
-    allowComposeNativeTrayLogging = true
+    allowComposeNativeTrayLogging = false
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     val logTag = "ImageVectorTrayDemo"
-    val kermit = Logger.withTag(logTag)
-
-    kermit.d { "TrayPosition: ${getTrayPosition()}" }
+    
+    println("$logTag: TrayPosition: ${getTrayPosition()}")
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var alwaysShowTray by remember { mutableStateOf(true) }
@@ -59,7 +57,7 @@ fun main() = application {
             tooltip = "Academic Cap Demo",
             primaryAction = {
                 isWindowVisible = true
-                kermit.i { "Primary action clicked" }
+                println("$logTag: Primary action clicked")
             },
             primaryActionLabel = "Open Application"
         ) {
@@ -67,23 +65,23 @@ fun main() = application {
             SubMenu(label = "Icon Color") {
                 Item(label = "Default (Auto)") {
                     iconTint = null
-                    kermit.i { "Icon color set to default (auto)" }
+                    println("$logTag: Icon color set to default (auto)")
                 }
                 Item(label = "Red") {
                     iconTint = Color.Red
-                    kermit.i { "Icon color set to red" }
+                    println("$logTag: Icon color set to red")
                 }
                 Item(label = "Green") {
                     iconTint = Color.Green
-                    kermit.i { "Icon color set to green" }
+                    println("$logTag: Icon color set to green")
                 }
                 Item(label = "Blue") {
                     iconTint = Color.Blue
-                    kermit.i { "Icon color set to blue" }
+                    println("$logTag: Icon color set to blue")
                 }
                 Item(label = "Yellow") {
                     iconTint = Color.Yellow
-                    kermit.i { "Icon color set to yellow" }
+                    println("$logTag: Icon color set to yellow")
                 }
             }
 
@@ -91,7 +89,7 @@ fun main() = application {
 
             // Standard menu items
             Item(label = "About") {
-                kermit.i { "ImageVector API Demo - Using AcademicCap vector" }
+                println("$logTag: ImageVector API Demo - Using AcademicCap vector")
             }
 
             Divider()
@@ -102,7 +100,7 @@ fun main() = application {
                 checked = alwaysShowTray,
                 onCheckedChange = { checked ->
                     alwaysShowTray = checked
-                    kermit.i { "Always show tray ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Always show tray ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -111,7 +109,7 @@ fun main() = application {
                 checked = hideOnClose,
                 onCheckedChange = { checked ->
                     hideOnClose = checked
-                    kermit.i { "Hide on close ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Hide on close ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -119,11 +117,11 @@ fun main() = application {
 
             Item(label = "Hide in tray") {
                 isWindowVisible = false
-                kermit.i { "Application hidden in tray" }
+                println("$logTag: Application hidden in tray")
             }
 
             Item(label = "Exit") {
-                kermit.i { "Exiting application" }
+                println("$logTag: Exiting application")
                 dispose()
                 exitApplication()
             }

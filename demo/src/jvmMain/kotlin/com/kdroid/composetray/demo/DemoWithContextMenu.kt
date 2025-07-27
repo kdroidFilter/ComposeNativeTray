@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
@@ -28,9 +27,8 @@ fun main() = application {
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     val logTag = "NativeTray"
-    val kermit = Logger.withTag("NativeTray")
 
-    kermit.d { "TrayPosition: ${getTrayPosition()}" }
+    println("$logTag: TrayPosition: ${getTrayPosition()}")
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -71,7 +69,7 @@ fun main() = application {
             },
             primaryAction = {
                 isWindowVisible = true
-                kermit.i { "$logTag: On Primary Clicked" }
+                println("$logTag: On Primary Clicked")
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application"
@@ -81,7 +79,7 @@ fun main() = application {
             Item(label = dynamicItemLabel) {
                 itemCounter++
                 dynamicItemLabel = "Clicked $itemCounter times"
-                kermit.i { "$logTag: Dynamic item clicked: $dynamicItemLabel" }
+                println("$logTag: Dynamic item clicked: $dynamicItemLabel")
             }
 
             Divider()
@@ -89,11 +87,11 @@ fun main() = application {
             // Options SubMenu
             SubMenu(label = "Options") {
                 Item(label = "Show Text") {
-                    kermit.i { "$logTag: Show Text selected" }
+                    println("$logTag: Show Text selected")
                     textVisible = true
                 }
                 Item(label = "Hide Text") {
-                    kermit.i { "$logTag: Hide Text selected" }
+                    println("$logTag: Hide Text selected")
                     textVisible = false
                 }
 
@@ -101,10 +99,10 @@ fun main() = application {
                 if (showAdvancedOptions) {
                     SubMenu(label = "Advanced Sub-options") {
                         Item(label = "Advanced Option 1") {
-                            kermit.i { "$logTag: Advanced Option 1 selected" }
+                            println("$logTag: Advanced Option 1 selected")
                         }
                         Item(label = "Advanced Option 2") {
-                            kermit.i { "$logTag: Advanced Option 2 selected" }
+                            println("$logTag: Advanced Option 2 selected")
                         }
                     }
                 }
@@ -115,10 +113,10 @@ fun main() = application {
             // Tools SubMenu
             SubMenu(label = "Tools") {
                 Item(label = "Calculator") {
-                    kermit.i { "$logTag: Calculator launched" }
+                    println("$logTag: Calculator launched")
                 }
                 Item(label = "Notepad") {
-                    kermit.i { "$logTag: Notepad opened" }
+                    println("$logTag: Notepad opened")
                 }
             }
 
@@ -130,7 +128,7 @@ fun main() = application {
                 checked = notificationsEnabled,
                 onCheckedChange = { checked ->
                     notificationsEnabled = checked
-                    kermit.i { "$logTag: Notifications ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Notifications ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -139,7 +137,7 @@ fun main() = application {
                 checked = darkModeEnabled,
                 onCheckedChange = { checked ->
                     darkModeEnabled = checked
-                    kermit.i { "$logTag: Dark mode ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Dark mode ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -148,7 +146,7 @@ fun main() = application {
                 checked = autoStartEnabled,
                 onCheckedChange = { checked ->
                     autoStartEnabled = checked
-                    kermit.i { "$logTag: Auto-start ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Auto-start ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -160,12 +158,12 @@ fun main() = application {
                 checked = showAdvancedOptions,
                 onCheckedChange = { checked ->
                     showAdvancedOptions = checked
-                    kermit.i { "$logTag: Advanced options ${if (checked) "shown" else "hidden"}" }
+                    println("$logTag: Advanced options ${if (checked) "shown" else "hidden"}")
                 }
             )
 
             Item(label = "About") {
-                kermit.i { "$logTag: Application v1.0 - Developed by Elyahou" }
+                println("$logTag: Application v1.0 - Developed by Elyahou")
             }
 
             Divider()
@@ -175,7 +173,7 @@ fun main() = application {
                 checked = alwaysShowTray,
                 onCheckedChange = { checked ->
                     alwaysShowTray = checked
-                    kermit.i { "$logTag: Always show tray ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Always show tray ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -184,7 +182,7 @@ fun main() = application {
                 checked = hideOnClose,
                 onCheckedChange = { checked ->
                     hideOnClose = checked
-                    kermit.i { "$logTag: Hide on close ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Hide on close ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -195,7 +193,7 @@ fun main() = application {
             }
 
             Item(label = "Exit", isEnabled = true) {
-                kermit.i { "$logTag: Exiting the application" }
+                println("$logTag: Exiting the application")
                 dispose()
                 exitApplication()
             }

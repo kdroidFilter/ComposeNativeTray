@@ -6,7 +6,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
@@ -27,9 +26,8 @@ fun main() = application {
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     val logTag = "PainterTrayDemo"
-    val kermit = Logger.withTag(logTag)
-
-    kermit.d { "TrayPosition: ${getTrayPosition()}" }
+    
+    println("$logTag: TrayPosition: ${getTrayPosition()}")
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var alwaysShowTray by remember { mutableStateOf(true) }
@@ -57,17 +55,17 @@ fun main() = application {
             tooltip = "Painter Demo",
             primaryAction = {
                 isWindowVisible = true
-                kermit.i { "Primary action clicked" }
+                println("$logTag: Primary action clicked")
             },
             primaryActionLabel = "Open Application"
         ) {
             // Menu item to switch between icons
             Item(label = "Switch Icon") {
                 currentIcon = if (currentIcon == Res.drawable.icon) {
-                    kermit.i { "Switched to icon2" }
+                    println("$logTag: Switched to icon2")
                     Res.drawable.icon2
                 } else {
-                    kermit.i { "Switched to icon" }
+                    println("$logTag: Switched to icon")
                     Res.drawable.icon
                 }
             }
@@ -76,7 +74,7 @@ fun main() = application {
 
             // Standard menu items
             Item(label = "About") {
-                kermit.i { "Painter API Demo - Using resource icons" }
+                println("$logTag: Painter API Demo - Using resource icons")
             }
 
             Divider()
@@ -87,7 +85,7 @@ fun main() = application {
                 checked = alwaysShowTray,
                 onCheckedChange = { checked ->
                     alwaysShowTray = checked
-                    kermit.i { "Always show tray ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Always show tray ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -96,7 +94,7 @@ fun main() = application {
                 checked = hideOnClose,
                 onCheckedChange = { checked ->
                     hideOnClose = checked
-                    kermit.i { "Hide on close ${if (checked) "enabled" else "disabled"}" }
+                    println("$logTag: Hide on close ${if (checked) "enabled" else "disabled"}")
                 }
             )
 
@@ -104,11 +102,11 @@ fun main() = application {
 
             Item(label = "Hide in tray") {
                 isWindowVisible = false
-                kermit.i { "Application hidden in tray" }
+                println("$logTag: Application hidden in tray")
             }
 
             Item(label = "Exit") {
-                kermit.i { "Exiting application" }
+                println("$logTag: Exiting application")
                 dispose()
                 exitApplication()
             }

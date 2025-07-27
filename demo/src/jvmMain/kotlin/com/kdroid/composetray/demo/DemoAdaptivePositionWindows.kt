@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
@@ -26,12 +25,11 @@ import composenativetray.demo.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
-    allowComposeNativeTrayLogging = true
+    allowComposeNativeTrayLogging = false
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
     val logTag = "NativeTray"
-    val kermit = Logger.withTag(logTag)
-
-    kermit.d { "TrayPosition: ${getTrayPosition()}" }
+    
+    println("$logTag: TrayPosition: ${getTrayPosition()}")
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -67,7 +65,7 @@ fun main() = application {
            },
             primaryAction = {
                 isWindowVisible = true
-                kermit.i { "$logTag: On Primary Clicked" }
+                println("$logTag: On Primary Clicked")
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application"
@@ -76,10 +74,10 @@ fun main() = application {
             // Tools SubMenu
             SubMenu(label = "Tools") {
                 Item(label = "Calculator") {
-                    kermit.i { "$logTag: Calculator launched" }
+                    println("$logTag: Calculator launched")
                 }
                 Item(label = "Notepad") {
-                    kermit.i { "$logTag: Notepad opened" }
+                    println("$logTag: Notepad opened")
                 }
             }
 
@@ -91,7 +89,7 @@ fun main() = application {
                 checked = notificationsEnabled,
                 onCheckedChange = { isChecked ->
                     notificationsEnabled = isChecked
-                    kermit.i { "$logTag: Notifications ${if (isChecked) "enabled" else "disabled"}" }
+                    println("$logTag: Notifications ${if (isChecked) "enabled" else "disabled"}")
                 }
             )
             CheckableItem(
@@ -99,14 +97,14 @@ fun main() = application {
                 checked = initialChecked,
                 onCheckedChange = { isChecked ->
                     initialChecked = isChecked
-                    kermit.i { "$logTag: Initial Checked ${if (isChecked) "enabled" else "disabled"}" }
+                    println("$logTag: Initial Checked ${if (isChecked) "enabled" else "disabled"}")
                 }
             )
 
             Divider()
 
             Item(label = "About") {
-                kermit.i { "$logTag: Application v1.0 - Developed by Elyahou" }
+                println("$logTag: Application v1.0 - Developed by Elyahou")
             }
 
             Divider()
@@ -116,7 +114,7 @@ fun main() = application {
                 checked = alwaysShowTray,
                 onCheckedChange = { isChecked ->
                     alwaysShowTray = isChecked
-                    kermit.i { "$logTag: Always show tray ${if (isChecked) "enabled" else "disabled"}" }
+                    println("$logTag: Always show tray ${if (isChecked) "enabled" else "disabled"}")
                 }
             )
 
@@ -125,7 +123,7 @@ fun main() = application {
                 checked = hideOnClose,
                 onCheckedChange = { isChecked ->
                     hideOnClose = isChecked
-                    kermit.i { "$logTag: Hide on close ${if (isChecked) "enabled" else "disabled"}" }
+                    println("$logTag: Hide on close ${if (isChecked) "enabled" else "disabled"}")
                 }
             )
 
@@ -133,7 +131,7 @@ fun main() = application {
 
 
             Item(label = "Exit", isEnabled = true) {
-                kermit.i { "$logTag: Exiting the application" }
+                println("$logTag: Exiting the application")
                 dispose()
                 exitApplication()
             }

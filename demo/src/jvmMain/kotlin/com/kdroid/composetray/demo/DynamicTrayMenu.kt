@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import co.touchlab.kermit.Logger
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
@@ -29,12 +28,10 @@ private enum class ServiceStatus {
 
 fun main() = application {
     val logTag = "NativeTray"
-    val kermit = Logger.withTag(logTag)
-    allowComposeNativeTrayLogging = false
+    allowComposeNativeTrayLogging = true
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
-
-    kermit.d { "TrayPosition: ${getTrayPosition()}" }
+    println("$logTag: TrayPosition: ${getTrayPosition()}")
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -71,7 +68,7 @@ fun main() = application {
             },
             primaryAction = {
                 isWindowVisible = true
-                kermit.i { "On Primary Clicked" }
+                println("$logTag: On Primary Clicked")
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application",
@@ -91,11 +88,11 @@ fun main() = application {
                 // Dynamic Service Menu
                 SubMenu(label = "Service Control") {
                     Item(label = "Start Service", isEnabled = !running) {
-                        kermit.i { "Start Service selected" }
+                        println("$logTag: Start Service selected")
                         serviceStatus = ServiceStatus.RUNNING
                     }
                     Item(label = "Stop Service", isEnabled = running) {
-                        kermit.i { "Stop Service selected" }
+                        println("$logTag: Stop Service selected")
                         serviceStatus = ServiceStatus.STOPPED
                     }
                     Item(label = "Service Status: ${if (running) "Running" else "Stopped"}", isEnabled = false)
@@ -106,11 +103,11 @@ fun main() = application {
                 // Options SubMenu
                 SubMenu(label = "Options") {
                     Item(label = "Show Text") {
-                        kermit.i { "Show Text selected" }
+                        println("$logTag: Show Text selected")
                         textVisible = true
                     }
                     Item(label = "Hide Text") {
-                        kermit.i { "Hide Text selected" }
+                        println("$logTag: Hide Text selected")
                         textVisible = false
                     }
                 }
@@ -118,7 +115,7 @@ fun main() = application {
                 Divider()
 
                 Item(label = "About") {
-                    kermit.i { "Application v1.0 - Developed by Elyahou" }
+                    println("$logTag: Application v1.0 - Developed by Elyahou")
                 }
 
                 Divider()
@@ -128,7 +125,7 @@ fun main() = application {
                     checked = alwaysShowTray,
                     onCheckedChange = { isChecked ->
                         alwaysShowTray = isChecked
-                        kermit.i { "Always show tray ${if (isChecked) "enabled" else "disabled"}" }
+                        println("$logTag: Always show tray ${if (isChecked) "enabled" else "disabled"}")
                     }
                 )
 
@@ -137,14 +134,14 @@ fun main() = application {
                     checked = hideOnClose,
                     onCheckedChange = { isChecked ->
                         hideOnClose = isChecked
-                        kermit.i { "Hide on close ${if (isChecked) "enabled" else "disabled"}" }
+                        println("$logTag: Hide on close ${if (isChecked) "enabled" else "disabled"}")
                     }
                 )
 
                 Divider()
 
                 Item(label = "Exit", isEnabled = true) {
-                    kermit.i { "Exiting the application" }
+                    println("$logTag: Exiting the application")
                     dispose()
                     exitApplication()
                 }
