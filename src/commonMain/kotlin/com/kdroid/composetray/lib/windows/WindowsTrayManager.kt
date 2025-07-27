@@ -163,7 +163,7 @@ internal class WindowsTrayManager(
                 processUpdateQueue()
 
                 // Process Windows messages with blocking call for responsiveness
-                val result = trayLib.tray_loop(1) // Use blocking mode
+                val result = trayLib.tray_loop(0)
 
                 when (result) {
                     -1 -> {
@@ -201,6 +201,7 @@ internal class WindowsTrayManager(
                         consecutiveErrors = 0
                     }
                 }
+                Thread.sleep(50)
             } catch (e: Exception) {
                 log("Exception in message loop: ${e.message}")
                 if (running.get()) {
