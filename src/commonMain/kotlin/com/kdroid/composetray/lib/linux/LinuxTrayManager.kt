@@ -13,15 +13,15 @@ import kotlin.concurrent.withLock
  * Manages an SNI‑based tray icon on Linux.
  *
  * <h3>Changelog 2025‑07‑26</h3>
- * • Déduplication du rafraîchissement du menu via `refreshPending`.<br/>
- * • <em>Nouveau :</em> mise à jour incrémentale de l'état cochable d'un item sans
- *   reconstruire tout le menu : `updateMenuItemCheckedState()` utilise la voie
- *   native rapide quand le pointeur GTK/Qt de l'item est connu, et ne tombe
- *   sur un `recreateMenu()` complet qu'en cas de besoin (fallback).<br/>
- * • <em>Nouveau :</em> mise à jour incrémentale de l'icône sans reconstruire
- *   tout le menu : `updateIconPath()` utilise la voie native rapide et ne tombe
- *   sur un fallback qu'en cas d'erreur.<br/>
- * • <em>Nouveau :</em> capture de la position du clic pour placement précis des fenêtres.
+ * • Deduplication of menu refresh via `refreshPending`.<br/>
+ * • <em>New:</em> Incremental update of item checkable state without
+ *   rebuilding the entire menu: `updateMenuItemCheckedState()` uses the fast
+ *   native path when the GTK/Qt pointer of the item is known, and only falls back
+ *   to a complete `recreateMenu()` when necessary.<br/>
+ * • <em>New:</em> Incremental icon update without rebuilding
+ *   the entire menu: `updateIconPath()` uses the fast native path and only falls back
+ *   in case of error.<br/>
+ * • <em>New:</em> Capture of click position for precise window placement.
  */
 internal class LinuxTrayManager(
     private var iconPath: String,
@@ -100,8 +100,8 @@ internal class LinuxTrayManager(
     }
 
     /**
-     * Met à jour en temps réel l'état <i>checked / unchecked</i> d'un item sans
-     * déclencher un rebuild complet du menu, chaque fois que c'est possible.
+     * Updates the <i>checked / unchecked</i> state of an item in real-time without
+     * triggering a complete menu rebuild, whenever possible.
      */
     fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
         var fallbackRefreshNeeded = false

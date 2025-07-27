@@ -22,10 +22,10 @@ fun App(
 ) {
     var currentScreen by remember { mutableStateOf(Screen.Screen1) }
     
-    // Détecte automatiquement le thème système
+    // Automatically detect system theme
     val isDarkTheme = isSystemInDarkMode()
-    
-    // Material3 Theme avec support du mode sombre
+
+    // Material3 Theme with dark mode support
     MaterialTheme(
         colorScheme = if (isDarkTheme) {
             darkColorScheme()

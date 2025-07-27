@@ -98,12 +98,12 @@ internal fun loadTrayClickPosition(): TrayClickPosition? {
 
 internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
     return when (nativeResult) {
-        null -> throw IllegalArgumentException("La valeur retournée est nulle")
+        null -> throw IllegalArgumentException("Returned value is null")
         "top-left" -> TrayPosition.TOP_LEFT
         "top-right" -> TrayPosition.TOP_RIGHT
         "bottom-left" -> TrayPosition.BOTTOM_LEFT
         "bottom-right" -> TrayPosition.BOTTOM_RIGHT
-        else -> throw IllegalArgumentException("Valeur inconnue : $nativeResult")
+        else -> throw IllegalArgumentException("Unknown value: $nativeResult")
     }
 }
 
@@ -114,7 +114,7 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
  * - On Windows, it uses the platform's native library to determine the tray position.
  * - On macOS, it defaults to a specific standard position.
  * - On Linux, the position is fetched from click coordinates or properties file.
- * - Forunknown or unsupported operating systems, a default position is returned.
+ * - For unknown or unsupported operating systems, a default position is returned.
  *
  * @return The computed tray position as a [TrayPosition] enum value.
  */
@@ -273,14 +273,14 @@ fun getNotificationAreaXYForWindows(): Pair<Int, Int> {
 
     // On ne mémorise la coordonnée que si elle est fiable
     if (precise) {
-        val trayPosition = getTrayPosition()          // TOP_LEFT, TOP_RIGHT, …
+        val trayPosition = getTrayPosition()          // TOP_LEFT, TOP_RIGHT, ...
         TrayClickTracker.setClickPosition(x, y, trayPosition)
     }
 
-    println(
+    debugln {
         "Notification area : ($x, $y) " +
                 if (precise) "[exact]" else "[fallback]"
-    )
+    }
     return x to y
 }
 
