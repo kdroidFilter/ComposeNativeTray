@@ -1,12 +1,14 @@
 package com.kdroid.composetray.demo
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -19,14 +21,17 @@ fun App(
     onToggleChange: (Boolean, Boolean) -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(Screen.Screen1) }
-
-    // Material3 Theme
+    
+    // Détecte automatiquement le thème système
+    val isDarkTheme = isSystemInDarkMode()
+    
+    // Material3 Theme avec support du mode sombre
     MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = MaterialTheme.colorScheme.primary,
-            secondary = MaterialTheme.colorScheme.secondary,
-            tertiary = MaterialTheme.colorScheme.tertiary
-        )
+        colorScheme = if (isDarkTheme) {
+            darkColorScheme()
+        } else {
+            lightColorScheme()
+        }
     ) {
         Scaffold(
             topBar = {

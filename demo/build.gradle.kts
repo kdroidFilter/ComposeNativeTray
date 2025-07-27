@@ -21,6 +21,8 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.materialIconsExtended)
             implementation(libs.kermit)
+            implementation(libs.platformtools.darkmodedetector)
+
         }
     }
 }
