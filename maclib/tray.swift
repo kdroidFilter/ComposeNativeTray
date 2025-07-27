@@ -18,7 +18,7 @@ private var themeCallback: ThemeCallback? = nil
 private class MenuDelegate: NSObject, NSMenuDelegate {
     @objc func menuItemClicked(_ sender: NSMenuItem) {
         guard let menuItemPtr = sender.representedObject as? UnsafeMutableRawPointer else { return }
-        let callbackPtr = menuItemPtr.advanced(by: 16)
+        let callbackPtr = menuItemPtr.advanced(by: 24)
             .assumingMemoryBound(to: MenuItemCallback?.self)
         callbackPtr.pointee?(menuItemPtr)
     }

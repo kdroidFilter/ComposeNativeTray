@@ -76,7 +76,7 @@ fun main() = application {
             // Note: No menuKey needed anymore!
         ) {
             // Dynamic item that changes label
-            Item(label = dynamicItemLabel) {
+            Item(label = dynamicItemLabel, icon = Icons.Default.Favorite) {
                 itemCounter++
                 dynamicItemLabel = "Clicked $itemCounter times"
                 println("$logTag: Dynamic item clicked: $dynamicItemLabel")
