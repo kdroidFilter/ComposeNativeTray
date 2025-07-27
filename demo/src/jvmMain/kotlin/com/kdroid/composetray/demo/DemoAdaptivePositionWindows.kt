@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.Tray
@@ -33,7 +34,7 @@ fun main() = application {
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
-    var alwaysShowTray by remember { mutableStateOf(false) }
+    var alwaysShowTray by remember { mutableStateOf(true) }
     var hideOnClose by remember { mutableStateOf(true) }
     var notificationsEnabled by remember { mutableStateOf(false) }
     var initialChecked by remember { mutableStateOf(true) }
@@ -153,7 +154,7 @@ fun main() = application {
                 exitApplication()
             }
         },
-        state = rememberWindowState(
+        state = WindowState(
             width = windowWidth.dp,
             height = windowHeight.dp,
             position = windowPosition

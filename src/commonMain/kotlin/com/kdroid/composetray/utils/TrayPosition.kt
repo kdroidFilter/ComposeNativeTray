@@ -4,6 +4,7 @@ import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.sun.jna.Native
+import com.sun.jna.ptr.IntByReference
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.Toolkit
@@ -29,6 +30,11 @@ internal object TrayClickTracker {
     fun updateClickPosition(x: Int, y: Int) {
         val screenSize = Toolkit.getDefaultToolkit().screenSize
         val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
+        lastClickPosition.set(TrayClickPosition(x, y, position))
+        saveTrayClickPosition(x, y, position)
+    }
+
+    fun setClickPosition(x: Int, y: Int, position: TrayPosition) {
         lastClickPosition.set(TrayClickPosition(x, y, position))
         saveTrayClickPosition(x, y, position)
     }
@@ -108,7 +114,7 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
  * - On Windows, it uses the platform's native library to determine the tray position.
  * - On macOS, it defaults to a specific standard position.
  * - On Linux, the position is fetched from click coordinates or properties file.
- * - For unknown or unsupported operating systems, a default position is returned.
+ * - Forunknown or unsupported operating systems, a default position is returned.
  *
  * @return The computed tray position as a [TrayPosition] enum value.
  */
@@ -164,6 +170,27 @@ fun getTrayPosition(): TrayPosition {
 fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
 
+    // For Windows, try to use exact click coordinates, fallback to native and save like Linux
+    if (getOperatingSystem() == OperatingSystem.WINDOWS) {
+        // 1) on tente de récupérer ce qu’on a déjà
+        val cachedPos = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
+
+    // 2) on interroge la DLL (asynchrone, peut échouer)
+        getNotificationAreaXYForWindows()
+
+        // 3) on choisit la meilleure info disponible
+        val freshPos = TrayClickTracker.getLastClickPosition()
+        val posToUse = cachedPos ?: freshPos
+        ?: return fallbackCornerPosition(windowWidth, windowHeight) // aucun point fiable
+
+        return calculateWindowPositionFromClick(
+            posToUse.x, posToUse.y, posToUse.position,
+            windowWidth, windowHeight,
+            screenSize.width, screenSize.height
+        )
+
+    }
+
     // For Linux, try to use exact click coordinates
     if (getOperatingSystem() == OperatingSystem.LINUX) {
         val clickPos = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
@@ -199,7 +226,6 @@ private fun calculateWindowPositionFromClick(
     windowWidth: Int, windowHeight: Int,
     screenWidth: Int, screenHeight: Int
 ): WindowPosition {
-    val margin = 10 // Small margin from the tray icon
 
     // Horizontal: center on the icon
     var x = clickX - (windowWidth / 2)
@@ -214,10 +240,10 @@ private fun calculateWindowPositionFromClick(
     // Vertical: depend on tray position (top or bottom)
     var y = if (trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT) {
         // Tray at top: position window below icon
-        clickY + margin
+        clickY
     } else {
         // Tray at bottom: position window above icon
-        clickY - windowHeight - margin
+        clickY - windowHeight
     }
 
     // Ensure window stays within screen bounds vertically
@@ -228,4 +254,44 @@ private fun calculateWindowPositionFromClick(
     }
 
     return WindowPosition(x = x.dp, y = y.dp)
+}
+
+/**
+ * Interroge la DLL native pour récupérer le coin (x, y) de la zone de notification Windows.
+ */
+fun getNotificationAreaXYForWindows(): Pair<Int, Int> {
+    val xRef = IntByReference()
+    val yRef = IntByReference()
+
+    val trayLib: WindowsNativeTrayLibrary =
+        Native.load("tray", WindowsNativeTrayLibrary::class.java)
+
+    val precise = trayLib.tray_get_notification_icons_position(xRef, yRef) != 0
+
+    val x = xRef.value
+    val y = yRef.value
+
+    // On ne mémorise la coordonnée que si elle est fiable
+    if (precise) {
+        val trayPosition = getTrayPosition()          // TOP_LEFT, TOP_RIGHT, …
+        TrayClickTracker.setClickPosition(x, y, trayPosition)
+    }
+
+    println(
+        "Notification area : ($x, $y) " +
+                if (precise) "[exact]" else "[fallback]"
+    )
+    return x to y
+}
+
+private fun fallbackCornerPosition(w: Int, h: Int): WindowPosition {
+    val screen = Toolkit.getDefaultToolkit().screenSize
+    return when (getTrayPosition()) {
+        TrayPosition.TOP_LEFT     -> WindowPosition(0.dp, 0.dp)
+        TrayPosition.TOP_RIGHT    -> WindowPosition((screen.width - w).dp, 0.dp)
+        TrayPosition.BOTTOM_LEFT  -> WindowPosition(0.dp, (screen.height - h).dp)
+        TrayPosition.BOTTOM_RIGHT -> WindowPosition(
+            (screen.width - w).dp, (screen.height - h).dp
+        )
+    }
 }
