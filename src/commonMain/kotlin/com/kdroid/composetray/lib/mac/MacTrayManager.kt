@@ -7,6 +7,7 @@ import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.Library
 import com.sun.jna.Callback
+import com.sun.jna.ptr.IntByReference
 import kotlinx.coroutines.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -329,6 +330,10 @@ internal class MacTrayManager(
         fun tray_exit()
         fun tray_set_theme_callback(cb: ThemeCallback)
         fun tray_is_menu_dark(): Int
+
+        fun tray_get_status_item_position(x: IntByReference, y: IntByReference): Int
+
+        fun tray_get_status_item_region(): String?
     }
 
     // Structure for a menu item

@@ -48,16 +48,16 @@ private class MenuDelegate: NSObject, NSMenuDelegate {
 }
 
 // MARK: - Appearance observer with ultra‑low latency
-/// Detects menu‑bar theme changes in <60 ms using KVO + GCD debouncing.
+/// Detects menu‑bar theme changes in <60 ms using KVO + GCD debouncing.
 private class MenuBarAppearanceObserver {
     private var observation: NSKeyValueObservation?
     private var workItem: DispatchWorkItem?
     private var lastAppearance: NSAppearance.Name?
 
     /// Debounce delay before first evaluation (keep tiny but non‑zero).
-    private let debounce: TimeInterval = 0.04   // 40 ms
+    private let debounce: TimeInterval = 0.04   // 40 ms
     /// Settling delay to avoid reporting intermediate states.
-    private let settle: TimeInterval  = 0.005   // 5 ms
+    private let settle: TimeInterval  = 0.005   // 5 ms
 
     func startObserving(_ statusItem: NSStatusItem) {
         observation = statusItem.button?.observe(
@@ -252,4 +252,55 @@ public func tray_is_menu_dark() -> Int32 {
         return 1 // assume dark if unknown
     }
     return name == .darkAqua ? 1 : 0
+}
+
+// MARK: - Status‑item geometry (exported to C)
+
+// Returns 1 if the coordinate is precise, 0 if we had to use a fallback.
+@_cdecl("tray_get_status_item_position")
+public func tray_get_status_item_position(
+    _ x: UnsafeMutablePointer<Int32>?,
+    _ y: UnsafeMutablePointer<Int32>?
+) -> Int32
+{
+    guard
+        let button = statusItem?.button,
+        let window = button.window,
+        let screen = window.screen
+    else {
+        x?.pointee = 0
+        y?.pointee = 0
+        return 0        // unreliable coordinates
+    }
+
+    // Button frame in screen space (origin at bottom-left)
+    var rect = button.convert(button.bounds, to: nil)
+    rect      = window.convertToScreen(rect)
+
+    // -- X ---------------------------------------------------------------
+    // Horizontal center of the icon (ideal for centered placement)
+    x?.pointee = Int32(lround(rect.midX))
+
+    // -- Y ---------------------------------------------------------------
+    // Inverted coordinate system to match Windows/Linux (origin at top)
+    let flippedY = Int32(screen.frame.maxY - rect.maxY)
+    y?.pointee = flippedY
+
+    return 1            // precise coordinates
+}
+
+/// Returns "top-left" or "top-right" (menu-bar always at top).
+@_cdecl("tray_get_status_item_region")
+public func tray_get_status_item_region() -> UnsafeMutablePointer<CChar>? {
+    guard let button = statusItem?.button,
+          let screen = button.window?.screen else {
+        return strdup("top-right")          // default value
+    }
+
+    let rect   = button.window!.convertToScreen(
+        button.convert(button.bounds, to: nil)
+    )
+    let midX   = screen.frame.midX
+    let region = rect.minX < midX ? "top-left" : "top-right"
+    return strdup(region)                   // to be freed on JVM/JNA side
 }

@@ -3,6 +3,7 @@ package com.kdroid.composetray.utils
 import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
+import com.kdroid.composetray.lib.mac.MacTrayManager
 import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
 import io.github.kdroidfilter.platformtools.OperatingSystem
@@ -124,7 +125,11 @@ fun getTrayPosition(): TrayPosition {
             val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
             return getWindowsTrayPosition(trayLib.tray_get_notification_icons_region())
         }
-        OperatingSystem.MACOS -> return TrayPosition.TOP_RIGHT //Todo
+        OperatingSystem.MACOS -> {
+            val lib: MacTrayManager.MacTrayLibrary =
+                Native.load("MacTray", MacTrayManager.MacTrayLibrary::class.java)
+            return getMacTrayPosition(lib.tray_get_status_item_region())
+        }
         OperatingSystem.LINUX -> {
             // First check if we have a recent click position in memory
             TrayClickTracker.getLastClickPosition()?.let {
@@ -190,6 +195,31 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
         )
 
     }
+
+    if (getOperatingSystem() == OperatingSystem.MACOS) {
+        // 1) cache éventuel
+        val cached = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
+
+        // 2) interroge Cocoa
+        val (x0, y0) = getStatusItemXYForMac()
+        if (x0 != 0 || y0 != 0) {
+            TrayClickTracker.setClickPosition(
+                x0, y0,
+                getTrayPosition()        // TOP_LEFT ou TOP_RIGHT
+            )
+        }
+
+        // 3) choisit la meilleure info
+        val pos = TrayClickTracker.getLastClickPosition() ?: cached
+        if (pos != null) {
+            return calculateWindowPositionFromClick(
+                pos.x, pos.y, pos.position,
+                windowWidth, windowHeight,
+                screenSize.width, screenSize.height
+            )
+        }
+    }
+
 
     // For Linux, try to use exact click coordinates
     if (getOperatingSystem() == OperatingSystem.LINUX) {
@@ -294,4 +324,21 @@ private fun fallbackCornerPosition(w: Int, h: Int): WindowPosition {
             (screen.width - w).dp, (screen.height - h).dp
         )
     }
+}
+
+internal fun getMacTrayPosition(nativeResult: String?): TrayPosition = when (nativeResult) {
+    "top-left"     -> TrayPosition.TOP_LEFT
+    "top-right"    -> TrayPosition.TOP_RIGHT
+    // on ne verra jamais TOP/BOTTOM_BOTTOM sur mac, mais pour rester cohérent :
+    else           -> TrayPosition.TOP_RIGHT
+}
+
+internal fun getStatusItemXYForMac(): Pair<Int, Int> {
+    val xRef = IntByReference()
+    val yRef = IntByReference()
+    val lib: MacTrayManager.MacTrayLibrary =
+        Native.load("MacTray", MacTrayManager.MacTrayLibrary::class.java)
+
+    val precise = lib.tray_get_status_item_position(xRef, yRef) != 0
+    return xRef.value to yRef.value    // si !precise, valeurs = (0,0)
 }
