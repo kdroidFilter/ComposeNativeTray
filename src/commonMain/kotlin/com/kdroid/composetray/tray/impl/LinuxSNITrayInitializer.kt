@@ -1,8 +1,10 @@
 package com.kdroid.composetray.tray.impl
 
 import com.kdroid.composetray.lib.linux.LinuxTrayManager
+import com.kdroid.composetray.lib.linux.SNIWrapper
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -11,6 +13,15 @@ object LinuxSNITrayInitializer {
     private var trayMenuImpl: LinuxTrayMenuBuilderImpl? = null
     private var linuxTrayManager: LinuxTrayManager? = null
     private val lock = ReentrantLock()
+
+    init {
+        val debugMode = allowComposeNativeTrayLogging
+        try {
+            SNIWrapper.INSTANCE.sni_set_debug_mode(if (debugMode) 1 else 0)
+        } catch (e: Exception) {
+        }
+
+    }
 
     fun initialize(
         iconPath: String,

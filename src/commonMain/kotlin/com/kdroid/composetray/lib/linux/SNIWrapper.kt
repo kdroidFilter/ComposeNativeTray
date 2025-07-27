@@ -73,4 +73,7 @@ interface SNIWrapper : Library {
     fun sni_exec(): Int
     fun sni_process_events()
     fun sni_stop_exec()
+
+    //Debug mode management
+    fun sni_set_debug_mode(enabled: Int)
 }

@@ -30,7 +30,7 @@ private enum class ServiceStatus {
 fun main() = application {
     val logTag = "NativeTray"
     val kermit = Logger.withTag(logTag)
-    allowComposeNativeTrayLogging = true
+    allowComposeNativeTrayLogging = false
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
 
