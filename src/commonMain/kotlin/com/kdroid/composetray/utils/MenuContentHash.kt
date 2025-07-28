@@ -62,7 +62,7 @@ object MenuContentHash {
             isEnabled: Boolean,
             onClick: () -> Unit
         ) {
-            operations.add("ItemWithImageVectorIcon:$label:${iconTint != null}:$isEnabled")
+            operations.add("ItemWithImageVectorIcon:$label:${iconTint != null}:$isEnabled:${icon.hashCode()}")
         }
         
         override fun Item(
@@ -72,7 +72,7 @@ object MenuContentHash {
             isEnabled: Boolean,
             onClick: () -> Unit
         ) {
-            operations.add("ItemWithPainterIcon:$label:$isEnabled")
+            operations.add("ItemWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
         }
 
         override fun CheckableItem(
@@ -104,7 +104,7 @@ object MenuContentHash {
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean
         ) {
-            operations.add("CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled")
+            operations.add("CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}")
         }
         
         override fun CheckableItem(
@@ -115,7 +115,7 @@ object MenuContentHash {
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean
         ) {
-            operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled")
+            operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
         }
 
         override fun SubMenu(
@@ -154,7 +154,7 @@ object MenuContentHash {
             isEnabled: Boolean,
             submenuContent: (TrayMenuBuilder.() -> Unit)?
         ) {
-            operations.add("SubMenuWithImageVectorIcon:$label:${iconTint != null}:$isEnabled")
+            operations.add("SubMenuWithImageVectorIcon:$label:${iconTint != null}:$isEnabled:${icon.hashCode()}")
             if (submenuContent != null) {
                 operations.add("SubMenuStart")
                 submenuContent.invoke(this)
@@ -169,7 +169,7 @@ object MenuContentHash {
             isEnabled: Boolean,
             submenuContent: (TrayMenuBuilder.() -> Unit)?
         ) {
-            operations.add("SubMenuWithPainterIcon:$label:$isEnabled")
+            operations.add("SubMenuWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
             if (submenuContent != null) {
                 operations.add("SubMenuStart")
                 submenuContent.invoke(this)
