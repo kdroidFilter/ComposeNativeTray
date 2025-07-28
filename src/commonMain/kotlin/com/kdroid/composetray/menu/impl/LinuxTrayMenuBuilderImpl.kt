@@ -1,12 +1,18 @@
 package com.kdroid.composetray.menu.impl
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.lib.linux.LinuxTrayManager
+import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
+import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -34,7 +40,7 @@ internal class LinuxTrayMenuBuilderImpl(
             persistentMenuItems.add(menuItem) // Store reference
         }
     }
-    
+
     override fun Item(
         label: String,
         iconContent: @Composable () -> Unit,
@@ -42,11 +48,21 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         onClick: () -> Unit
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        Item(label, isEnabled, onClick)
+        lock.withLock {
+            // Render the composable icon to a PNG file
+            val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
+
+            val menuItem = LinuxTrayManager.MenuItem(
+                text = label,
+                isEnabled = isEnabled,
+                iconPath = iconPath,
+                onClick = onClick
+            )
+            menuItems.add(menuItem)
+            persistentMenuItems.add(menuItem)
+        }
     }
-    
+
     override fun Item(
         label: String,
         icon: ImageVector,
@@ -55,11 +71,25 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         onClick: () -> Unit
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        Item(label, isEnabled, onClick)
+
+        // Create composable content for the icon
+        val iconContent: @Composable () -> Unit = {
+            val isDark = isMenuBarInDarkMode()
+
+            Image(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                colorFilter = iconTint?.let { ColorFilter.tint(it) }
+                    ?: if (isDark) ColorFilter.tint(Color.White)
+                    else ColorFilter.tint(Color.Black)
+            )
+        }
+
+        // Delegate to the composable version
+        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
     }
-    
+
     override fun Item(
         label: String,
         icon: Painter,
@@ -67,9 +97,17 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         onClick: () -> Unit
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        Item(label, isEnabled, onClick)
+        // Create composable content for the painter
+        val iconContent: @Composable () -> Unit = {
+            Image(
+                painter = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Delegate to the composable version
+        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
     }
 
     override fun CheckableItem(
@@ -83,7 +121,7 @@ internal class LinuxTrayMenuBuilderImpl(
             // This will be used in the onClick callback to get the current state
             // instead of capturing the initial state
             val initialChecked = checked
-            
+
             val menuItem = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
@@ -96,10 +134,10 @@ internal class LinuxTrayMenuBuilderImpl(
                         // Toggle based on the current state, not the initial state
                         val currentChecked = currentMenuItem?.isChecked ?: initialChecked
                         val newChecked = !currentChecked
-                        
+
                         // Call the onCheckedChange callback with the new state
                         onCheckedChange(newChecked)
-                        
+
                         // Update the tray manager to reflect the new state
                         trayManager?.updateMenuItemCheckedState(label, newChecked)
                     }
@@ -109,7 +147,7 @@ internal class LinuxTrayMenuBuilderImpl(
             persistentMenuItems.add(menuItem) // Store reference
         }
     }
-    
+
     override fun CheckableItem(
         label: String,
         iconContent: @Composable () -> Unit,
@@ -118,11 +156,34 @@ internal class LinuxTrayMenuBuilderImpl(
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+        lock.withLock {
+            // Render the composable icon to a PNG file
+            val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
+
+            val initialChecked = checked
+
+            val menuItem = LinuxTrayManager.MenuItem(
+                text = label,
+                isEnabled = isEnabled,
+                isCheckable = true,
+                isChecked = initialChecked,
+                iconPath = iconPath,
+                onClick = {
+                    lock.withLock {
+                        val currentMenuItem = menuItems.find { it.text == label }
+                        val currentChecked = currentMenuItem?.isChecked ?: initialChecked
+                        val newChecked = !currentChecked
+
+                        onCheckedChange(newChecked)
+                        trayManager?.updateMenuItemCheckedState(label, newChecked)
+                    }
+                }
+            )
+            menuItems.add(menuItem)
+            persistentMenuItems.add(menuItem)
+        }
     }
-    
+
     override fun CheckableItem(
         label: String,
         icon: ImageVector,
@@ -132,11 +193,25 @@ internal class LinuxTrayMenuBuilderImpl(
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+
+        // Create composable content for the icon
+        val iconContent: @Composable () -> Unit = {
+            val isDark = isMenuBarInDarkMode()
+
+            Image(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                colorFilter = iconTint?.let { ColorFilter.tint(it) }
+                    ?: if (isDark) ColorFilter.tint(Color.White)
+                    else ColorFilter.tint(Color.Black)
+            )
+        }
+
+        // Delegate to the composable version
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
     }
-    
+
     override fun CheckableItem(
         label: String,
         icon: Painter,
@@ -145,9 +220,17 @@ internal class LinuxTrayMenuBuilderImpl(
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+        // Create composable content for the painter
+        val iconContent: @Composable () -> Unit = {
+            Image(
+                painter = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Delegate to the composable version
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
     }
 
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
@@ -172,7 +255,7 @@ internal class LinuxTrayMenuBuilderImpl(
             persistentMenuItems.add(subMenu) // Store reference
         }
     }
-    
+
     override fun SubMenu(
         label: String,
         iconContent: @Composable () -> Unit,
@@ -180,11 +263,33 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        SubMenu(label, isEnabled, submenuContent)
+        val subMenuItems = mutableListOf<LinuxTrayManager.MenuItem>()
+        if (submenuContent != null) {
+            val subMenuImpl = LinuxTrayMenuBuilderImpl(
+                iconPath,
+                tooltip,
+                onLeftClick,
+                primaryActionLabel,
+                trayManager = trayManager
+            ).apply(submenuContent)
+            subMenuItems.addAll(subMenuImpl.menuItems)
+        }
+
+        lock.withLock {
+            // Render the composable icon to a PNG file
+            val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
+
+            val subMenu = LinuxTrayManager.MenuItem(
+                text = label,
+                isEnabled = isEnabled,
+                iconPath = iconPath,
+                subMenuItems = subMenuItems
+            )
+            menuItems.add(subMenu)
+            persistentMenuItems.add(subMenu)
+        }
     }
-    
+
     override fun SubMenu(
         label: String,
         icon: ImageVector,
@@ -193,11 +298,24 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        SubMenu(label, isEnabled, submenuContent)
+
+        // Create composable content for the icon
+        val iconContent: @Composable () -> Unit = {
+            val isDark = isMenuBarInDarkMode()
+            Image(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                colorFilter = iconTint?.let { ColorFilter.tint(it) }
+                    ?: if (isDark) ColorFilter.tint(Color.White)
+                    else ColorFilter.tint(Color.Black)
+            )
+        }
+
+        // Delegate to the composable version
+        SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
-    
+
     override fun SubMenu(
         label: String,
         icon: Painter,
@@ -205,9 +323,17 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        SubMenu(label, isEnabled, submenuContent)
+        // Create composable content for the painter
+        val iconContent: @Composable () -> Unit = {
+            Image(
+                painter = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Delegate to the composable version
+        SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
     override fun Divider() {

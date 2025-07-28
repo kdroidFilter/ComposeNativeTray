@@ -49,14 +49,13 @@ interface SNIWrapper : Library {
     fun set_context_menu(handle: Pointer?, menu: Pointer?)
     fun add_menu_action(menu_handle: Pointer?, text: String?, cb: ActionCallback?, data: Pointer?): Pointer?
     fun add_disabled_menu_action(menu_handle: Pointer?, text: String?, cb: ActionCallback?, data: Pointer?): Pointer?
-    fun add_checkable_menu_action(menu_handle: Pointer?, text: String?, checked: Int, cb: ActionCallback?, data: Pointer?): Pointer?
-    fun add_menu_separator(menu_handle: Pointer?)
+    fun add_checkable_menu_action(menu_handle: Pointer?, text: String?, checked: Int, cb: ActionCallback?, data: Pointer?): Pointer?    fun add_menu_separator(menu_handle: Pointer?)
     fun create_submenu(menu_handle: Pointer?, text: String?): Pointer?
     fun set_menu_item_text(menu_item_handle: Pointer?, text: String?)
     fun set_menu_item_enabled(menu_item_handle: Pointer?, enabled: Int)
     fun set_menu_item_checked(menu_item_handle: Pointer?, checked: Int): Int
     fun remove_menu_item(menu_handle: Pointer?, menu_item_handle: Pointer?)
-
+    fun set_menu_item_icon(menu_item_handle: Pointer?, icon_path_or_name: String?)
     fun tray_update(handle: Pointer?)
 
     fun clear_menu(menu_handle: Pointer?)

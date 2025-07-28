@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,7 +103,7 @@ fun main() = application {
                         Item(label = "Advanced Option 1") {
                             println("$logTag: Advanced Option 1 selected")
                         }
-                        Item(label = "Advanced Option 2") {
+                        Item(label = "Advanced Option 2", icon = Icons.Default.ZoomOut) {
                             println("$logTag: Advanced Option 2 selected")
                         }
                     }
@@ -124,6 +126,7 @@ fun main() = application {
 
             // New idiomatic CheckableItem usage
             CheckableItem(
+                icon = Icons.Default.Notifications,
                 label = "Enable notifications",
                 checked = notificationsEnabled,
                 onCheckedChange = { checked ->

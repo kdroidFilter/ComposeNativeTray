@@ -48,8 +48,7 @@ internal class LinuxTrayManager(
 
     // GC safety -------------------------------------------------------------------------------
     private val callbackReferences: MutableList<Any> = mutableListOf()
-    private val menuItemReferences: MutableMap<String, Pointer> = mutableMapOf()
-
+    private val menuItemReferences: MutableMap<String, MenuItemInfo> = mutableMapOf()
     private var activateCallback: SNIWrapper.ActivateCallback? = null
     private var secondaryActivateCallback: SNIWrapper.SecondaryActivateCallback? = null
     private var scrollCallback: SNIWrapper.ScrollCallback? = null
@@ -91,8 +90,14 @@ internal class LinuxTrayManager(
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
+        val iconPath: String? = null,
         val onClick: (() -> Unit)? = null,
         val subMenuItems: List<MenuItem> = emptyList()
+    )
+
+    private data class MenuItemInfo(
+        val pointer: Pointer,
+        val isSubmenu: Boolean = false
     )
 
     fun addMenuItem(menuItem: MenuItem) {
@@ -106,38 +111,29 @@ internal class LinuxTrayManager(
     fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
         var fallbackRefreshNeeded = false
         lock.withLock {
-            // 1. Mettre à jour le modèle mémoire ---------------------------------------------
             val idx = menuItems.indexOfFirst { it.text == label }
             if (idx != -1) {
                 menuItems[idx] = menuItems[idx].copy(isChecked = isChecked)
             }
 
-            // 2. Chemin rapide : on possède déjà le pointeur natif de l'item ⇒ mise à jour GTK/Qt
-            val ptr = menuItemReferences[label]
-            if (ptr != null && trayHandle != null) {
+            val itemInfo = menuItemReferences[label]
+            if (itemInfo != null && !itemInfo.isSubmenu && trayHandle != null) {
                 try {
-                    // Méthode à exposer dans SNIWrapper :
-                    //    int set_menu_item_checked(Pointer menuItem, int checked)
-                    val ok = sni.set_menu_item_checked(ptr, if (isChecked) 1 else 0)
+                    val ok = sni.set_menu_item_checked(itemInfo.pointer, if (isChecked) 1 else 0)
                     if (ok == 0) {
-                        // SNI l'a fait, on force le repaint global (léger)
                         sni.tray_update(trayHandle)
                     } else {
-                        // Implé pas dispo ou erreur : on repassera par recreateMenu
                         fallbackRefreshNeeded = true
                     }
                 } catch (_: UnsatisfiedLinkError) {
-                    // Version de lib sans cette fonction : on repassera par recreateMenu
                     fallbackRefreshNeeded = true
                 }
             } else {
-                // Pointeur pas encore connu (menu pas construit) : on refera un refresh complet
                 fallbackRefreshNeeded = true
             }
         }
         if (fallbackRefreshNeeded) requestMenuRefresh()
     }
-
     // ---------------------------------------------------------------------------------- update
     fun update(
         newIconPath: String,
@@ -338,19 +334,43 @@ internal class LinuxTrayManager(
     private fun addNativeMenuItem(parentMenu: Pointer, menuItem: MenuItem) {
         when {
             menuItem.text == "-" -> sni.add_menu_separator(parentMenu)
+
             menuItem.subMenuItems.isNotEmpty() -> {
                 val submenu = sni.create_submenu(parentMenu, menuItem.text)
                 if (submenu != null) {
-                    menuItemReferences[menuItem.text] = submenu
+                    // Stocker le submenu avec un flag indiquant que c'est un submenu
+                    menuItemReferences[menuItem.text] = MenuItemInfo(submenu, isSubmenu = true)
+
+                    // Pour les submenus, on ne peut pas utiliser set_menu_item_icon directement
+                    // car create_submenu retourne un QMenu*, pas un QAction*
+                    // L'icône devra être gérée différemment ou ignorée pour l'instant
+                    if (menuItem.iconPath != null) {
+                        warnln { "LinuxTrayManager: Icons for submenus are not yet supported" }
+                    }
+
                     menuItem.subMenuItems.forEach { addNativeMenuItem(submenu, it) }
                 }
             }
+
             menuItem.isCheckable -> {
                 val cb = createActionCallback(menuItem)
-                val item = sni.add_checkable_menu_action(parentMenu, menuItem.text, if (menuItem.isChecked) 1 else 0, cb, null)
+                val item = sni.add_checkable_menu_action(
+                    parentMenu,
+                    menuItem.text,
+                    if (menuItem.isChecked) 1 else 0,
+                    cb,
+                    null
+                )
                 callbackReferences.add(cb)
-                item?.let { menuItemReferences[menuItem.text] = it }
+                item?.let {
+                    menuItemReferences[menuItem.text] = MenuItemInfo(it)
+                    menuItem.iconPath?.let { iconPath ->
+                        debugln { "LinuxTrayManager: Setting icon for checkable item '${menuItem.text}': $iconPath" }
+                        sni.set_menu_item_icon(it, iconPath)
+                    }
+                }
             }
+
             else -> {
                 val cb = createActionCallback(menuItem)
                 val item = if (menuItem.isEnabled) {
@@ -359,11 +379,16 @@ internal class LinuxTrayManager(
                     sni.add_disabled_menu_action(parentMenu, menuItem.text, cb, null)
                 }
                 callbackReferences.add(cb)
-                item?.let { menuItemReferences[menuItem.text] = it }
+                item?.let {
+                    menuItemReferences[menuItem.text] = MenuItemInfo(it)
+                    menuItem.iconPath?.let { iconPath ->
+                        debugln { "LinuxTrayManager: Setting icon for item '${menuItem.text}': $iconPath" }
+                        sni.set_menu_item_icon(it, iconPath)
+                    }
+                }
             }
         }
     }
-
     private fun createActionCallback(menuItem: MenuItem): SNIWrapper.ActionCallback =
         object : SNIWrapper.ActionCallback {
             override fun invoke(data: Pointer?) {
