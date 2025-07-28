@@ -63,9 +63,9 @@ val buildMac: TaskProvider<Exec> = tasks.register<Exec>("buildNativeMac") {
 }
 
 val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
-//    onlyIf { System.getProperty("os.name").toLowerCase().contains("linux") }
-//    workingDir(rootDir.resolve("linuxlibdbus"))
-////    commandLine("./build.sh")
+    onlyIf { System.getProperty("os.name").toLowerCase().contains("linux") }
+    workingDir(rootDir.resolve("linuxlib"))
+    commandLine("./build.sh")
 }
 
 tasks.register("buildNativeLibraries") {
