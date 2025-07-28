@@ -101,6 +101,8 @@ application {
 }
 ```
 
+> **💡 Recommendation**: It is highly recommended to check out the demo examples in the project's `demo` directory. These examples showcase various implementation patterns and features that will help you better understand how to use the library effectively.
+
 ## 📚 Usage Guide
 
 ### 🎨 Creating the System Tray Icon
