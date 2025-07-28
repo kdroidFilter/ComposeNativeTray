@@ -56,6 +56,7 @@ interface SNIWrapper : Library {
     fun set_menu_item_checked(menu_item_handle: Pointer?, checked: Int): Int
     fun remove_menu_item(menu_handle: Pointer?, menu_item_handle: Pointer?)
     fun set_menu_item_icon(menu_item_handle: Pointer?, icon_path_or_name: String?)
+    fun set_submenu_icon(submenu_handle: Pointer?, icon_path_or_name: String?)
     fun tray_update(handle: Pointer?)
 
     fun clear_menu(menu_handle: Pointer?)

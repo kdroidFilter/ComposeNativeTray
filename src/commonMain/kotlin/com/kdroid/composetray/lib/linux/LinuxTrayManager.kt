@@ -48,7 +48,7 @@ internal class LinuxTrayManager(
 
     // GC safety -------------------------------------------------------------------------------
     private val callbackReferences: MutableList<Any> = mutableListOf()
-    private val menuItemReferences: MutableMap<String, MenuItemInfo> = mutableMapOf()
+    private val menuItemReferences: MutableMap<String, Pointer> = mutableMapOf()
     private var activateCallback: SNIWrapper.ActivateCallback? = null
     private var secondaryActivateCallback: SNIWrapper.SecondaryActivateCallback? = null
     private var scrollCallback: SNIWrapper.ScrollCallback? = null
@@ -116,10 +116,10 @@ internal class LinuxTrayManager(
                 menuItems[idx] = menuItems[idx].copy(isChecked = isChecked)
             }
 
-            val itemInfo = menuItemReferences[label]
-            if (itemInfo != null && !itemInfo.isSubmenu && trayHandle != null) {
+            val ptr = menuItemReferences[label]  // C'est un Pointer directement
+            if (ptr != null && trayHandle != null) {
                 try {
-                    val ok = sni.set_menu_item_checked(itemInfo.pointer, if (isChecked) 1 else 0)
+                    val ok = sni.set_menu_item_checked(ptr, if (isChecked) 1 else 0)
                     if (ok == 0) {
                         sni.tray_update(trayHandle)
                     } else {
@@ -134,6 +134,7 @@ internal class LinuxTrayManager(
         }
         if (fallbackRefreshNeeded) requestMenuRefresh()
     }
+
     // ---------------------------------------------------------------------------------- update
     fun update(
         newIconPath: String,
@@ -338,14 +339,11 @@ internal class LinuxTrayManager(
             menuItem.subMenuItems.isNotEmpty() -> {
                 val submenu = sni.create_submenu(parentMenu, menuItem.text)
                 if (submenu != null) {
-                    // Stocker le submenu avec un flag indiquant que c'est un submenu
-                    menuItemReferences[menuItem.text] = MenuItemInfo(submenu, isSubmenu = true)
+                    menuItemReferences[menuItem.text] = submenu  // Directement le Pointer
 
-                    // Pour les submenus, on ne peut pas utiliser set_menu_item_icon directement
-                    // car create_submenu retourne un QMenu*, pas un QAction*
-                    // L'icône devra être gérée différemment ou ignorée pour l'instant
-                    if (menuItem.iconPath != null) {
-                        warnln { "LinuxTrayManager: Icons for submenus are not yet supported" }
+                    menuItem.iconPath?.let { iconPath ->
+                        debugln { "LinuxTrayManager: Setting icon for submenu '${menuItem.text}': $iconPath" }
+                        sni.set_submenu_icon(submenu, iconPath)
                     }
 
                     menuItem.subMenuItems.forEach { addNativeMenuItem(submenu, it) }
@@ -363,7 +361,7 @@ internal class LinuxTrayManager(
                 )
                 callbackReferences.add(cb)
                 item?.let {
-                    menuItemReferences[menuItem.text] = MenuItemInfo(it)
+                    menuItemReferences[menuItem.text] = it  // Directement le Pointer
                     menuItem.iconPath?.let { iconPath ->
                         debugln { "LinuxTrayManager: Setting icon for checkable item '${menuItem.text}': $iconPath" }
                         sni.set_menu_item_icon(it, iconPath)
@@ -380,7 +378,7 @@ internal class LinuxTrayManager(
                 }
                 callbackReferences.add(cb)
                 item?.let {
-                    menuItemReferences[menuItem.text] = MenuItemInfo(it)
+                    menuItemReferences[menuItem.text] = it  // Directement le Pointer
                     menuItem.iconPath?.let { iconPath ->
                         debugln { "LinuxTrayManager: Setting icon for item '${menuItem.text}': $iconPath" }
                         sni.set_menu_item_icon(it, iconPath)

@@ -87,7 +87,7 @@ fun main() = application {
             Divider()
 
             // Options SubMenu
-            SubMenu(label = "Options") {
+            SubMenu(label = "Options", icon = Icons.Default.Notifications) {
                 Item(label = "Show Text") {
                     println("$logTag: Show Text selected")
                     textVisible = true

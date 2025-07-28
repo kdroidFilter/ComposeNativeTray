@@ -282,7 +282,7 @@ internal class LinuxTrayMenuBuilderImpl(
             val subMenu = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
-                iconPath = iconPath,
+                iconPath = iconPath,  // Maintenant supporté !
                 subMenuItems = subMenuItems
             )
             menuItems.add(subMenu)
