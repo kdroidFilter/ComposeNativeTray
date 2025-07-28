@@ -166,6 +166,36 @@ application {
 }
 ```
 
+#### Using platform-specific icon types (Windows: Painter, macOS/Linux: ImageVector)
+
+```kotlin
+application {
+  // Load icons in the composable context
+  val windowsIcon = painterResource(Res.drawable.myIcon)
+  val macLinuxIcon = Icons.Default.Favorite
+  
+  Tray(
+    windowsIcon = windowsIcon,      // Used on Windows
+    macLinuxIcon = macLinuxIcon,    // Used on macOS and Linux
+    tint = Color.Red,               // Optional: Apply a tint color to the ImageVector (null means auto-adapt to theme)
+    tooltip = "My Application",
+    primaryAction = {
+      println("$logTag: Primary action triggered")
+    }
+  ) {
+    // Menu items...
+  }
+}
+```
+
+This approach leverages polymorphism to use the most appropriate icon type for each platform:
+- On Windows: Uses the Painter (better for Windows-specific icons)
+- On macOS and Linux: Uses the ImageVector (with optional tint support)
+
+This design follows the platform-specific conventions for system tray icons:
+- **Windows**: Traditionally uses colored icons in the system tray. Using a Painter allows you to provide a full-color icon that matches Windows design guidelines. If needed, you can use the `isMenuBarInDarkMode()` API to adapt your icon's colors based on the system theme.
+- **macOS and Linux**: These platforms typically use monochrome icons in the menu bar/system tray. Using an ImageVector with automatic tinting (or explicit tint) ensures your icon follows these platforms' design conventions, automatically adapting to light/dark themes.
+
 #### Using icons with menu items
 
 Menu items, checkable items, and submenus can also use icons:

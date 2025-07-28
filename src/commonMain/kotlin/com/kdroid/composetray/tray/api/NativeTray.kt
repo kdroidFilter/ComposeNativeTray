@@ -386,3 +386,51 @@ fun ApplicationScope.Tray(
         }
     }
 }
+/**
+ * Configures and displays a system tray icon using platform-specific icon types:
+ * - Windows: Uses the provided Painter
+ * - macOS/Linux: Uses the provided ImageVector
+ *
+ * This approach leverages polymorphism to provide the most appropriate icon type for each platform.
+ *
+ * @param windowsIcon The Painter to display as the tray icon on Windows.
+ * @param macLinuxIcon The ImageVector to display as the tray icon on macOS and Linux.
+ * @param tint Optional tint color for the ImageVector icon. If null, automatically adapts to white in dark mode and black in light mode.
+ * @param iconRenderProperties Properties for rendering the icon.
+ * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
+ * @param primaryAction An optional callback to be invoked when the tray icon is clicked.
+ * @param menuContent A lambda that builds the tray menu.
+ */
+@Composable
+fun ApplicationScope.Tray(
+    windowsIcon: Painter,
+    macLinuxIcon: ImageVector,
+    tint: Color? = null,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val os = getOperatingSystem()
+    
+    if (os == WINDOWS) {
+        // Use Painter for Windows
+        Tray(
+            icon = windowsIcon,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            primaryAction = primaryAction,
+            menuContent = menuContent
+        )
+    } else {
+        // Use ImageVector for macOS and Linux
+        Tray(
+            icon = macLinuxIcon,
+            tint = tint,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            primaryAction = primaryAction,
+            menuContent = menuContent
+        )
+    }
+}
