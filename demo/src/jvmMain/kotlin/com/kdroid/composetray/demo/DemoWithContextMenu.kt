@@ -103,7 +103,7 @@ fun main() = application {
                         Item(label = "Advanced Option 1") {
                             println("$logTag: Advanced Option 1 selected")
                         }
-                        Item(label = "Advanced Option 2") {
+                        Item(label = "Advanced Option 2", icon = Icons.Default.ZoomOut) {
                             println("$logTag: Advanced Option 2 selected")
                         }
                     }
@@ -126,6 +126,7 @@ fun main() = application {
 
             // New idiomatic CheckableItem usage
             CheckableItem(
+                icon = Icons.Default.Notifications,
                 label = "Enable notifications",
                 checked = notificationsEnabled,
                 onCheckedChange = { checked ->
