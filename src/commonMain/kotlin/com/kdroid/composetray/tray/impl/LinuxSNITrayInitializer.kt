@@ -27,13 +27,12 @@ object LinuxSNITrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         lock.withLock {
             if (linuxTrayManager == null) {
                 // Create a new instance of LinuxTrayManager if it doesn't exist
-                linuxTrayManager = LinuxTrayManager(iconPath, tooltip, onLeftClick, primaryActionLabel)
+                linuxTrayManager = LinuxTrayManager(iconPath, tooltip, onLeftClick)
 
                 // Create an instance of LinuxTrayMenuBuilderImpl and apply the menu content
                 if (menuContent != null) {
@@ -41,7 +40,6 @@ object LinuxSNITrayInitializer {
                         iconPath,
                         tooltip,
                         onLeftClick,
-                        primaryActionLabel,
                         trayManager = linuxTrayManager // Pass the tray manager reference
                     ).apply {
                         menuContent()
@@ -56,7 +54,7 @@ object LinuxSNITrayInitializer {
                 linuxTrayManager!!.startTray()
             } else {
                 // Update the existing tray manager
-                update(iconPath, tooltip, onLeftClick, primaryActionLabel, menuContent)
+                update(iconPath, tooltip, onLeftClick, menuContent)
             }
         }
     }
@@ -65,13 +63,12 @@ object LinuxSNITrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         lock.withLock {
             if (linuxTrayManager == null) {
                 // If tray manager doesn't exist, initialize it
-                initialize(iconPath, tooltip, onLeftClick, primaryActionLabel, menuContent)
+                initialize(iconPath, tooltip, onLeftClick, menuContent)
                 return
             }
 
@@ -81,7 +78,6 @@ object LinuxSNITrayInitializer {
                     iconPath,
                     tooltip,
                     onLeftClick,
-                    primaryActionLabel,
                     trayManager = linuxTrayManager
                 ).apply {
                     menuContent()
@@ -98,7 +94,7 @@ object LinuxSNITrayInitializer {
             }
 
             // Update the tray manager with new properties and menu items
-            linuxTrayManager!!.update(iconPath, tooltip, onLeftClick, primaryActionLabel, newMenuItems)
+            linuxTrayManager!!.update(iconPath, tooltip, onLeftClick, newMenuItems)
         }
     }
 

@@ -23,7 +23,6 @@ object AwtTrayInitializer {
      * @param iconPath Path to the tray icon.
      * @param tooltip Tooltip text for the icon.
      * @param onLeftClick Action to execute on left-click on the icon.
-     * @param primaryActionLabel Label for the primary action menu item (used on macOS).
      * @param menuContent Content of the tray menu.
      * @throws IllegalStateException If the system does not support the tray.
      */
@@ -31,7 +30,6 @@ object AwtTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)?,
-        primaryActionLabel: String = "Open",
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         if (!isSupported()) {
@@ -80,7 +78,7 @@ object AwtTrayInitializer {
             // For macOS, prepend the primary action to the menu if it exists
             if (getOperatingSystem() == OperatingSystem.MACOS && onLeftClick != null) {
                 val menuBuilder = AwtTrayMenuBuilderImpl(popupMenu, newTrayIcon)
-                menuBuilder.Item(primaryActionLabel, true) { onLeftClick.invoke() }
+                menuBuilder.Item("Open", true) { onLeftClick.invoke() }
                 menuBuilder.Divider()
                 menuBuilder.apply(it)
             } else {
@@ -99,11 +97,10 @@ object AwtTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)?,
-        primaryActionLabel: String = "Open",
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         dispose()
-        initialize(iconPath, tooltip, onLeftClick, primaryActionLabel, menuContent)
+        initialize(iconPath, tooltip, onLeftClick, menuContent)
     }
 
     /**

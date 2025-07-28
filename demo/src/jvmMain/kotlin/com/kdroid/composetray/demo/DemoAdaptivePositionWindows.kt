@@ -68,7 +68,6 @@ fun main() = application {
                 isWindowVisible = true
                 println("$logTag: On Primary Clicked")
             },
-            primaryActionLabel = "Open the Application",
             tooltip = "My Application"
         ) {
 

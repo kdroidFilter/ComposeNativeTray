@@ -20,7 +20,6 @@ internal class LinuxTrayMenuBuilderImpl(
     private val iconPath: String,
     private val tooltip: String = "",
     private val onLeftClick: (() -> Unit)?,
-    private val primaryActionLabel: String,
     private val trayManager: LinuxTrayManager? = null
 ) : TrayMenuBuilder {
     private val menuItems = mutableListOf<LinuxTrayManager.MenuItem>()
@@ -240,8 +239,7 @@ internal class LinuxTrayMenuBuilderImpl(
                 iconPath,
                 tooltip,
                 onLeftClick,
-                primaryActionLabel,
-                trayManager = trayManager
+                trayManager
             ).apply(submenuContent)
             subMenuItems.addAll(subMenuImpl.menuItems)
         }
@@ -269,8 +267,7 @@ internal class LinuxTrayMenuBuilderImpl(
                 iconPath,
                 tooltip,
                 onLeftClick,
-                primaryActionLabel,
-                trayManager = trayManager
+                trayManager
             ).apply(submenuContent)
             subMenuItems.addAll(subMenuImpl.menuItems)
         }

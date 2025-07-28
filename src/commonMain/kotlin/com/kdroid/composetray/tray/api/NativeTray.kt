@@ -1,7 +1,6 @@
 package com.kdroid.composetray.tray.api
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -42,22 +41,21 @@ internal class NativeTray {
         windowsIconPath: String = iconPath,
         tooltip: String,
         primaryAction: (() -> Unit)?,
-        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
         if (!initialized) {
-            initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+            initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, menuContent)
             initialized = true
             return
         }
 
         try {
             when (os) {
-                LINUX -> LinuxSNITrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                LINUX -> LinuxSNITrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                 WINDOWS -> WindowsTrayInitializer.update(windowsIconPath, tooltip, primaryAction, menuContent)
                 MACOS -> MacTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                 UNKNOWN -> {
-                    AwtTrayInitializer.update(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                    AwtTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                     awtTrayUsed.set(true)
                 }
                 else -> {}
@@ -84,14 +82,13 @@ internal class NativeTray {
      */
     @Deprecated(
         message = "Use the constructor with composable icon content instead",
-        replaceWith = ReplaceWith("NativeTray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
+        replaceWith = ReplaceWith("NativeTray(iconContent, tooltip, primaryAction, menuContent)")
     )
     private fun initializeTray(
         iconPath: String,
         windowsIconPath: String = iconPath,
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
-        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         trayScope.launch {
@@ -101,7 +98,7 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         debugln { "NativeTray: Initializing Linux tray with icon path: $iconPath" }
-                        LinuxSNITrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                        LinuxSNITrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
@@ -128,7 +125,7 @@ internal class NativeTray {
                 if (AwtTrayInitializer.isSupported()) {
                     try {
                         debugln { "NativeTray: Initializing AWT tray with icon path: $iconPath" }
-                        AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+                        AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
                         awtTrayUsed.set(true)
                     } catch (th: Throwable) {
                         errorln { "NativeTray: Error initializing AWT tray: $th" }
@@ -148,7 +145,6 @@ internal class NativeTray {
         iconRenderProperties: IconRenderProperties = IconRenderProperties(),
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
-        primaryActionLabel: String,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         // Render the composable to PNG file for general use
@@ -165,7 +161,7 @@ internal class NativeTray {
             pngIconPath
         }
 
-        initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+        initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent)
     }
 
 }
@@ -178,14 +174,13 @@ internal class NativeTray {
  * @param windowsIconPath The file path to the tray icon specifically for Windows. Defaults to the value of `iconPath`.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
- * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
  *
  * @deprecated Use the version with composable icon content instead
  */
 @Deprecated(
     message = "Use the version with composable icon content instead",
-    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, primaryActionLabel, menuContent)")
+    replaceWith = ReplaceWith("Tray(iconContent, tooltip, primaryAction, menuContent)")
 )
 @Composable
 fun ApplicationScope.Tray(
@@ -193,7 +188,6 @@ fun ApplicationScope.Tray(
     windowsIconPath: String = iconPath,
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val absoluteIconPath = remember(iconPath) { extractToTempIfDifferent(iconPath)?.absolutePath.orEmpty() }
@@ -208,8 +202,8 @@ fun ApplicationScope.Tray(
     val menuHash = MenuContentHash.calculateMenuHash(menuContent)
 
     // Update when params change, including menuHash
-    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, menuHash) {
-        tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, menuContent, menuHash) {
+        tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, menuContent)
     }
 
     // Dispose only when Tray is removed from composition
@@ -229,7 +223,6 @@ fun ApplicationScope.Tray(
  * @param iconRenderProperties Properties for rendering the icon.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked (handled only on specific platforms).
- * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu using a `TrayMenuBuilder`. Define the menu structure, including items, checkable items, dividers, and submenus.
  */
 @Composable
@@ -238,7 +231,6 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode()  // Observe menu bar theme to trigger recomposition on changes
@@ -258,8 +250,8 @@ fun ApplicationScope.Tray(
     val tray = remember { NativeTray() }
 
     // Update when params change, including contentHash (which incorporates theme)
-    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
-        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent, contentHash, menuHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent)
     }
 
     // Dispose only when Tray is removed from composition
@@ -279,7 +271,6 @@ fun ApplicationScope.Tray(
  * @param iconRenderProperties Properties for rendering the icon.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked.
- * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu.
  */
 @Composable
@@ -289,7 +280,6 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode()
@@ -326,8 +316,8 @@ fun ApplicationScope.Tray(
     val tray = remember { NativeTray() }
 
     // Update when params change, including contentHash (which incorporates theme/icon/tint)
-    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
-        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent, contentHash, menuHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent)
     }
 
     // Dispose only when Tray is removed from composition
@@ -346,7 +336,6 @@ fun ApplicationScope.Tray(
  * @param iconRenderProperties Properties for rendering the icon.
  * @param tooltip The tooltip text to be displayed when the user hovers over the tray icon.
  * @param primaryAction An optional callback to be invoked when the tray icon is clicked.
- * @param primaryActionLabel The label for the primary action on Linux and macOS. Defaults to "Open".
  * @param menuContent A lambda that builds the tray menu.
  */
 @Composable
@@ -355,7 +344,6 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
-    primaryActionLabel: String = "Open",
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode()  // Included for consistency, even if not used in rendering
@@ -386,8 +374,8 @@ fun ApplicationScope.Tray(
     val tray = remember { NativeTray() }
 
     // Update when params change, including contentHash (which incorporates theme/icon)
-    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent, contentHash, menuHash) {
-        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, primaryActionLabel, menuContent)
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent, contentHash, menuHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent)
     }
 
     // Dispose only when Tray is removed from composition

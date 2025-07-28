@@ -56,8 +56,7 @@ fun main() = application {
             primaryAction = {
                 isWindowVisible = true
                 println("$logTag: Primary action clicked")
-            },
-            primaryActionLabel = "Open Application"
+            }
         ) {
             // Menu item to switch between icons
             Item(label = "Switch Icon") {

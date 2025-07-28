@@ -26,8 +26,7 @@ import kotlin.concurrent.withLock
 internal class LinuxTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
-    private var onLeftClick: (() -> Unit)? = null,
-    private var primaryActionLabel: String
+    private var onLeftClick: (() -> Unit)? = null
 ) {
     private val sni = SNIWrapper.INSTANCE
 
@@ -140,7 +139,6 @@ internal class LinuxTrayManager(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
-        newPrimaryActionLabel: String,
         newMenuItems: List<MenuItem>? = null
     ) {
         var iconChanged: Boolean
@@ -156,7 +154,6 @@ internal class LinuxTrayManager(
             iconPath = newIconPath
             tooltip = newTooltip
             onLeftClick = newOnLeftClick
-            primaryActionLabel = newPrimaryActionLabel
 
             if (newMenuItems != null) {
                 menuItems.clear()

@@ -58,8 +58,7 @@ fun main() = application {
             primaryAction = {
                 isWindowVisible = true
                 println("$logTag: Primary action clicked")
-            },
-            primaryActionLabel = "Open Application"
+            }
         ) {
             // Menu items to demonstrate changing the tint color
             SubMenu(label = "Icon Color") {
