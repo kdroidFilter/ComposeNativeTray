@@ -26,8 +26,8 @@
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
   - On Windows, the primary action is triggered by a left-click on the tray icon.
-  - On macOS, left-clicking opens the tray menu while right-clicking has no effect. The primary action is added as the first item in the menu. See #209
-  - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label). If the context menu is empty, the library uses `gtkstatusicon` to capture the primary action without needing to add an item to the context menu. see #210
+  - On macOS, the primary action is triggered by a left-click on the tray icon using a native implementation.
+  - On Linux, the primary action is triggered by a left-click on KDE and a double left-click on GNOME, using a dbus-based implementation.
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
@@ -79,8 +79,7 @@ application {
     tooltip = "My Application",
     primaryAction = {
       Log.i(logTag, "Primary action triggered")
-    },
-    primaryActionLabel = "Open Application"
+    }
   ) {
     SubMenu(label = "Options") {
       Item(label = "Setting 1") {
@@ -138,7 +137,7 @@ application {
 - **SubMenu**: A submenu that can contain multiple items, including other submenus.
 - **Divider**: A separator used to visually separate menu items.
 - **dispose**: Call to remove the system tray icon and exit gracefully.
-- **Primary Action**: An action triggered by a left-click on the tray icon (Windows) or as a top item in the context menu (MacOs and Linux).
+- **Primary Action**: An action triggered by a left-click on the tray icon on Windows and macOS, and by a left-click on KDE or double left-click on GNOME for Linux.
 
 ### 🎨 Icon Rendering Customization
 
@@ -215,14 +214,28 @@ Setting the custom `appIdentifier` can be used for even more granular control.
 
 ### 📌 Tray Position Detection
 
-The `getTrayPosition()` function allows you to determine the current position of the system tray on the screen. This information can be useful for aligning application windows relative to the tray icon.
+The tray position detection feature allows you to precisely position windows relative to the system tray icon. This feature has been significantly enhanced to provide exact positioning capabilities across all supported platforms.
 
-> **Note**: Currently, on macOS, the `getTrayPosition()` function always returns `TOP_RIGHT`, and the tray position is not dynamically detected. On Windows and Linux, the position is determined dynamically.
+#### Key Features
 
-Additionally, the `getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition` function can be used to determine the appropriate position for a window of specific dimensions, taking into account the location of the tray.
+- **Precise Icon Coordinates**: The library now captures the exact coordinates of the tray icon, not just the general corner position.
+- **Centered Window Positioning**: Windows are positioned precisely relative to the tray icon, centered horizontally on the icon.
+- **Cross-Platform Support**: Works on Windows, macOS, and Linux with appropriate fallbacks when precise coordinates aren't available.
+- **Automatic Boundary Handling**: Ensures windows stay within screen boundaries while maintaining optimal positioning.
+
+The API provides two main functions:
+
+1. `getTrayPosition()`: Returns the general position of the system tray (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT).
+2. `getTrayWindowPosition(windowWidth: Int, windowHeight: Int)`: Returns a `WindowPosition` that places a window of the specified dimensions precisely relative to the tray icon.
+
+#### Implementation Details
+
+- **Windows**: Uses native Windows API to get the exact notification area icon position.
+- **macOS**: Uses Cocoa API to get the exact status item position in the menu bar.
+- **Linux**: Captures click coordinates when the tray icon is clicked (left-click on KDE, double left-click on GNOME).
 
 #### **Usage**
-To use the tray position functions:
+To use the tray position detection feature:
 
 ```kotlin
 val windowWidth = 800
@@ -239,7 +252,7 @@ Window(
 )
 ```
 
-In this example, `getTrayWindowPosition` is used to determine the ideal position for the window based on the system tray's location. This helps in creating a seamless and user-friendly experience when displaying windows near the tray icon.
+In this example, `getTrayWindowPosition` determines the optimal position for the window based on the exact location of the tray icon. The window will be centered horizontally on the icon and positioned vertically based on whether the tray is at the top or bottom of the screen, creating a seamless and user-friendly experience.
 
 ## 📸 Screenshots
 
@@ -260,6 +273,8 @@ Here are some screenshots of ComposeTray running on different platforms:
 ## 📄 License
 
 This library is licensed under the MIT License.
+
+The Linux module is available at https://github.com/kdroidFilter/LibLinuxTray and is licensed under the GNU Lesser General Public License (LGPL) version 2.1. As a result, the binary for the Linux module is also under LGPL.
 
 ## 🤝 Contributing
 
