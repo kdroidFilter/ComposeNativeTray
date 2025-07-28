@@ -227,8 +227,13 @@ Tray(/* configuration */) {
   // Visual separator
   Divider()
   
-  // Disabled item
+  // Disabled item - the isEnabled property controls whether the item can be clicked
   Item(label = "Version 1.0.0", isEnabled = false)
+  
+  // Enabled item (isEnabled is true by default)
+  Item(label = "Help", isEnabled = true) {
+    // This action will be executed when clicked
+  }
   
   // Exit properly
   Item(label = "Exit") {
@@ -281,6 +286,7 @@ application {
   var darkMode by remember { mutableStateOf(false) }
   var showAdvancedOptions by remember { mutableStateOf(false) }
   var notificationsEnabled by remember { mutableStateOf(true) }
+  var isConfigAvailable by remember { mutableStateOf(false) }
 
   Tray(
     // The icon changes based on the mode
@@ -307,7 +313,17 @@ application {
       Divider()
 
       SubMenu(label = "Advanced Options") {
-        Item(label = "Configuration") { /* action */ }
+        // Item with dynamically changing isEnabled property
+        Item(
+          label = "Configuration", 
+          isEnabled = isConfigAvailable
+        ) { /* action */ }
+        
+        // This item enables the Configuration option when clicked
+        Item(label = "Check Configuration Availability") { 
+          isConfigAvailable = true 
+        }
+        
         Item(label = "Diagnostics") { /* action */ }
       }
     }
