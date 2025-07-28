@@ -10,6 +10,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -228,77 +229,81 @@ fun main() = application {
         visible = isWindowVisible
     ) {
         window.toFront()
-        
+
         // Simple UI to demonstrate icon changes
         MaterialTheme(
             colorScheme = if (isDarkTheme) darkColorScheme() else lightColorScheme()
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Dynamic Icons Demo",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                
-                Text(
-                    "This demo showcases dynamic icon changes in the system tray menu.",
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-                
-                Button(
-                    onClick = {
-                        isDarkTheme = !isDarkTheme
-                        if (isDarkTheme) {
-                            settingsIcon = Icons.Default.Nightlight
-                            currentTrayIcon = Icons.Default.DarkMode
-                        } else {
-                            settingsIcon = Icons.Default.Settings
-                            currentTrayIcon = Icons.Default.LightMode
-                        }
-                    },
-                    modifier = Modifier.padding(bottom = 8.dp)
+            Surface {
+
+
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Toggle Theme")
-                }
-                
-                Button(
-                    onClick = {
-                        val icons = listOf(
-                            Icons.Default.WbSunny,
-                            Icons.Default.Cloud,
-                            Icons.Default.Opacity,
-                            Icons.Default.AcUnit
-                        )
-                        weatherIcon = icons.random()
-                    },
-                    modifier = Modifier.padding(bottom = 8.dp)
-                ) {
-                    Text("Change Weather Icon")
-                }
-                
-                Button(
-                    onClick = {
-                        val icons = listOf(
-                            Icons.Default.PlayArrow,
-                            Icons.Default.Pause,
-                            Icons.Default.Stop
-                        )
-                        musicIcon = icons.random()
-                    },
-                    modifier = Modifier.padding(bottom = 8.dp)
-                ) {
-                    Text("Change Music Icon")
-                }
-                
-                Button(
-                    onClick = {
-                        isWindowVisible = false
+                    Text(
+                        "Dynamic Icons Demo",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    Text(
+                        "This demo showcases dynamic icon changes in the system tray menu.",
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+
+                    Button(
+                        onClick = {
+                            isDarkTheme = !isDarkTheme
+                            if (isDarkTheme) {
+                                settingsIcon = Icons.Default.Nightlight
+                                currentTrayIcon = Icons.Default.DarkMode
+                            } else {
+                                settingsIcon = Icons.Default.Settings
+                                currentTrayIcon = Icons.Default.LightMode
+                            }
+                        },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        Text("Toggle Theme")
                     }
-                ) {
-                    Text("Hide to Tray")
+
+                    Button(
+                        onClick = {
+                            val icons = listOf(
+                                Icons.Default.WbSunny,
+                                Icons.Default.Cloud,
+                                Icons.Default.Opacity,
+                                Icons.Default.AcUnit
+                            )
+                            weatherIcon = icons.random()
+                        },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        Text("Change Weather Icon")
+                    }
+
+                    Button(
+                        onClick = {
+                            val icons = listOf(
+                                Icons.Default.PlayArrow,
+                                Icons.Default.Pause,
+                                Icons.Default.Stop
+                            )
+                            musicIcon = icons.random()
+                        },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        Text("Change Music Icon")
+                    }
+
+                    Button(
+                        onClick = {
+                            isWindowVisible = false
+                        }
+                    ) {
+                        Text("Hide to Tray")
+                    }
                 }
             }
         }
