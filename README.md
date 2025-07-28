@@ -65,6 +65,8 @@ The `Tray` must be executed inside an Application Scope, like this:
 
 > **Important**: When using a Composable for the tray icon, it's crucial to apply the `Modifier.fillMaxSize()` to your Composable. This ensures that the Composable fills the entire image when it's converted to an icon. Without this modifier, your icon may appear smaller than intended or not properly centered.
 
+#### Using a Composable for the tray icon
+
 ````kotlin
 application {
   Tray(
@@ -78,19 +80,19 @@ application {
     },
     tooltip = "My Application",
     primaryAction = {
-      Log.i(logTag, "Primary action triggered")
+      println("$logTag: Primary action triggered")
     }
   ) {
     SubMenu(label = "Options") {
       Item(label = "Setting 1") {
-        Log.i(logTag, "Setting 1 selected")
+        println("$logTag: Setting 1 selected")
       }
       SubMenu(label = "Advanced Sub-options") {
         Item(label = "Advanced Option 1") {
-          Log.i(logTag, "Advanced Option 1 selected")
+          println("$logTag: Advanced Option 1 selected")
         }
         Item(label = "Advanced Option 2") {
-          Log.i(logTag, "Advanced Option 2 selected")
+          println("$logTag: Advanced Option 2 selected")
         }
       }
     }
@@ -99,29 +101,29 @@ application {
 
     SubMenu(label = "Tools") {
       Item(label = "Calculator") {
-        Log.i(logTag, "Calculator launched")
+        println("$logTag: Calculator launched")
       }
       Item(label = "Notepad") {
-        Log.i(logTag, "Notepad opened")
+        println("$logTag: Notepad opened")
       }
     }
 
     Divider()
 
     CheckableItem(label = "Enable notifications") { isChecked ->
-      Log.i(logTag, "Notifications ${if (isChecked) "enabled" else "disabled"}")
+      println("$logTag: Notifications ${if (isChecked) "enabled" else "disabled"}")
     }
 
     Divider()
 
     Item(label = "About") {
-      Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+      println("$logTag: Application v1.0 - Developed by Elyahou")
     }
 
     Divider()
 
     Item(label = "Exit", isEnabled = true) {
-      Log.i(logTag, "Exiting the application")
+      println("$logTag: Exiting the application")
       dispose()
       exitProcess(0)
     }
@@ -131,13 +133,290 @@ application {
 }
 ````
 
+#### Using an ImageVector directly for the tray icon
+
+```kotlin
+application {
+  Tray(
+    icon = Icons.Default.Favorite,  // Using ImageVector directly
+    tint = Color.Red,  // Optional: Apply a tint color (null means auto-adapt to theme)
+    tooltip = "My Application",
+    primaryAction = {
+      println("$logTag: Primary action triggered")
+    }
+  ) {
+    // Menu items...
+  }
+}
+```
+
+#### Using a Painter directly for the tray icon
+
+```kotlin
+application {
+  Tray(
+    icon = painterResource(Res.drawable.myIcon),  // Using Painter directly
+    tooltip = "My Application",
+    primaryAction = {
+      println("$logTag: Primary action triggered")
+    }
+  ) {
+    // Menu items...
+  }
+}
+```
+
+#### Using icons with menu items
+
+Menu items, checkable items, and submenus can also use icons:
+
+```kotlin
+application {
+  // Declare icon variables in the composable context
+  val homeIcon = painterResource(Res.drawable.home)
+  val advancedIcon = painterResource(Res.drawable.advanced)
+  
+  Tray(
+    // Tray configuration...
+  ) {
+    // Menu item with ImageVector icon
+    Item(
+      label = "Settings",
+      icon = Icons.Default.Settings,
+      iconTint = Color.Blue  // Optional
+    ) {
+      println("$logTag: Settings selected")
+    }
+    
+    // Menu item with Painter icon
+    Item(
+      label = "Home",
+      icon = homeIcon  // Using the variable declared above
+    ) {
+      println("$logTag: Home selected")
+    }
+    
+    // Checkable item with ImageVector icon
+    CheckableItem(
+      label = "Dark Mode",
+      icon = Icons.Default.DarkMode,
+      checked = isDarkMode,
+      onCheckedChange = { isChecked ->
+        isDarkMode = isChecked
+      }
+    )
+    
+    // Submenu with Painter icon
+    SubMenu(
+      label = "Advanced",
+      icon = advancedIcon  // Using the variable declared above
+    ) {
+      // Submenu items...
+    }
+  }
+}
+```
+
+#### Using Composable icons with iconContent
+
+Menu items, checkable items, and submenus can also use custom Composable icons via the `iconContent` parameter:
+
+```kotlin
+application {
+  Tray(
+    // Tray configuration...
+  ) {
+    // Menu item with Composable icon using iconContent
+    Item(
+      label = "Custom Icon",
+      iconContent = {
+        // Just like with the tray icon, using Modifier.fillMaxSize() is crucial!
+        Icon(
+          imageVector = Icons.Default.Star,
+          contentDescription = null,
+          tint = Color.Yellow,
+          modifier = Modifier.fillMaxSize() // This is crucial!
+        )
+      }
+    ) {
+      println("$logTag: Custom icon item selected")
+    }
+    
+    // Checkable item with Composable icon
+    CheckableItem(
+      label = "Custom Checkable",
+      iconContent = {
+        // Always use Modifier.fillMaxSize() for proper sizing
+        Icon(
+          imageVector = Icons.Default.Favorite,
+          contentDescription = null,
+          tint = Color.Red,
+          modifier = Modifier.fillMaxSize() // This is crucial!
+        )
+      },
+      checked = isCustomEnabled,
+      onCheckedChange = { isChecked ->
+        isCustomEnabled = isChecked
+      }
+    )
+    
+    // Submenu with Composable icon
+    SubMenu(
+      label = "Custom Submenu",
+      iconContent = {
+        // Always use Modifier.fillMaxSize() for proper sizing
+        Icon(
+          imageVector = Icons.Default.Menu,
+          contentDescription = null,
+          tint = Color.Green,
+          modifier = Modifier.fillMaxSize() // This is crucial!
+        )
+      }
+    ) {
+      // Submenu items...
+    }
+  }
+}
+```
+
+> **Important**: When using `iconContent` for menu items, just like with the tray icon, it's crucial to apply the `Modifier.fillMaxSize()` to your Composable. This ensures that the Composable fills the entire image when it's converted to an icon. Without this modifier, your icon may appear smaller than intended or not properly centered.
+
 ### 📋 Components of the Tray Menu
-- **Item**: A standard clickable item that can be enabled or disabled.
-- **CheckableItem**: A menu item with a checkbox that can be toggled on or off.
-- **SubMenu**: A submenu that can contain multiple items, including other submenus.
+- **Item**: A standard clickable item that can be enabled or disabled. Can include an icon using ImageVector, Painter, or a custom Composable via iconContent.
+- **CheckableItem**: A menu item with a checkbox that can be toggled on or off. Can include an icon using ImageVector, Painter, or a custom Composable via iconContent.
+- **SubMenu**: A submenu that can contain multiple items, including other submenus. Can include an icon using ImageVector, Painter, or a custom Composable via iconContent.
 - **Divider**: A separator used to visually separate menu items.
 - **dispose**: Call to remove the system tray icon and exit gracefully.
 - **Primary Action**: An action triggered by a left-click on the tray icon on Windows and macOS, and by a left-click on KDE or double left-click on GNOME for Linux.
+- **Tray Icon**: Can be specified using a file path, a Composable function, an ImageVector, or a Painter.
+
+### 🖼️ Using painterResource with Menu Items
+
+When using `painterResource` with menu items, you need to be aware that `painterResource` is a composable function that must be called within a composable context. While it works directly in the Tray component (which is a composable function), it cannot be used directly as a parameter to menu items.
+
+#### ❌ This won't work:
+
+```kotlin
+application {
+  Tray(
+    // Tray configuration...
+  ) {
+    // This will cause an error because painterResource is called outside a composable context
+    SubMenu(
+      label = "Advanced",
+      icon = painterResource(Res.drawable.advanced)  // Error!
+    ) {
+      // Submenu items...
+    }
+  }
+}
+```
+
+#### ✅ Use this workaround instead:
+
+```kotlin
+application {
+  // Declare the icon variable in the composable context
+  val advancedIcon = painterResource(Res.drawable.advanced)
+  
+  Tray(
+    // Tray configuration...
+  ) {
+    // Now use the variable in the menu item
+    SubMenu(
+      label = "Advanced",
+      icon = advancedIcon  // Works correctly!
+    ) {
+      // Submenu items...
+    }
+  }
+}
+```
+
+This workaround ensures that `painterResource` is called within the composable context of the application, and the resulting Painter is then passed to the menu item.
+
+### ⚠️ Platform-Specific Icon Limitations
+
+When using icons with menu items, be aware of the following platform-specific limitations:
+
+- **GNOME**: Icons are not displayed in submenus. Even if you specify an icon for a submenu item, it will not be visible under GNOME.
+  
+- **Windows**: When a checkable item has an icon, the check indicator will not be displayed. This means users won't be able to visually determine if the item is checked or not.
+
+These limitations are due to the underlying system implementations and cannot be fixed within the library.
+
+**Recommendation**: For consistent cross-platform behavior, it's advised to avoid using icons on submenus and checkable items. This ensures a uniform user experience across all supported platforms.
+
+### 🌓 Menu Bar Dark Mode Detection
+
+The library provides a reactive API called `isMenuBarInDarkMode()` that detects whether the menu bar is in dark mode. This API is particularly useful for automatically adapting your tray icon and menu item icons to match the current theme.
+
+#### Platform-Specific Behavior
+
+The behavior of `isMenuBarInDarkMode()` varies by platform:
+
+- **macOS**: On macOS, the menu bar color is based on the wallpaper, not the system theme. This means the menu bar can be dark even if the system is using a light theme, or vice versa. The API detects this accurately and reactively.
+
+- **Windows**: On Windows, the menu bar color follows the system theme. The API returns `true` when the system is in dark mode.
+
+- **Linux**: The behavior depends on the desktop environment:
+  - **GNOME, XFCE, CINNAMON, MATE**: Always returns `true` (always dark)
+  - **KDE**: Based on the system theme
+  - **Other**: Falls back to the system theme
+
+#### Automatic Icon Tinting
+
+When using ImageVector icons with the library, they are automatically tinted based on the menu bar theme if no explicit tint is specified:
+
+- In dark mode: Icons are automatically tinted **white**
+- In light mode: Icons are automatically tinted **black**
+
+This applies to both the tray icon and menu item icons, with one important exception:
+
+> **Note**: On macOS, while the tray icon is tinted based on the menu bar theme (which depends on the wallpaper), menu item icons are tinted based on the system theme. This is because macOS menu items follow the system theme rather than the menu bar theme.
+
+#### Example Usage
+
+Here's an example of using an ImageVector for the tray icon with automatic tinting:
+
+```kotlin
+application {
+  Tray(
+    icon = Icons.Default.Favorite,  // Using ImageVector directly
+    // No tint specified, so it will automatically adapt to the menu bar theme
+    tooltip = "My Application",
+    primaryAction = {
+      println("$logTag: Primary action triggered")
+    }
+  ) {
+    // Menu items...
+  }
+}
+```
+
+You can also explicitly check the menu bar theme in your composable:
+
+```kotlin
+application {
+  val isMenuBarDark = isMenuBarInDarkMode()
+  
+  Tray(
+    iconContent = {
+      Icon(
+        Icons.Default.Favorite,
+        contentDescription = "",
+        tint = if (isMenuBarDark) Color.White else Color.Black,
+        modifier = Modifier.fillMaxSize()
+      )
+    },
+    tooltip = "My Application"
+  ) {
+    // Menu items...
+  }
+}
+```
+
+This API is fully reactive, meaning your UI will automatically update when the menu bar theme changes, without requiring any manual refresh.
 
 ### 🎨 Icon Rendering Customization
 
@@ -280,12 +559,7 @@ The Linux module is available at https://github.com/kdroidFilter/LibLinuxTray an
 
 Feel free to open issues or pull requests if you find any bugs or have suggestions for new features. If you have other ideas for improvements or new functionalities, please let me know! If you use this library in your project, I would be happy to link to those projects as well.
 
-## ✅ Things to Implement
-
-- ✅ ~~Implement a system to check if an instance of the application is already running~~
-- ✅ ~~Add the ability to locate the position of the systray (top left, top right, etc.)~~
-- ✅ ~~Add the ability to dynamically change the tray icon~~
 
 ## 🙏 Acknowledgements
 
-This library is developed and maintained by Elie G, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
+This library is developed and maintained by Elie Gambache, aiming to provide an easy and cross-platform system tray solution for Kotlin applications.
