@@ -87,7 +87,7 @@ fun main() = application {
             Divider()
 
             // Options SubMenu
-            SubMenu(label = "Options", icon = Icons.Default.Notifications) {
+            SubMenu(label = "Options") {
                 Item(label = "Show Text") {
                     println("$logTag: Show Text selected")
                     textVisible = true
@@ -103,7 +103,7 @@ fun main() = application {
                         Item(label = "Advanced Option 1") {
                             println("$logTag: Advanced Option 1 selected")
                         }
-                        Item(label = "Advanced Option 2", icon = Icons.Default.ZoomOut) {
+                        Item(label = "Advanced Option 2") {
                             println("$logTag: Advanced Option 2 selected")
                         }
                     }
@@ -126,7 +126,6 @@ fun main() = application {
 
             // New idiomatic CheckableItem usage
             CheckableItem(
-                icon = Icons.Default.Notifications,
                 label = "Enable notifications",
                 checked = notificationsEnabled,
                 onCheckedChange = { checked ->

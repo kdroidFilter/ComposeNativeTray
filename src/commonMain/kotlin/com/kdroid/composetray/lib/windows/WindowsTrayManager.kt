@@ -56,6 +56,7 @@ internal class WindowsTrayManager(
     // Top level MenuItem class
     data class MenuItem(
         val text: String,
+        val iconPath: String? = null,  // Added icon path support
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
@@ -317,6 +318,7 @@ internal class WindowsTrayManager(
 
     private fun initializeNativeMenuItem(nativeItem: WindowsNativeTrayMenuItem, menuItem: MenuItem) {
         nativeItem.text = menuItem.text
+        nativeItem.icon_path = menuItem.iconPath
         nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
         nativeItem.checked = if (menuItem.isChecked) 1 else 0
 
