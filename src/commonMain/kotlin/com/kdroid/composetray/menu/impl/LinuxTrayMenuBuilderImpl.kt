@@ -1,143 +1,110 @@
 package com.kdroid.composetray.menu.impl
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import com.kdroid.composetray.lib.linux.appindicator.GCallback
-import com.kdroid.composetray.lib.linux.appindicator.GObject
-import com.kdroid.composetray.lib.linux.appindicator.Gtk
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
-import com.sun.jna.Pointer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import com.kdroid.composetray.lib.linux.LinuxTrayManager
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
-class LinuxTrayMenuBuilderImpl(private val menu: Pointer) : TrayMenuBuilder {
-    var itemClickLabel by mutableStateOf("")
-        private set
+internal class LinuxTrayMenuBuilderImpl(
+    private val iconPath: String,
+    private val tooltip: String = "",
+    private val onLeftClick: (() -> Unit)?,
+    private val primaryActionLabel: String,
+    private val trayManager: LinuxTrayManager? = null
+) : TrayMenuBuilder {
+    private val menuItems = mutableListOf<LinuxTrayManager.MenuItem>()
+    private val lock = ReentrantLock()
 
-    var checkableToggleState by mutableStateOf<Pair<String, Boolean>?>(null)
-        private set
-
-    private val scope = CoroutineScope(Dispatchers.Default)
-
-    private val callbacks = mutableListOf<GCallback>()
-    private val menuItems = mutableListOf<Pointer>()
-    private val subMenuBuilders = mutableListOf<LinuxTrayMenuBuilderImpl>()
-
-    // Mutex to ensure thread safety when adding callbacks and menu items
-    private val mutex = Mutex()
+    // Maintain persistent references to prevent GC
+    private val persistentMenuItems = mutableListOf<LinuxTrayManager.MenuItem>()
 
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
-        val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
-        Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
-        Gtk.INSTANCE.gtk_widget_set_sensitive(menuItem, if (isEnabled) 1 else 0)
-
-        val callback = object : GCallback {
-            override fun callback(widget: Pointer, data: Pointer?) {
-                itemClickLabel = label
-                onClick()
-            }
+        lock.withLock {
+            val menuItem = LinuxTrayManager.MenuItem(
+                text = label,
+                isEnabled = isEnabled,
+                onClick = onClick
+            )
+            menuItems.add(menuItem)
+            persistentMenuItems.add(menuItem) // Store reference
         }
-
-        scope.launch {
-            mutex.withLock {
-                // Conserver une référence au callback pour éviter la collecte par le GC
-                callbacks.add(callback)
-                menuItems.add(menuItem)
-            }
-        }
-
-        GObject.INSTANCE.g_signal_connect_data(
-            menuItem,
-            "activate",
-            callback,
-            null,
-            null,
-            0
-        )
     }
 
-    override fun CheckableItem(label: String, checked: Boolean, isEnabled: Boolean, onToggle: (Boolean) -> Unit) {
-        val checkMenuItem = Gtk.INSTANCE.gtk_check_menu_item_new_with_label(label)
-        Gtk.INSTANCE.gtk_menu_shell_append(menu, checkMenuItem)
-        Gtk.INSTANCE.gtk_widget_set_sensitive(checkMenuItem, if (isEnabled) 1 else 0)
-        Gtk.INSTANCE.gtk_check_menu_item_set_active(checkMenuItem, checked)
-
-        val callback = object : GCallback {
-            override fun callback(widget: Pointer, data: Pointer?) {
-                val active = Gtk.INSTANCE.gtk_check_menu_item_get_active(checkMenuItem)
-                val isActive = active != 0
-                checkableToggleState = label to isActive
-                onToggle(isActive)
-            }
+    override fun CheckableItem(
+        label: String,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
+        lock.withLock {
+            // Create a mutable reference to the current checked state
+            // This will be used in the onClick callback to get the current state
+            // instead of capturing the initial state
+            val initialChecked = checked
+            
+            val menuItem = LinuxTrayManager.MenuItem(
+                text = label,
+                isEnabled = isEnabled,
+                isCheckable = true,
+                isChecked = initialChecked,
+                onClick = {
+                    lock.withLock {
+                        // Find the current menu item to get its current state
+                        val currentMenuItem = menuItems.find { it.text == label }
+                        // Toggle based on the current state, not the initial state
+                        val currentChecked = currentMenuItem?.isChecked ?: initialChecked
+                        val newChecked = !currentChecked
+                        
+                        // Call the onCheckedChange callback with the new state
+                        onCheckedChange(newChecked)
+                        
+                        // Update the tray manager to reflect the new state
+                        trayManager?.updateMenuItemCheckedState(label, newChecked)
+                    }
+                }
+            )
+            menuItems.add(menuItem)
+            persistentMenuItems.add(menuItem) // Store reference
         }
-
-        scope.launch {
-            mutex.withLock {
-                // Conserver une référence au callback pour éviter la collecte par le GC
-                callbacks.add(callback)
-                menuItems.add(checkMenuItem)
-            }
-        }
-
-        GObject.INSTANCE.g_signal_connect_data(
-            checkMenuItem,
-            "toggled",
-            callback,
-            null,
-            null,
-            0
-        )
     }
 
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
-        val menuItem = Gtk.INSTANCE.gtk_menu_item_new_with_label(label)
-        Gtk.INSTANCE.gtk_menu_shell_append(menu, menuItem)
-        Gtk.INSTANCE.gtk_widget_set_sensitive(menuItem, if (isEnabled) 1 else 0)
-
-        val submenu = Gtk.INSTANCE.gtk_menu_new()
-        if (submenuContent == null) return
-        val submenuBuilder = LinuxTrayMenuBuilderImpl(submenu).apply(submenuContent)
-
-        // Propagation des états des sous-menus
-        scope.launch {
-            submenuBuilder.itemClickLabel.let { label ->
-                if (label.isNotEmpty()) {
-                    itemClickLabel = label
-                }
-            }
+        val subMenuItems = mutableListOf<LinuxTrayManager.MenuItem>()
+        if (submenuContent != null) {
+            val subMenuImpl = LinuxTrayMenuBuilderImpl(
+                iconPath,
+                tooltip,
+                onLeftClick,
+                primaryActionLabel,
+                trayManager = trayManager
+            ).apply(submenuContent)
+            subMenuItems.addAll(subMenuImpl.menuItems)
         }
-
-        scope.launch {
-            submenuBuilder.checkableToggleState?.let { state ->
-                checkableToggleState = state
-            }
+        lock.withLock {
+            val subMenu = LinuxTrayManager.MenuItem(
+                text = label,
+                isEnabled = isEnabled,
+                subMenuItems = subMenuItems
+            )
+            menuItems.add(subMenu)
+            persistentMenuItems.add(subMenu) // Store reference
         }
-
-        scope.launch {
-            mutex.withLock {
-                subMenuBuilders.add(submenuBuilder)
-                menuItems.add(menuItem)
-            }
-        }
-        Gtk.INSTANCE.gtk_menu_item_set_submenu(menuItem, submenu)
     }
 
     override fun Divider() {
-        val separator = Gtk.INSTANCE.gtk_separator_menu_item_new()
-        Gtk.INSTANCE.gtk_menu_shell_append(menu, separator)
-        scope.launch {
-            mutex.withLock {
-                menuItems.add(separator)
-            }
+        lock.withLock {
+            val divider = LinuxTrayManager.MenuItem(text = "-")
+            menuItems.add(divider)
+            persistentMenuItems.add(divider) // Store reference
         }
     }
 
     override fun dispose() {
-        scope.cancel()
+        lock.withLock {
+            // Clear references when disposing
+            persistentMenuItems.clear()
+        }
     }
+
+    fun build(): List<LinuxTrayManager.MenuItem> = lock.withLock { menuItems.toList() }
 }

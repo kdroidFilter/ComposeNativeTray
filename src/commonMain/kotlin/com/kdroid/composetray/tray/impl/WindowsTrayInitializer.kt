@@ -6,24 +6,33 @@ import com.kdroid.composetray.menu.impl.WindowsTrayMenuBuilderImpl
 
 object WindowsTrayInitializer {
 
-    private var trayMenuImpl: WindowsTrayMenuBuilderImpl? = null
+    private var trayManager: WindowsTrayManager? = null
 
     fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) {
-        val windowsTrayManager = WindowsTrayManager(iconPath, tooltip, onLeftClick)
-        // Create an instance of WindowsTrayMenuImpl and apply the menu content
-        trayMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
+        // Create menu items
+        val trayMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
             menuContent?.let { it() }
         }
-        val menuItems = trayMenuImpl!!.build()
+        val menuItems = trayMenuImpl.build()
 
-        // Add each menu item to WindowsTrayManager
-        menuItems.forEach { windowsTrayManager.addMenuItem(it) }
+        if (trayManager == null) {
+            // Create new manager
+            val windowsTrayManager = WindowsTrayManager(iconPath, tooltip, onLeftClick)
+            trayManager = windowsTrayManager
+            windowsTrayManager.initialize(menuItems)
+        } else {
+            // Update existing manager
+            trayManager?.update(iconPath, tooltip, onLeftClick, menuItems)
+        }
+    }
 
-        // Start the Windows tray
-        windowsTrayManager.startTray()
+    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) {
+        // Same as initialize - it will handle both cases
+        initialize(iconPath, tooltip, onLeftClick, menuContent)
     }
 
     fun dispose() {
-        trayMenuImpl?.dispose()
+        trayManager?.stopTray()
+        trayManager = null
     }
 }

@@ -8,25 +8,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
+import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
 import com.kdroid.composetray.utils.getTrayPosition
-import com.kdroid.kmplog.Log
-import com.kdroid.kmplog.d
-import com.kdroid.kmplog.i
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import composenativetray.demo.generated.resources.icon2
 import org.jetbrains.compose.resources.painterResource
+import java.awt.Color
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
+import javax.swing.Timer
 
 private enum class ServiceStatus {
     RUNNING, STOPPED
 }
 
 fun main() = application {
-    Log.setDevelopmentMode(true)
     val logTag = "NativeTray"
+    allowComposeNativeTrayLogging = true
+    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
-    Log.d("TrayPosition", getTrayPosition().toString())
+    println("$logTag: TrayPosition: ${getTrayPosition()}")
 
     var isWindowVisible by remember { mutableStateOf(true) }
     var textVisible by remember { mutableStateOf(false) }
@@ -44,11 +49,13 @@ fun main() = application {
     }
 
     val running = serviceStatus == ServiceStatus.RUNNING
-    var icon by remember {   mutableStateOf(Res.drawable.icon) }
+    var icon by remember { mutableStateOf(Res.drawable.icon) }
 
     // Always create the Tray composable, but make it conditional on visibility
     // This ensures it's recomposed when alwaysShowTray changes
     val showTray = alwaysShowTray || !isWindowVisible
+    var isVisible by remember { mutableStateOf(true) }
+    var name by remember { mutableStateOf("Change Item Name") }
 
     if (showTray) {
         Tray(
@@ -61,22 +68,31 @@ fun main() = application {
             },
             primaryAction = {
                 isWindowVisible = true
-                Log.i(logTag, "On Primary Clicked")
+                println("$logTag: On Primary Clicked")
             },
             primaryActionLabel = "Open the Application",
             tooltip = "My Application",
+            // Pass isVisible and name as menuKey to force recomposition when they change
             menuContent = {
                 Item("Change icon") {
                     icon = if (icon == Res.drawable.icon) Res.drawable.icon2 else Res.drawable.icon
                 }
+                if (isVisible) {
+                    Item("Hide Me") {
+                        isVisible = false
+                    }
+                }
+                Item(name) {
+                    name = "I've changed !"
+                }
                 // Dynamic Service Menu
                 SubMenu(label = "Service Control") {
                     Item(label = "Start Service", isEnabled = !running) {
-                        Log.i(logTag, "Start Service selected")
+                        println("$logTag: Start Service selected")
                         serviceStatus = ServiceStatus.RUNNING
                     }
                     Item(label = "Stop Service", isEnabled = running) {
-                        Log.i(logTag, "Stop Service selected")
+                        println("$logTag: Stop Service selected")
                         serviceStatus = ServiceStatus.STOPPED
                     }
                     Item(label = "Service Status: ${if (running) "Running" else "Stopped"}", isEnabled = false)
@@ -87,11 +103,11 @@ fun main() = application {
                 // Options SubMenu
                 SubMenu(label = "Options") {
                     Item(label = "Show Text") {
-                        Log.i(logTag, "Show Text selected")
+                        println("$logTag: Show Text selected")
                         textVisible = true
                     }
                     Item(label = "Hide Text") {
-                        Log.i(logTag, "Hide Text selected")
+                        println("$logTag: Hide Text selected")
                         textVisible = false
                     }
                 }
@@ -99,25 +115,33 @@ fun main() = application {
                 Divider()
 
                 Item(label = "About") {
-                    Log.i(logTag, "Application v1.0 - Developed by Elyahou")
+                    println("$logTag: Application v1.0 - Developed by Elyahou")
                 }
 
                 Divider()
 
-                CheckableItem(label = "Always show tray", checked = alwaysShowTray) { isChecked ->
-                    alwaysShowTray = isChecked
-                    Log.i(logTag, "Always show tray ${if (isChecked) "enabled" else "disabled"}")
-                }
+                CheckableItem(
+                    label = "Always show tray",
+                    checked = alwaysShowTray,
+                    onCheckedChange = { isChecked ->
+                        alwaysShowTray = isChecked
+                        println("$logTag: Always show tray ${if (isChecked) "enabled" else "disabled"}")
+                    }
+                )
 
-                CheckableItem(label = "Hide on close", checked = hideOnClose) { isChecked ->
-                    hideOnClose = isChecked
-                    Log.i(logTag, "Hide on close ${if (isChecked) "enabled" else "disabled"}")
-                }
+                CheckableItem(
+                    label = "Hide on close",
+                    checked = hideOnClose,
+                    onCheckedChange = { isChecked ->
+                        hideOnClose = isChecked
+                        println("$logTag: Hide on close ${if (isChecked) "enabled" else "disabled"}")
+                    }
+                )
 
                 Divider()
 
                 Item(label = "Exit", isEnabled = true) {
-                    Log.i(logTag, "Exiting the application")
+                    println("$logTag: Exiting the application")
                     dispose()
                     exitApplication()
                 }
@@ -137,6 +161,7 @@ fun main() = application {
         visible = isWindowVisible,
         icon = painterResource(Res.drawable.icon) // Optional: Set window icon
     ) {
+        window.toFront()
         App(textVisible, alwaysShowTray, hideOnClose) { alwaysShow, hideOnCloseState ->
             alwaysShowTray = alwaysShow
             hideOnClose = hideOnCloseState

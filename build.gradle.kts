@@ -1,4 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
@@ -38,11 +37,14 @@ kotlin {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
+            implementation(compose.ui)
             implementation(libs.jna)
             implementation(libs.jna.platform)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kmp.log)
+            implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.platformtools.core)
+            implementation(libs.platformtools.darkmodedetector)
+
         }
     }
 
@@ -54,8 +56,20 @@ val buildWin: TaskProvider<Exec> = tasks.register<Exec>("buildNativeWin") {
     commandLine("cmd", "/c", "build.bat")
 }
 
+val buildMac: TaskProvider<Exec> = tasks.register<Exec>("buildNativeMac") {
+    onlyIf { System.getProperty("os.name").startsWith("Mac") }
+    workingDir(rootDir.resolve("maclib"))
+    commandLine("sh", "build.sh")
+}
+
+val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
+//    onlyIf { System.getProperty("os.name").toLowerCase().contains("linux") }
+//    workingDir(rootDir.resolve("linuxlibdbus"))
+////    commandLine("./build.sh")
+}
+
 tasks.register("buildNativeLibraries") {
-    dependsOn(buildWin)
+    dependsOn(buildWin, buildLinux, buildMac)
 }
 
 mavenPublishing {
@@ -95,7 +109,7 @@ mavenPublishing {
     }
 
     // Configure publishing to Maven Central
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
 
 
     // Enable GPG signing for all publications

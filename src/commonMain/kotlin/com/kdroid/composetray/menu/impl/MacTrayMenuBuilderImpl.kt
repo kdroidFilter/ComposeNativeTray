@@ -1,24 +1,25 @@
 package com.kdroid.composetray.menu.impl
 
-import com.kdroid.composetray.lib.windows.WindowsTrayManager
+import com.kdroid.composetray.lib.mac.MacTrayManager
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-internal class WindowsTrayMenuBuilderImpl(
+internal class MacTrayMenuBuilderImpl(
     private val iconPath: String,
     private val tooltip: String = "",
-    private val onLeftClick: (() -> Unit)?
+    private val onLeftClick: (() -> Unit)?,
+    private val trayManager: MacTrayManager? = null
 ) : TrayMenuBuilder {
-    private val menuItems = mutableListOf<WindowsTrayManager.MenuItem>()
+    private val menuItems = mutableListOf<MacTrayManager.MenuItem>()
     private val lock = ReentrantLock()
 
     // Maintain persistent references to prevent GC
-    private val persistentMenuItems = mutableListOf<WindowsTrayManager.MenuItem>()
+    private val persistentMenuItems = mutableListOf<MacTrayManager.MenuItem>()
 
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         lock.withLock {
-            val menuItem = WindowsTrayManager.MenuItem(
+            val menuItem = MacTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 onClick = onClick
@@ -35,15 +36,20 @@ internal class WindowsTrayMenuBuilderImpl(
         isEnabled: Boolean
     ) {
         lock.withLock {
-            val menuItem = WindowsTrayManager.MenuItem(
+            val menuItem = MacTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 isCheckable = true,
                 isChecked = checked,
                 onClick = {
-                    // Toggle the checked state
-                    val newChecked = !checked
-                    onCheckedChange(newChecked)
+                    lock.withLock {
+                        // Toggle the checked state
+                        val newChecked = !checked
+                        onCheckedChange(newChecked)
+
+                        // Note: The actual visual update of the check mark
+                        // will happen when the menu is recreated after the state change
+                    }
                 }
             )
             menuItems.add(menuItem)
@@ -52,13 +58,18 @@ internal class WindowsTrayMenuBuilderImpl(
     }
 
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
-        val subMenuItems = mutableListOf<WindowsTrayManager.MenuItem>()
+        val subMenuItems = mutableListOf<MacTrayManager.MenuItem>()
         if (submenuContent != null) {
-            val subMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick = onLeftClick).apply(submenuContent)
+            val subMenuImpl = MacTrayMenuBuilderImpl(
+                iconPath,
+                tooltip,
+                onLeftClick = onLeftClick,
+                trayManager = trayManager
+            ).apply(submenuContent)
             subMenuItems.addAll(subMenuImpl.menuItems)
         }
         lock.withLock {
-            val subMenu = WindowsTrayManager.MenuItem(
+            val subMenu = MacTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 subMenuItems = subMenuItems
@@ -70,7 +81,7 @@ internal class WindowsTrayMenuBuilderImpl(
 
     override fun Divider() {
         lock.withLock {
-            val divider = WindowsTrayManager.MenuItem(text = "-")
+            val divider = MacTrayManager.MenuItem(text = "-")
             menuItems.add(divider)
             persistentMenuItems.add(divider) // Store reference to prevent GC
         }
@@ -78,10 +89,11 @@ internal class WindowsTrayMenuBuilderImpl(
 
     override fun dispose() {
         lock.withLock {
-            WindowsTrayManager(iconPath = iconPath, tooltip = tooltip, onLeftClick = onLeftClick).stopTray()
-            persistentMenuItems.clear() // Clear references when disposing
+            // Just clear references when disposing
+            // The actual MacTrayManager instance is managed by MacTrayInitializer
+            persistentMenuItems.clear()
         }
     }
 
-    fun build(): List<WindowsTrayManager.MenuItem> = lock.withLock { menuItems.toList() }
+    fun build(): List<MacTrayManager.MenuItem> = lock.withLock { menuItems.toList() }
 }
