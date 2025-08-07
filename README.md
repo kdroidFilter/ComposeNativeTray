@@ -25,8 +25,7 @@
 - Improves the appearance of the tray on Linux, which previously resembled Windows 95.
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
-  - On Windows, the primary action is triggered by a left-click on the tray icon.
-  - On macOS, left-clicking opens the tray menu while right-clicking has no effect. The primary action is added as the first item in the menu. See #209
+  - On Windows ans macOS, the primary action is triggered by a left-click on the tray icon.
   - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label). If the context menu is empty, the library uses `gtkstatusicon` to capture the primary action without needing to add an item to the context menu. see #210
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
