@@ -3,6 +3,7 @@ package com.kdroid.composetray.utils
 import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
+import com.kdroid.composetray.lib.mac.MacTrayLoader
 import com.kdroid.composetray.lib.mac.MacTrayManager
 import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
@@ -134,8 +135,7 @@ fun getTrayPosition(): TrayPosition {
             return getWindowsTrayPosition(trayLib.tray_get_notification_icons_region())
         }
         OperatingSystem.MACOS -> {
-            val lib: MacTrayManager.MacTrayLibrary =
-                Native.load("MacTray", MacTrayManager.MacTrayLibrary::class.java)
+            val lib = MacTrayLoader.lib
             return getMacTrayPosition(lib.tray_get_status_item_region())
         }
         OperatingSystem.LINUX -> {
@@ -355,8 +355,7 @@ internal fun getMacTrayPosition(nativeResult: String?): TrayPosition = when (nat
 internal fun getStatusItemXYForMac(): Pair<Int, Int> {
     val xRef = IntByReference()
     val yRef = IntByReference()
-    val lib: MacTrayManager.MacTrayLibrary =
-        Native.load("MacTray", MacTrayManager.MacTrayLibrary::class.java)
+    val lib = MacTrayLoader.lib
 
     val precise = lib.tray_get_status_item_position(xRef, yRef) != 0
     return xRef.value to yRef.value    // si !precise, valeurs = (0,0)

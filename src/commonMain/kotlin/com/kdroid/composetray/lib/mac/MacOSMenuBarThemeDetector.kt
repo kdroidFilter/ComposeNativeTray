@@ -11,7 +11,7 @@ import com.kdroid.composetray.lib.mac.MacTrayManager.MacTrayLibrary
 
 object MacOSMenuBarThemeDetector {
 
-    private val trayLib: MacTrayLibrary = Native.load("MacTray", MacTrayLibrary::class.java)
+    private val trayLib: MacTrayLibrary = MacTrayLoader.lib
 
     private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashMap.newKeySet()
 
