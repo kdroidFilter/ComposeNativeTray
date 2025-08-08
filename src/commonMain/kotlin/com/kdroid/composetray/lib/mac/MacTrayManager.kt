@@ -21,7 +21,7 @@ internal class MacTrayManager(
     private var tooltip: String = "",
     onLeftClick: (() -> Unit)? = null
 ) {
-    private val trayLib: MacTrayLibrary = Native.load("MacTray", MacTrayLibrary::class.java)
+    private val trayLib: MacTrayLibrary = MacTrayLoader.lib
     private var tray: MacTray? = null
     private val menuItems: MutableList<MenuItem> = mutableListOf()
     private val running = AtomicBoolean(false)
