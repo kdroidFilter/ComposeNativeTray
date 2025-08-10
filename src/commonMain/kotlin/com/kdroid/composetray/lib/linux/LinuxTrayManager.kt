@@ -85,6 +85,25 @@ internal class LinuxTrayManager(
         taskQueue += action
     }
 
+    // KDE environment detection (KDE Plasma / SNI)
+    private fun isKDEDesktop(): Boolean {
+        return try {
+            val xdg = System.getenv("XDG_CURRENT_DESKTOP") ?: ""
+            val session = System.getenv("DESKTOP_SESSION") ?: ""
+            val kdeFull = System.getenv("KDE_FULL_SESSION") ?: ""
+            val xdgL = xdg.lowercase()
+            val sessionL = session.lowercase()
+            val kdeDetected =
+                kdeFull.equals("true", ignoreCase = true) ||
+                xdgL.contains("kde") || xdgL.contains("plasma") ||
+                sessionL.contains("kde") || sessionL.contains("plasma")
+            if (kdeDetected) debugln { "LinuxTrayManager: KDE environment detected (XDG='$xdg', SESSION='$session', KDE_FULL_SESSION='$kdeFull')" }
+            kdeDetected
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
     // ----------------------------------------------------------------------------- menu model
     data class MenuItem(
         val text: String,
@@ -186,7 +205,8 @@ internal class LinuxTrayManager(
             callbackReferences.clear()
             menuItemReferences.clear()
 
-            if (menuItems.isNotEmpty()) {
+            val effectiveItems = if (menuItems.isEmpty() && isKDEDesktop()) listOf(MenuItem("-")) else menuItems
+            if (effectiveItems.isNotEmpty()) {
                 // Create or clear existing menu ------------------------------------------------
                 if (menuHandle == null) {
                     menuHandle = sni.create_menu()
@@ -215,7 +235,7 @@ internal class LinuxTrayManager(
                 }
 
                 // Add menu items --------------------------------------------------------------
-                menuItems.forEach { addNativeMenuItem(menuHandle!!, it) }
+                effectiveItems.forEach { addNativeMenuItem(menuHandle!!, it) }
                 sni.set_context_menu(trayHandle, menuHandle)
                 infoln { "LinuxTrayManager: Context menu set" }
             } else {
@@ -326,12 +346,13 @@ internal class LinuxTrayManager(
     }
 
     private fun initializeTrayMenu() {
-        if (menuItems.isEmpty()) return
+        val effectiveItems = if (menuItems.isEmpty() && isKDEDesktop()) listOf(MenuItem("-")) else menuItems
+        if (effectiveItems.isEmpty()) return
         menuHandle = sni.create_menu() ?: run {
             errorln { "Failed to create menu" }
             return
         }
-        menuItems.forEach { addNativeMenuItem(menuHandle!!, it) }
+        effectiveItems.forEach { addNativeMenuItem(menuHandle!!, it) }
         trayHandle?.let { sni.set_context_menu(it, menuHandle) }
     }
 
