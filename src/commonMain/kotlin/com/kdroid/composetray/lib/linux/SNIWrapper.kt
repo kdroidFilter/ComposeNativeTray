@@ -76,4 +76,8 @@ interface SNIWrapper : Library {
 
     //Debug mode management
     fun sni_set_debug_mode(enabled: Int)
+
+    // Restart guard APIs
+    fun sni_begin_restart_guard()
+    fun sni_end_restart_guard()
 }

@@ -58,21 +58,33 @@ internal class LinuxTrayManager(
     private val refreshPending = AtomicBoolean(false)
     private val lastRefreshRequest = AtomicLong(0)
     private val REFRESH_WINDOW_MS = 120L // fusionne les refresh rapprochés
+    // Prevent overlapping tray restarts (avoid: destroy -> recreate -> destroyed again)
+    private val restartInProgress = AtomicBoolean(false)
 
     private fun requestMenuRefresh() {
         lastRefreshRequest.set(System.currentTimeMillis())
         if (refreshPending.compareAndSet(false, true)) {
-            runOnTrayThread {
-                // petite fenêtre de debounce
+            val t = Thread {
+                // petite fenêtre de debounce sans bloquer le thread du tray
                 while (System.currentTimeMillis() - lastRefreshRequest.get() < REFRESH_WINDOW_MS) {
-                    Thread.sleep(REFRESH_WINDOW_MS)
+                    try {
+                        Thread.sleep(REFRESH_WINDOW_MS)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        break
+                    }
                 }
-                try {
-                    recreateMenu()
-                } finally {
-                    refreshPending.set(false)
+                runOnTrayThread {
+                    try {
+                        recreateMenu()
+                    } finally {
+                        refreshPending.set(false)
+                    }
                 }
             }
+            t.name = "LinuxTray-MenuDebounce"
+            t.isDaemon = true
+            t.start()
         }
     }
 
@@ -177,6 +189,18 @@ internal class LinuxTrayManager(
     // --------------------------------------------------------------------------- menu creation
     private fun recreateMenu() {
         infoln { "LinuxTrayManager: Recreating menu" }
+        if (restartInProgress.get()) {
+            infoln { "LinuxTrayManager: Skip recreateMenu — workaround restart in progress" }
+            // Reschedule a refresh shortly after the workaround completes so the menu isn't lost
+            val retry = Thread {
+                try { Thread.sleep(150) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+                requestMenuRefresh()
+            }
+            retry.name = "LinuxTray-MenuRetry"
+            retry.isDaemon = true
+            retry.start()
+            return
+        }
         if (!running.get() || trayHandle == null) {
             warnln { "LinuxTrayManager: Cannot recreate menu, tray is not running or trayHandle is null" }
             return
@@ -219,13 +243,12 @@ internal class LinuxTrayManager(
                 sni.set_context_menu(trayHandle, menuHandle)
                 infoln { "LinuxTrayManager: Context menu set" }
             } else {
-                // No items: remove menu --------------------------------------------------------
+                // No items: workaround for SNI bug when transitioning from non-empty to empty ---
                 if (menuHandle != null) {
-                    sni.set_context_menu(trayHandle, null)
-                    Thread.sleep(50)
-                    sni.destroy_menu(menuHandle!!)
-                    menuHandle = null
-                    infoln { "LinuxTrayManager: Menu removed" }
+                    infoln { "LinuxTrayManager: Workaround — recreating tray without context menu (non-empty -> empty transition)" }
+                    // Fully recreate the tray without any context menu to force the SNI to refresh
+                    restartTrayPreservingStateWithoutMenu()
+                    return
                 }
             }
 
@@ -410,5 +433,86 @@ internal class LinuxTrayManager(
             }
         }
         trayThread = null
+    }
+
+    private fun restartTrayPreservingStateWithoutMenu() {
+        // Called on tray thread. Recreate the tray handle without attaching any context menu.
+        if (!running.get()) return
+        // Prevent overlapping restarts that could destroy the freshly recreated tray
+        if (!restartInProgress.compareAndSet(false, true)) {
+            infoln { "LinuxTrayManager: Workaround restart skipped (already in progress)" }
+            return
+        }
+        try {
+            // Prevent native auto-shutdown while we fully restart the tray
+            try { sni.sni_begin_restart_guard() } catch (_: Throwable) {}
+
+            val currentIcon = iconPath
+            val currentTooltip = tooltip
+
+            // Detach and destroy any existing menu first (from the old handle)
+            try {
+                if (menuHandle != null) {
+                    try { sni.set_context_menu(trayHandle, null) } catch (_: Exception) {}
+                    try { Thread.sleep(50) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+                    try { sni.destroy_menu(menuHandle!!) } catch (_: Exception) {}
+                    menuHandle = null
+                }
+            } catch (_: Exception) { }
+
+            // Destroy the old tray handle FIRST to ensure there is never a moment with two icons
+            val oldHandle = trayHandle
+            try {
+                if (oldHandle != null) {
+                    sni.destroy_handle(oldHandle)
+                }
+            } catch (_: Exception) {
+                warnln { "LinuxTrayManager: Failed to destroy old tray handle during workaround" }
+            }
+            trayHandle = null
+
+            // Give the host time to remove the old icon (DBus async). We can wait longer now thanks to native restart guard
+            infoln { "LinuxTrayManager: Waiting for host to remove old icon (up to 600ms)" }
+            val waitStart = System.currentTimeMillis()
+            while (System.currentTimeMillis() - waitStart < 600) {
+                try { sni.sni_process_events() } catch (_: Exception) {}
+                try { Thread.sleep(10) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
+            }
+
+            // Recreate new tray handle (native layer will skip shutdown if a new tray appears)
+            val newHandle = sni.create_tray("composetray-${System.currentTimeMillis()}")
+            if (newHandle == null) {
+                errorln { "LinuxTrayManager: Workaround failed — could not recreate tray handle" }
+                return
+            }
+
+            // Restore properties on the new handle
+            sni.set_title(newHandle, "Compose Tray")
+            sni.set_status(newHandle, "Active")
+            sni.set_icon_by_path(newHandle, currentIcon)
+            sni.set_tooltip_title(newHandle, currentTooltip)
+            sni.set_tooltip_subtitle(newHandle, "")
+
+            // Switch to the new handle for subsequent operations
+            trayHandle = newHandle
+
+            // Re-register callbacks on the new handle
+            initializeCallbacks()
+
+            // Ensure no context menu is attached in this workaround
+            try { sni.set_context_menu(newHandle, null) } catch (_: Exception) {}
+
+            // Force a visual update
+            try {
+                sni.tray_update(newHandle)
+            } catch (e: Exception) {
+                warnln { "LinuxTrayManager: tray_update not available after workaround: ${e.message}" }
+            }
+
+            infoln { "LinuxTrayManager: Tray recreated without context menu" }
+        } finally {
+            try { sni.sni_end_restart_guard() } catch (_: Throwable) {}
+            restartInProgress.set(false)
+        }
     }
 }

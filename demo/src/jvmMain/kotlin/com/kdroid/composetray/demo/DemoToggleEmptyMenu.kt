@@ -29,7 +29,7 @@ import org.jetbrains.compose.resources.painterResource
  */
 fun main() = application {
     // Enable logging to help diagnose behavior on Linux
-    allowComposeNativeTrayLogging = true
+    allowComposeNativeTrayLogging = false
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     var showMenuItem by remember { mutableStateOf(false) }
@@ -39,7 +39,7 @@ fun main() = application {
     Tray(
         iconContent = {
             Image(
-                painter = if (showMenuItem) icon else icon2,
+                painter =  icon,
                 contentDescription = "ComposeNativeTray Demo",
                 modifier = Modifier.fillMaxSize()
             )
@@ -58,8 +58,7 @@ fun main() = application {
                 showMenuItem = false
                 println("Clicked showMenuItem to $showMenuItem")
             }
-        } else
-        Item("", isEnabled = false)
+        }
 
 
     }
