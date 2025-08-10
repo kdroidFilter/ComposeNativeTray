@@ -203,6 +203,8 @@ internal class MacTrayManager(
         val trayObj = tray ?: return
 
         if (menuItems.isEmpty()) {
+            // When there are no menu items, clear the native menu pointer so macOS detaches the menu.
+            trayObj.menu = null
             return
         }
 
