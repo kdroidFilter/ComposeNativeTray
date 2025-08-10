@@ -3,7 +3,10 @@ package com.kdroid.composetray.demo
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Adb
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +24,7 @@ import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
+import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
     allowComposeNativeTrayLogging = true
@@ -57,6 +61,8 @@ fun main() = application {
     // Always create the Tray composable, but make it conditional on visibility
     val showTray = alwaysShowTray || !isWindowVisible
 
+    val icon = painterResource(Res.drawable.icon)
+
     if (showTray) {
         Tray(
             iconContent = {
@@ -71,12 +77,11 @@ fun main() = application {
                 isWindowVisible = true
                 println("$logTag: On Primary Clicked")
             },
-            primaryActionLabel = "Open the Application",
             tooltip = "My Application"
             // Note: No menuKey needed anymore!
         ) {
             // Dynamic item that changes label
-            Item(label = dynamicItemLabel) {
+            Item(label = dynamicItemLabel, icon = Icons.Filled.Adb) {
                 itemCounter++
                 dynamicItemLabel = "Clicked $itemCounter times"
                 println("$logTag: Dynamic item clicked: $dynamicItemLabel")
@@ -85,7 +90,7 @@ fun main() = application {
             Divider()
 
             // Options SubMenu
-            SubMenu(label = "Options") {
+            SubMenu(label = "Options", icon = Icons.Default.Notifications) {
                 Item(label = "Show Text") {
                     println("$logTag: Show Text selected")
                     textVisible = true
@@ -101,7 +106,7 @@ fun main() = application {
                         Item(label = "Advanced Option 1") {
                             println("$logTag: Advanced Option 1 selected")
                         }
-                        Item(label = "Advanced Option 2") {
+                        Item(label = "Advanced Option 2", icon = Icons.Default.ZoomOut) {
                             println("$logTag: Advanced Option 2 selected")
                         }
                     }
@@ -124,6 +129,7 @@ fun main() = application {
 
             // New idiomatic CheckableItem usage
             CheckableItem(
+                icon = Icons.Default.Notifications,
                 label = "Enable notifications",
                 checked = notificationsEnabled,
                 onCheckedChange = { checked ->

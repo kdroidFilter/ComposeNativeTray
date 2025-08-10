@@ -16,17 +16,20 @@ import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
 import com.kdroid.composetray.utils.getTrayPosition
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
+import composenativetray.demo.generated.resources.icon2
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * Demo application that showcases the use of the ImageVector API for tray icons.
- * This demo uses the AcademicCap vector as the tray icon.
+ * Demo application that showcases the use of the platform-specific icon API for tray icons.
+ * This demo uses:
+ * - A Painter resource for Windows
+ * - An ImageVector for macOS and Linux
  */
 fun main() = application {
-    allowComposeNativeTrayLogging = false
+    allowComposeNativeTrayLogging = true
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
-    val logTag = "ImageVectorTrayDemo"
+    val logTag = "PlatformSpecificIconsDemo"
     
     println("$logTag: TrayPosition: ${getTrayPosition()}")
 
@@ -34,7 +37,8 @@ fun main() = application {
     var alwaysShowTray by remember { mutableStateOf(true) }
     var hideOnClose by remember { mutableStateOf(true) }
     
-    // Tint color state for the icon
+    // Icon states for switching between different options
+    var currentWindowsIcon by remember { mutableStateOf(Res.drawable.icon) }
     var iconTint by remember { mutableStateOf<Color?>(null) } // null means use default (white/black based on theme)
 
     val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
@@ -50,18 +54,31 @@ fun main() = application {
     val showTray = alwaysShowTray || !isWindowVisible
 
     if (showTray) {
-        // Using the ImageVector API with the AcademicCap vector
+        // Using the platform-specific icon API
         Tray(
-            icon = AcademicCap,  // Using the ImageVector directly
-            tint = iconTint,     // Using the tint parameter (null means auto-adapt to theme)
-            tooltip = "Academic Cap Demo",
+            windowsIcon = painterResource(currentWindowsIcon),  // Used on Windows
+            macLinuxIcon = AcademicCap,                         // Used on macOS and Linux
+            tint = iconTint,                                    // Applied to the ImageVector on macOS/Linux
+            tooltip = "Platform-Specific Icons Demo",
             primaryAction = {
                 isWindowVisible = true
                 println("$logTag: Primary action clicked")
             }
         ) {
-            // Menu items to demonstrate changing the tint color
-            SubMenu(label = "Icon Color") {
+            // Menu for Windows icon options (only affects Windows)
+            SubMenu(label = "Windows Icon") {
+                Item(label = "Icon 1") {
+                    currentWindowsIcon = Res.drawable.icon
+                    println("$logTag: Switched to Windows icon 1")
+                }
+                Item(label = "Icon 2") {
+                    currentWindowsIcon = Res.drawable.icon2
+                    println("$logTag: Switched to Windows icon 2")
+                }
+            }
+            
+            // Menu for ImageVector tint options (only affects macOS/Linux)
+            SubMenu(label = "macOS/Linux Icon Color") {
                 Item(label = "Default (Auto)") {
                     iconTint = null
                     println("$logTag: Icon color set to default (auto)")
@@ -88,7 +105,7 @@ fun main() = application {
 
             // Standard menu items
             Item(label = "About") {
-                println("$logTag: ImageVector API Demo - Using AcademicCap vector")
+                println("$logTag: Platform-Specific Icons Demo - Using different icon types based on platform")
             }
 
             Divider()
@@ -135,7 +152,7 @@ fun main() = application {
                 exitApplication()
             }
         },
-        title = "ImageVector Tray Demo - AcademicCap",
+        title = "Platform-Specific Icons Demo",
         visible = isWindowVisible,
         icon = painterResource(Res.drawable.icon)
     ) {

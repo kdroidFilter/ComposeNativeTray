@@ -35,9 +35,10 @@ typedef void (*theme_callback)         (int is_dark /* 1 = dark, 0 = light */);
 /*  Structures                                                                */
 /* -------------------------------------------------------------------------- */
 struct tray_menu_item {
-    const char              *text;        /* label or "-" for separator      */
-    int                      disabled;    /* 1 = grayed out                  */
-    int                      checked;     /* 1 = checked                     */
+    const char              *text;         /* label or "-" for separator      */
+    const char              *icon_filepath; /* path to icon file (optional)    */
+    int                      disabled;     /* 1 = grayed out                  */
+    int                      checked;      /* 1 = checked                     */
     tray_menu_item_callback  cb;          /* callback (NULL if none)         */
     struct tray_menu_item   *submenu;     /* submenu or NULL                 */
 };

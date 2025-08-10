@@ -70,7 +70,6 @@ fun main() = application {
                 isWindowVisible = true
                 println("$logTag: On Primary Clicked")
             },
-            primaryActionLabel = "Open the Application",
             tooltip = "My Application",
             // Pass isVisible and name as menuKey to force recomposition when they change
             menuContent = {

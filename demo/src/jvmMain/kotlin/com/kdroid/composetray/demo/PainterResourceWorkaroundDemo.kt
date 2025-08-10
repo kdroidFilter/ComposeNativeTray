@@ -4,39 +4,37 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import com.kdroid.composetray.demo.svg.AcademicCap
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
-import com.kdroid.composetray.utils.getTrayPosition
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
+import composenativetray.demo.generated.resources.icon2
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * Demo application that showcases the use of the ImageVector API for tray icons.
- * This demo uses the AcademicCap vector as the tray icon.
+ * Demo application that showcases the workaround for using painterResource with menu items.
+ * This demo demonstrates how to properly use painterResource with menu items by declaring
+ * the icon variables in the composable context.
  */
 fun main() = application {
-    allowComposeNativeTrayLogging = false
+    allowComposeNativeTrayLogging = true
     composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
-    val logTag = "ImageVectorTrayDemo"
+    val logTag = "PainterResourceWorkaroundDemo"
     
-    println("$logTag: TrayPosition: ${getTrayPosition()}")
-
     var isWindowVisible by remember { mutableStateOf(true) }
     var alwaysShowTray by remember { mutableStateOf(true) }
     var hideOnClose by remember { mutableStateOf(true) }
     
-    // Tint color state for the icon
-    var iconTint by remember { mutableStateOf<Color?>(null) } // null means use default (white/black based on theme)
-
+    // Declare icon variables in the composable context
+    val mainIcon = painterResource(Res.drawable.icon)
+    val settingsIcon = painterResource(Res.drawable.icon2)
+    
     val isSingleInstance = SingleInstanceManager.isSingleInstance(onRestoreRequest = {
         isWindowVisible = true
     })
@@ -46,54 +44,33 @@ fun main() = application {
         return@application
     }
 
-    // Always create the Tray composable, but make it conditional on visibility
     val showTray = alwaysShowTray || !isWindowVisible
 
     if (showTray) {
-        // Using the ImageVector API with the AcademicCap vector
         Tray(
-            icon = AcademicCap,  // Using the ImageVector directly
-            tint = iconTint,     // Using the tint parameter (null means auto-adapt to theme)
-            tooltip = "Academic Cap Demo",
+            icon = mainIcon,  // Using the cached painter
+            tooltip = "Painter Resource Workaround Demo",
             primaryAction = {
                 isWindowVisible = true
                 println("$logTag: Primary action clicked")
             }
         ) {
-            // Menu items to demonstrate changing the tint color
-            SubMenu(label = "Icon Color") {
-                Item(label = "Default (Auto)") {
-                    iconTint = null
-                    println("$logTag: Icon color set to default (auto)")
+            // Using the cached painter in a menu item
+            SubMenu(
+                label = "Settings",
+                icon = settingsIcon  // Works correctly because we're using a variable
+            ) {
+                Item(label = "Option 1") {
+                    println("$logTag: Option 1 selected")
                 }
-                Item(label = "Red") {
-                    iconTint = Color.Red
-                    println("$logTag: Icon color set to red")
-                }
-                Item(label = "Green") {
-                    iconTint = Color.Green
-                    println("$logTag: Icon color set to green")
-                }
-                Item(label = "Blue") {
-                    iconTint = Color.Blue
-                    println("$logTag: Icon color set to blue")
-                }
-                Item(label = "Yellow") {
-                    iconTint = Color.Yellow
-                    println("$logTag: Icon color set to yellow")
+                
+                Item(label = "Option 2") {
+                    println("$logTag: Option 2 selected")
                 }
             }
-
+            
             Divider()
-
-            // Standard menu items
-            Item(label = "About") {
-                println("$logTag: ImageVector API Demo - Using AcademicCap vector")
-            }
-
-            Divider()
-
-            // Settings for tray visibility
+            
             CheckableItem(
                 label = "Always show tray",
                 checked = alwaysShowTray,
@@ -102,7 +79,7 @@ fun main() = application {
                     println("$logTag: Always show tray ${if (checked) "enabled" else "disabled"}")
                 }
             )
-
+            
             CheckableItem(
                 label = "Hide on close",
                 checked = hideOnClose,
@@ -111,14 +88,9 @@ fun main() = application {
                     println("$logTag: Hide on close ${if (checked) "enabled" else "disabled"}")
                 }
             )
-
+            
             Divider()
-
-            Item(label = "Hide in tray") {
-                isWindowVisible = false
-                println("$logTag: Application hidden in tray")
-            }
-
+            
             Item(label = "Exit") {
                 println("$logTag: Exiting application")
                 dispose()
@@ -135,9 +107,9 @@ fun main() = application {
                 exitApplication()
             }
         },
-        title = "ImageVector Tray Demo - AcademicCap",
+        title = "Painter Resource Workaround Demo",
         visible = isWindowVisible,
-        icon = painterResource(Res.drawable.icon)
+        icon = mainIcon  // Using the cached painter for the window icon
     ) {
         window.toFront()
         App(

@@ -1,5 +1,11 @@
 package com.kdroid.composetray.menu.api
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.kdroid.composetray.utils.IconRenderProperties
+
 /**
  * Interface for building tray menus in a platform-independent manner.
  * Implementations of this interface allow the creation of tray menus
@@ -17,6 +23,59 @@ interface TrayMenuBuilder {
    fun Item(label: String, isEnabled: Boolean = true, onClick: () -> Unit = {})
 
    /**
+    * Adds an item to the tray menu with a Composable icon.
+    *
+    * @param label The text label for the menu item.
+    * @param iconContent A Composable function that defines the icon.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+    * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
+    */
+   fun Item(
+      label: String,
+      iconContent: @Composable () -> Unit,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      onClick: () -> Unit = {}
+   )
+
+   /**
+    * Adds an item to the tray menu with an ImageVector icon.
+    *
+    * @param label The text label for the menu item.
+    * @param icon The ImageVector to display as icon.
+    * @param iconTint Optional tint color for the icon. If null, adapts to menu theme.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+    * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
+    */
+   fun Item(
+      label: String,
+      icon: ImageVector,
+      iconTint: Color? = null,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      onClick: () -> Unit = {}
+   )
+
+   /**
+    * Adds an item to the tray menu with a Painter icon.
+    *
+    * @param label The text label for the menu item.
+    * @param icon The Painter to display as icon.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+    * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
+    */
+   fun Item(
+      label: String,
+      icon: Painter,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      onClick: () -> Unit = {}
+   )
+
+   /**
     * Adds a checkable item to the tray menu.
     * This follows Compose's idiomatic pattern for stateful components.
     *
@@ -27,6 +86,65 @@ interface TrayMenuBuilder {
     */
    fun CheckableItem(
       label: String,
+      checked: Boolean,
+      onCheckedChange: (Boolean) -> Unit,
+      isEnabled: Boolean = true
+   )
+
+   /**
+    * Adds a checkable item to the tray menu with a Composable icon.
+    *
+    * @param label The text label for the checkable menu item.
+    * @param iconContent A Composable function that defines the icon.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param checked The current checked state of the item.
+    * @param onCheckedChange A lambda function called when the user toggles the item.
+    * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+    */
+   fun CheckableItem(
+      label: String,
+      iconContent: @Composable () -> Unit,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      checked: Boolean,
+      onCheckedChange: (Boolean) -> Unit,
+      isEnabled: Boolean = true
+   )
+
+   /**
+    * Adds a checkable item to the tray menu with an ImageVector icon.
+    *
+    * @param label The text label for the checkable menu item.
+    * @param icon The ImageVector to display as icon.
+    * @param iconTint Optional tint color for the icon. If null, adapts to menu theme.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param checked The current checked state of the item.
+    * @param onCheckedChange A lambda function called when the user toggles the item.
+    * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+    */
+   fun CheckableItem(
+      label: String,
+      icon: ImageVector,
+      iconTint: Color? = null,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      checked: Boolean,
+      onCheckedChange: (Boolean) -> Unit,
+      isEnabled: Boolean = true
+   )
+
+   /**
+    * Adds a checkable item to the tray menu with a Painter icon.
+    *
+    * @param label The text label for the checkable menu item.
+    * @param icon The Painter to display as icon.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param checked The current checked state of the item.
+    * @param onCheckedChange A lambda function called when the user toggles the item.
+    * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+    */
+   fun CheckableItem(
+      label: String,
+      icon: Painter,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
       checked: Boolean,
       onCheckedChange: (Boolean) -> Unit,
       isEnabled: Boolean = true
@@ -58,6 +176,59 @@ interface TrayMenuBuilder {
     * @param submenuContent A lambda function defining the contents of the submenu. Can be null.
     */
    fun SubMenu(label: String, isEnabled: Boolean = true, submenuContent: (TrayMenuBuilder.() -> Unit)?)
+
+   /**
+    * Adds a submenu to the tray menu with a Composable icon.
+    *
+    * @param label The text label for the submenu.
+    * @param iconContent A Composable function that defines the icon.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param isEnabled Indicates whether the submenu is enabled. Defaults to true.
+    * @param submenuContent A lambda function defining the contents of the submenu. Can be null.
+    */
+   fun SubMenu(
+      label: String,
+      iconContent: @Composable () -> Unit,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      submenuContent: (TrayMenuBuilder.() -> Unit)?
+   )
+
+   /**
+    * Adds a submenu to the tray menu with an ImageVector icon.
+    *
+    * @param label The text label for the submenu.
+    * @param icon The ImageVector to display as icon.
+    * @param iconTint Optional tint color for the icon. If null, adapts to menu theme.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param isEnabled Indicates whether the submenu is enabled. Defaults to true.
+    * @param submenuContent A lambda function defining the contents of the submenu. Can be null.
+    */
+   fun SubMenu(
+      label: String,
+      icon: ImageVector,
+      iconTint: Color? = null,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      submenuContent: (TrayMenuBuilder.() -> Unit)?
+   )
+
+   /**
+    * Adds a submenu to the tray menu with a Painter icon.
+    *
+    * @param label The text label for the submenu.
+    * @param icon The Painter to display as icon.
+    * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
+    * @param isEnabled Indicates whether the submenu is enabled. Defaults to true.
+    * @param submenuContent A lambda function defining the contents of the submenu. Can be null.
+    */
+   fun SubMenu(
+      label: String,
+      icon: Painter,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      submenuContent: (TrayMenuBuilder.() -> Unit)?
+   )
 
    /**
     * Adds a visual separator (divider) to the tray menu.

@@ -41,6 +41,7 @@ internal class MacTrayManager(
     // Top level MenuItem class
     data class MenuItem(
         val text: String,
+        val icon: String? = null,
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
@@ -227,6 +228,7 @@ internal class MacTrayManager(
 
     private fun initializeNativeMenuItem(nativeItem: MacTrayMenuItem, menuItem: MenuItem) {
         nativeItem.text = menuItem.text
+        nativeItem.icon_filepath = menuItem.icon
         nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
         nativeItem.checked = if (menuItem.isChecked) 1 else 0
 
@@ -339,16 +341,17 @@ internal class MacTrayManager(
     }
 
     // Structure for a menu item
-    @Structure.FieldOrder("text", "disabled", "checked", "cb", "submenu")
+    @Structure.FieldOrder("text", "icon_filepath", "disabled", "checked", "cb", "submenu")
     class MacTrayMenuItem : Structure() {
         @JvmField var text: String? = null
+        @JvmField var icon_filepath: String? = null
         @JvmField var disabled: Int = 0
         @JvmField var checked: Int = 0
         @JvmField var cb: MenuItemCallback? = null
         @JvmField var submenu: Pointer? = null
 
         override fun getFieldOrder(): List<String> {
-            return listOf("text", "disabled", "checked", "cb", "submenu")
+            return listOf("text", "icon_filepath", "disabled", "checked", "cb", "submenu")
         }
     }
 
