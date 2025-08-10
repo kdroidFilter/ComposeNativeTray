@@ -51,7 +51,6 @@ fun main() = application {
         },
         tooltip = "Toggle Empty Menu"
     ) {
-        // When showMenuItem is false, this block remains empty by design
         if (showMenuItem) {
             Item("I'm here when toggled ON") {
                 // Clicking this item turns the menu empty again on next open
