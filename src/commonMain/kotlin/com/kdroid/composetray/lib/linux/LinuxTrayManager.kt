@@ -2,6 +2,8 @@ package com.kdroid.composetray.lib.linux
 
 import com.kdroid.composetray.utils.*
 import com.sun.jna.Pointer
+import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
+import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -84,23 +86,7 @@ internal class LinuxTrayManager(
     }
 
     // KDE environment detection (KDE Plasma / SNI)
-    private fun isKDEDesktop(): Boolean {
-        return try {
-            val xdg = System.getenv("XDG_CURRENT_DESKTOP") ?: ""
-            val session = System.getenv("DESKTOP_SESSION") ?: ""
-            val kdeFull = System.getenv("KDE_FULL_SESSION") ?: ""
-            val xdgL = xdg.lowercase()
-            val sessionL = session.lowercase()
-            val kdeDetected =
-                kdeFull.equals("true", ignoreCase = true) ||
-                xdgL.contains("kde") || xdgL.contains("plasma") ||
-                sessionL.contains("kde") || sessionL.contains("plasma")
-            if (kdeDetected) debugln { "LinuxTrayManager: KDE environment detected (XDG='$xdg', SESSION='$session', KDE_FULL_SESSION='$kdeFull')" }
-            kdeDetected
-        } catch (_: Throwable) {
-            false
-        }
-    }
+    private fun isKDEDesktop(): Boolean =  detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE
 
     // ----------------------------------------------------------------------------- menu model
     data class MenuItem(
