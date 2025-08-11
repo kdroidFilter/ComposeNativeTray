@@ -26,7 +26,7 @@
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
   - On Windows ans macOS, the primary action is triggered by a left-click on the tray icon.
-  - On Linux, due to the limitations of `libappindicator`, the primary action creates an item at the top of the context menu (with a customizable label). If the context menu is empty, the library uses `gtkstatusicon` to capture the primary action without needing to add an item to the context menu. see #210
+  - On Linux, on GNOME the primary action is triggered by a double left-click on the tray icon, while on the majority of other environments, primarily KDE Plasma, it is triggered by a single left-click, similar to Windows and macOS.
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
