@@ -60,38 +60,70 @@ private const val POSITION_KEY = "TrayPosition"
 private const val X_KEY = "TrayX"
 private const val Y_KEY = "TrayY"
 
+// Use a writable tmp/cache directory to avoid read-only filesystem issues (e.g., macOS app bundle working dir)
+private fun trayPropertiesFile(): File {
+    val tmpBase = System.getProperty("java.io.tmpdir") ?: "."
+    val appDir = File(File(tmpBase, "ComposeNativeTray"), AppIdProvider.appId())
+    // Best-effort create directory; if it fails, we will fallback to legacy file access patterns safely
+    runCatching { if (!appDir.exists()) appDir.mkdirs() }.onFailure { /* ignore */ }
+    return File(appDir, PROPERTIES_FILE)
+}
+
+// Legacy properties file in working directory (for backward compatibility)
+private fun legacyPropertiesFile(): File = File(PROPERTIES_FILE)
+
+// Previous tmp location before appId namespacing (for backward-compatible reads only)
+private fun oldTmpPropertiesFile(): File {
+    val tmpBase = System.getProperty("java.io.tmpdir") ?: "."
+    val oldDir = File(tmpBase, "ComposeNativeTray")
+    return File(oldDir, PROPERTIES_FILE)
+}
+
+private fun loadPropertiesFrom(file: File): Properties? {
+    if (!file.exists()) return null
+    return runCatching {
+        Properties().apply { file.inputStream().use { load(it) } }
+    }.getOrNull()
+}
+
+private fun storePropertiesTo(file: File, props: Properties) {
+    // Ensure parent exists if any
+    file.parentFile?.let { runCatching { if (!it.exists()) it.mkdirs() } }
+    runCatching { file.outputStream().use { props.store(it, null) } }
+    // We intentionally swallow exceptions to avoid crashing if the FS is read-only
+}
+
 internal fun saveTrayPosition(position: TrayPosition) {
-    val properties = Properties()
-    val file = File(PROPERTIES_FILE)
-    if (file.exists()) {
-        properties.load(file.inputStream())
-    }
+    val preferredFile = trayPropertiesFile()
+    val properties = loadPropertiesFrom(preferredFile)
+        ?: loadPropertiesFrom(oldTmpPropertiesFile())
+        ?: loadPropertiesFrom(legacyPropertiesFile())
+        ?: Properties()
     properties.setProperty(POSITION_KEY, position.name)
-    file.outputStream().use { properties.store(it, null) }
+    storePropertiesTo(preferredFile, properties)
 }
 
 internal fun saveTrayClickPosition(x: Int, y: Int, position: TrayPosition) {
-    val properties = Properties()
-    val file = File(PROPERTIES_FILE)
-    if (file.exists()) {
-        properties.load(file.inputStream())
-    }
+    val preferredFile = trayPropertiesFile()
+    val properties = loadPropertiesFrom(preferredFile)
+        ?: loadPropertiesFrom(oldTmpPropertiesFile())
+        ?: loadPropertiesFrom(legacyPropertiesFile())
+        ?: Properties()
     properties.setProperty(POSITION_KEY, position.name)
     properties.setProperty(X_KEY, x.toString())
     properties.setProperty(Y_KEY, y.toString())
-    file.outputStream().use { properties.store(it, null) }
+    storePropertiesTo(preferredFile, properties)
 }
 
 internal fun loadTrayClickPosition(): TrayClickPosition? {
-    val file = File(PROPERTIES_FILE)
-    if (!file.exists()) return null
+    // Prefer new location, fallback to old tmp location, then legacy working dir
+    val props = loadPropertiesFrom(trayPropertiesFile())
+        ?: loadPropertiesFrom(oldTmpPropertiesFile())
+        ?: loadPropertiesFrom(legacyPropertiesFile()) ?: return null
 
-    val properties = Properties()
-    properties.load(file.inputStream())
-
-    val positionStr = properties.getProperty(POSITION_KEY) ?: return null
-    val x = properties.getProperty(X_KEY)?.toIntOrNull() ?: return null
-    val y = properties.getProperty(Y_KEY)?.toIntOrNull() ?: return null
+    val positionStr = props.getProperty(POSITION_KEY) ?: return null
+    val x = props.getProperty(X_KEY)?.toIntOrNull() ?: return null
+    val y = props.getProperty(Y_KEY)?.toIntOrNull() ?: return null
 
     return try {
         TrayClickPosition(x, y, TrayPosition.valueOf(positionStr))
@@ -150,11 +182,11 @@ fun getTrayPosition(): TrayPosition {
             }
 
             // Legacy fallback - just position without coordinates
-            val properties = Properties()
-            val file = File(PROPERTIES_FILE)
-            if (file.exists()) {
-                properties.load(file.inputStream())
-                val position = properties.getProperty(POSITION_KEY, null)
+            run {
+                val props = loadPropertiesFrom(trayPropertiesFile())
+                    ?: loadPropertiesFrom(oldTmpPropertiesFile())
+                    ?: loadPropertiesFrom(legacyPropertiesFile())
+                val position = props?.getProperty(POSITION_KEY, null)
                 if (position != null) {
                     return try {
                         TrayPosition.valueOf(position)
