@@ -17,6 +17,22 @@
 
 **Compose Native Tray** is a modern Kotlin library for creating applications with system tray icons, offering native support for Linux, Windows, and macOS. It uses an intuitive Kotlin DSL syntax and fixes issues with the standard Compose for Desktop solution.
 
+## ✨ Features
+
+- Cross-platform support for Linux, Windows, and macOS.
+- DSL-style syntax to define tray menus with ease.
+- Supports standard items, submenus, dividers, and checkable items.
+- Ability to enable/disable menu items dynamically.
+- Corrects issues with the [Compose for Desktop tray](https://github.com/JetBrains/compose-multiplatform/blob/master/tutorials/Tray_Notifications_MenuBar_new), particularly HDPI support on Windows and Linux.
+- Improves the appearance of the tray on Linux, which previously resembled Windows 95.
+- Adds support for checkable items, dividers, and submenus, including nested submenus.
+- Supports primary action for Windows, macOS, and Linux.
+  - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
+  - On Linux, on GNOME the primary action is triggered by a double left-click on the tray icon, while on the majority of other environments, primarily KDE Plasma, it is triggered by a single left-click, similar to Windows and macOS.
+- **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
+- **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
+- **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
+
 <p align="center">
   <img src="screenshots/demo.gif" alt="demo">
 </p>
