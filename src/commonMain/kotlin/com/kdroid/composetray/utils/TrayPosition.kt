@@ -35,12 +35,12 @@ internal object TrayClickTracker {
         val screenSize = Toolkit.getDefaultToolkit().screenSize
         val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
         lastClickPosition.set(TrayClickPosition(x, y, position))
-        saveTrayClickPosition(x, y, position)
+        runCatching { saveTrayClickPosition(x, y, position) }
     }
 
     fun setClickPosition(x: Int, y: Int, position: TrayPosition) {
         lastClickPosition.set(TrayClickPosition(x, y, position))
-        saveTrayClickPosition(x, y, position)
+        runCatching { saveTrayClickPosition(x, y, position) }
     }
 
     fun getLastClickPosition(): TrayClickPosition? = lastClickPosition.get()
@@ -62,11 +62,27 @@ private const val Y_KEY = "TrayY"
 
 // Use a writable tmp/cache directory to avoid read-only filesystem issues (e.g., macOS app bundle working dir)
 private fun trayPropertiesFile(): File {
+    val appId = AppIdProvider.appId()
     val tmpBase = System.getProperty("java.io.tmpdir") ?: "."
-    val appDir = File(File(tmpBase, "ComposeNativeTray"), AppIdProvider.appId())
-    // Best-effort create directory; if it fails, we will fallback to legacy file access patterns safely
-    runCatching { if (!appDir.exists()) appDir.mkdirs() }.onFailure { /* ignore */ }
-    return File(appDir, PROPERTIES_FILE)
+    val tmpDir = File(File(tmpBase, "ComposeNativeTray"), appId)
+
+    val userHome = System.getProperty("user.home")
+    val macCacheDir = if (userHome != null) {
+        val base = File(File(File(userHome, "Library"), "Caches"), "ComposeNativeTray")
+        File(base, appId)
+    } else null
+
+    val candidates = listOfNotNull(tmpDir, macCacheDir)
+
+    for (dir in candidates) {
+        runCatching { if (!dir.exists()) dir.mkdirs() }
+        if (dir.exists() && dir.canWrite()) {
+            return File(dir, PROPERTIES_FILE)
+        }
+    }
+
+    // Fallback to tmp even if not verified writable; write will be guarded by runCatching
+    return File(tmpDir, PROPERTIES_FILE)
 }
 
 // Legacy properties file in working directory (for backward compatibility)
@@ -77,6 +93,15 @@ private fun oldTmpPropertiesFile(): File {
     val tmpBase = System.getProperty("java.io.tmpdir") ?: "."
     val oldDir = File(tmpBase, "ComposeNativeTray")
     return File(oldDir, PROPERTIES_FILE)
+}
+
+// macOS user cache directory location for properties (for read/write fallback)
+private fun macCachePropertiesFile(): File? {
+    val userHome = System.getProperty("user.home") ?: return null
+    val appId = AppIdProvider.appId()
+    val base = File(File(File(userHome, "Library"), "Caches"), "ComposeNativeTray")
+    val dir = File(base, appId)
+    return File(dir, PROPERTIES_FILE)
 }
 
 private fun loadPropertiesFrom(file: File): Properties? {
@@ -96,6 +121,7 @@ private fun storePropertiesTo(file: File, props: Properties) {
 internal fun saveTrayPosition(position: TrayPosition) {
     val preferredFile = trayPropertiesFile()
     val properties = loadPropertiesFrom(preferredFile)
+        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
         ?: loadPropertiesFrom(oldTmpPropertiesFile())
         ?: loadPropertiesFrom(legacyPropertiesFile())
         ?: Properties()
@@ -106,6 +132,7 @@ internal fun saveTrayPosition(position: TrayPosition) {
 internal fun saveTrayClickPosition(x: Int, y: Int, position: TrayPosition) {
     val preferredFile = trayPropertiesFile()
     val properties = loadPropertiesFrom(preferredFile)
+        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
         ?: loadPropertiesFrom(oldTmpPropertiesFile())
         ?: loadPropertiesFrom(legacyPropertiesFile())
         ?: Properties()
@@ -116,8 +143,9 @@ internal fun saveTrayClickPosition(x: Int, y: Int, position: TrayPosition) {
 }
 
 internal fun loadTrayClickPosition(): TrayClickPosition? {
-    // Prefer new location, fallback to old tmp location, then legacy working dir
+    // Prefer new location, fallback to mac cache, then old tmp location, then legacy working dir
     val props = loadPropertiesFrom(trayPropertiesFile())
+        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
         ?: loadPropertiesFrom(oldTmpPropertiesFile())
         ?: loadPropertiesFrom(legacyPropertiesFile()) ?: return null
 
@@ -184,6 +212,7 @@ fun getTrayPosition(): TrayPosition {
             // Legacy fallback - just position without coordinates
             run {
                 val props = loadPropertiesFrom(trayPropertiesFile())
+                    ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
                     ?: loadPropertiesFrom(oldTmpPropertiesFile())
                     ?: loadPropertiesFrom(legacyPropertiesFile())
                 val position = props?.getProperty(POSITION_KEY, null)
