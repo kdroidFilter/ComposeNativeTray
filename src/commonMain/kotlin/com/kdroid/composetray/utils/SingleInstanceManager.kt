@@ -166,7 +166,7 @@ object SingleInstanceManager {
     }
 
     private fun getAppIdentifier(): String {
-        val callerClassName = Thread.currentThread().stackTrace[3].className
-        return callerClassName.replace(".", "_")
+        // Use unified app ID provider to avoid cross-app conflicts and allow explicit override
+        return AppIdProvider.appId()
     }
 }
