@@ -14,15 +14,21 @@ interface SNIWrapper : Library {
          * Robust native library loading strategy to work with packagers like Conveyor.
          *
          * Resolution order (Linux):
-         * 1) System property override with absolute path:
+         * 1) System.loadLibrary("tray") - FIRST to support external extractors like Conveyor
+         *    (app.jvm.extract-native-libraries=true) that provide the library in JVM library path
+         * 2) System property override with absolute path:
          *    -Dcomposetray.native.lib=/abs/path/libtray.so
-         * 2) System property pointing to a directory containing the library:
+         * 3) System property pointing to a directory containing the library:
          *    -Dcomposetray.native.lib.path=/abs/dir  (expects libtray.so inside)
-         * 3) System.loadLibrary("tray") so that external extractors (e.g. Conveyor
-         *    app.jvm.extract-native-libraries=true) can provide the library in the
-         *    JVM library path.
-         * 4) Fallback to JNA resource/classpath discovery Native.load("tray").
+         * 4) Fallback to JNA resource/classpath discovery Native.load("tray")
          */
+        private fun tryLoadViaSystemLibrary(): Boolean = try {
+            System.loadLibrary("tray")
+            true
+        } catch (_: Throwable) {
+            false
+        }
+
         private fun tryLoadViaSystemProperties(): Boolean {
             val explicitFile = System.getProperty("composetray.native.lib")?.trim()?.takeIf { it.isNotEmpty() }
             if (!explicitFile.isNullOrEmpty()) {
@@ -50,11 +56,6 @@ interface SNIWrapper : Library {
             }
             return false
         }
-
-        private fun tryLoadViaSystemLibrary(): Boolean = try {
-            System.loadLibrary("tray")
-            true
-        } catch (_: Throwable) { false }
 
         private fun isLinux(): Boolean = System.getProperty("os.name")?.lowercase()?.contains("linux") == true
 
@@ -86,34 +87,59 @@ interface SNIWrapper : Library {
 
         private fun preloadLinuxDependencies() {
             if (!isLinux()) return
+
             val tmpBase = Files.createTempDirectory("composetray-natives-")
-            // Attempt to extract versioned first, then soname link
-            val base = "${archFolder()}"
-            val candidates = listOf(
-                "$base/libdbusmenu-qt5.so.2.6.0",
-                "$base/libdbusmenu-qt5.so.2"
+
+            // First, extract ALL libraries to the temp directory
+            val base = archFolder()
+            val libraries = listOf(
+                "$base/libdbusmenu-qt5.so.2",
             )
-            var loaded = false
-            for (res in candidates) {
-                val p = extractResourceToDir(res, tmpBase)
-                if (p != null && p.toFile().exists()) {
-                    try {
-                        System.load(p.toAbsolutePath().toString())
-                        loaded = true
-                        break
-                    } catch (_: Throwable) {
-                        // try next
-                    }
-                }
+
+            // Extract all libraries first
+            for (res in libraries) {
+                extractResourceToDir(res, tmpBase)
             }
-            if (!loaded) {
-                // If extraction failed or not packaged, continue without preloading
-            } else {
-                // Make JNA search path include temp dir so that transitive loads can find siblings
+
+            // Add the temp directory to JNA's search path BEFORE loading
+            try {
+                NativeLibrary.addSearchPath("tray", tmpBase.toAbsolutePath().toString())
+                // Also add to java.library.path for System.loadLibrary to find them
+                val currentPath = System.getProperty("java.library.path", "")
+                val newPath = if (currentPath.isNotEmpty()) {
+                    "$currentPath:${tmpBase.toAbsolutePath()}"
+                } else {
+                    tmpBase.toAbsolutePath().toString()
+                }
+                System.setProperty("java.library.path", newPath)
+
+                // Force ClassLoader to reload the library path
+                // This is a hack but necessary for runtime modifications
                 try {
-                    NativeLibrary.addSearchPath("tray", tmpBase.toAbsolutePath().toString())
+                    val sysPathsField = ClassLoader::class.java.getDeclaredField("sys_paths")
+                    sysPathsField.isAccessible = true
+                    sysPathsField.set(null, null)
                 } catch (_: Throwable) {
-                    // ignore
+                    // Ignore - this hack might not work on all JVMs
+                }
+            } catch (_: Throwable) {
+                // ignore
+            }
+
+            // Now load libraries in dependency order
+            val loadOrder = listOf(
+                "libdbusmenu-qt5.so.2"
+            )
+
+            for (libName in loadOrder) {
+                val libPath = tmpBase.resolve(libName)
+                if (libPath.toFile().exists()) {
+                    try {
+                        System.load(libPath.toAbsolutePath().toString())
+                    } catch (e: Throwable) {
+                        // Log but continue - some might already be loaded
+                        println("Warning: Could not load $libName: ${e.message}")
+                    }
                 }
             }
         }
@@ -122,13 +148,36 @@ interface SNIWrapper : Library {
             // Preload Linux-only dependencies bundled in resources
             preloadLinuxDependencies()
 
-            // 1) Property overrides
-            if (!tryLoadViaSystemProperties()) {
-                // 2) System library path
-                tryLoadViaSystemLibrary()
+            var loaded = false
+
+            // 1) FIRST try System.loadLibrary - this supports Conveyor and standard JVM library paths
+            if (tryLoadViaSystemLibrary()) {
+                loaded = true
+                println("Loaded libtray via System.loadLibrary")
             }
-            // 3) Always let JNA resolve as well (will succeed if already loaded)
-            Native.load("tray", SNIWrapper::class.java) as SNIWrapper
+
+            // 2) If not loaded, try property overrides
+            if (!loaded && tryLoadViaSystemProperties()) {
+                loaded = true
+                println("Loaded libtray via system properties")
+            }
+
+            // 3) Always call JNA's Native.load as final step
+            // If library was already loaded above, JNA will detect this and just create the proxy
+            // If not loaded yet, JNA will try to load from resources/classpath
+            try {
+                Native.load("tray", SNIWrapper::class.java) as SNIWrapper
+            } catch (e: UnsatisfiedLinkError) {
+                // If we thought we loaded it but JNA can't create proxy, provide helpful error
+                if (loaded) {
+                    throw UnsatisfiedLinkError(
+                        "Library was loaded via System.loadLibrary or properties but JNA couldn't create proxy. " +
+                                "This might indicate a version mismatch or architecture incompatibility: ${e.message}"
+                    )
+                } else {
+                    throw e
+                }
+            }
         }
     }
 
@@ -172,7 +221,8 @@ interface SNIWrapper : Library {
     fun set_context_menu(handle: Pointer?, menu: Pointer?)
     fun add_menu_action(menu_handle: Pointer?, text: String?, cb: ActionCallback?, data: Pointer?): Pointer?
     fun add_disabled_menu_action(menu_handle: Pointer?, text: String?, cb: ActionCallback?, data: Pointer?): Pointer?
-    fun add_checkable_menu_action(menu_handle: Pointer?, text: String?, checked: Int, cb: ActionCallback?, data: Pointer?): Pointer?    fun add_menu_separator(menu_handle: Pointer?)
+    fun add_checkable_menu_action(menu_handle: Pointer?, text: String?, checked: Int, cb: ActionCallback?, data: Pointer?): Pointer?
+    fun add_menu_separator(menu_handle: Pointer?)
     fun create_submenu(menu_handle: Pointer?, text: String?): Pointer?
     fun set_menu_item_text(menu_item_handle: Pointer?, text: String?)
     fun set_menu_item_enabled(menu_item_handle: Pointer?, enabled: Int)
