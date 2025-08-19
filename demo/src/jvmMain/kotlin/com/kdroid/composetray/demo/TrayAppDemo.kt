@@ -1,4 +1,4 @@
-package io.github.kdroidfilter.seforimapp.features.screens.bookcontent.state
+package com.kdroid.composetray.demo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
