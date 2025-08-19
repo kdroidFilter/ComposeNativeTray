@@ -281,7 +281,7 @@ sudo apt-get install -y libdbusmenu-qt5-2
 
 If you use jpackage (Compose Multiplatform native distributions), we provide a Gradle plugin to declare these dependencies in the generated .deb control file:
 
-* Plugin: [https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps)
+* Plugin: [GradleComposeDesktopLinuxDeps](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps)
 * Apply it in your Gradle build (Kotlin DSL):
 
 ```kotlin
