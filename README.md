@@ -258,16 +258,12 @@ Here are some screenshots of ComposeTray running on different platforms:
 
 ## Linux packaging and Qt dependencies
 
-This library uses Qt on Linux. When you package your app for Linux, you must declare the required Qt runtime packages so the OS will install them if necessary.
+This library uses **Qt** on Linux. When you package your app for Linux, you must declare the required Qt runtime packages so the OS will install them if necessary.
 
-* Minimal Debian/Ubuntu dependencies:
+> **Heads-up:** In most cases, the only package that will be newly downloaded is **`libdbusmenu-qt5-2`** (≈300 KB).
+> Qt itself is widely used by many desktop applications and often comes preinstalled with the desktop environment, so users typically already have the necessary Qt runtime packages.
 
-    * libqt5core5t64
-    * libqt5gui5t64
-    * libqt5widgets5t64
-    * libdbusmenu-qt5-2
-
-> **Heads-up:** In most cases, the only package that will be newly downloaded is **`libdbusmenu-qt5-2`** (≈300 KB). Qt itself is widely used by many desktop applications and often comes preinstalled with the desktop environment, so users typically already have the necessary Qt runtime packages.
+---
 
 ### Developer setup on Ubuntu/Debian
 
@@ -277,9 +273,11 @@ If you are developing or running locally on Ubuntu/Debian, ensure the runtime pa
 sudo apt-get install -y libdbusmenu-qt5-2
 ```
 
-### Link your app to the Qt runtime packages
+---
 
-If you use jpackage (Compose Multiplatform native distributions), we provide a Gradle plugin to declare these dependencies in the generated .deb control file:
+### Linking your app to Qt runtime packages
+
+If you use **jpackage** (Compose Multiplatform native distributions), you can use the dedicated Gradle plugin to declare the required dependencies automatically in the generated `.deb` control file:
 
 * Plugin: [GradleComposeDesktopLinuxDeps](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps)
 * Apply it in your Gradle build (Kotlin DSL):
@@ -287,44 +285,20 @@ If you use jpackage (Compose Multiplatform native distributions), we provide a G
 ```kotlin
 plugins {
     // ... your existing plugins
-    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.0"
+    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.1"
 }
 ```
 
-Then configure the Debian dependencies:
+Then configure it as follows:
 
 ```kotlin
 linuxDebConfig {
-    debDepends.set(
-        listOf(
-            "libqt5core5t64",
-            "libqt5gui5t64",
-            "libqt5widgets5t64",
-            "libdbusmenu-qt5-2"
-        )
-    )
+    addComposeNativeTrayDeps()
 }
 ```
 
-#### Important note about jpackage and distro compatibility
+For more information about distro compatibility and advanced options, please see the [plugin README](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps).
 
-There is a known jpackage issue that can cause incompatibilities between packages built on Ubuntu 24/Debian 13 and those built on Ubuntu 22/Debian 12 (and vice versa). Please see the plugin README for [details](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps?tab=readme-ov-file#-known-jpackage-issue-ubuntu-t64-transition)
-
-To support both newer T64 packages and older package names, use alternatives and enable the T64 alternative mode:
-
-```kotlin
-linuxDebConfig {
-    debDepends.set(
-        listOf(
-            "libqt5core5t64 | libqt5core5a",
-            "libqt5gui5t64 | libqt5gui5",
-            "libqt5widgets5t64 | libqt5widgets5",
-            "libdbusmenu-qt5-2"
-        )
-    )
-    enableT64AlternativeDeps = true
-}
-```
 
 ### Using Conveyor
 
