@@ -27,6 +27,7 @@ import com.kdroid.composetray.utils.getTrayWindowPosition
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
 import io.github.kdroidfilter.platformtools.getOperatingSystem
+import java.awt.EventQueue.invokeLater
 
 
 /**
@@ -133,6 +134,7 @@ fun ApplicationScope.TrayApp(
     menu: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     var isVisible by remember { mutableStateOf(visibleOnStart) }
+    var suppressNextPrimaryAction by remember { mutableStateOf(false) }
 
     val isDark = isMenuBarInDarkMode() // force recomposition if menu bar theme changes and icon depends on it
 
@@ -150,7 +152,14 @@ fun ApplicationScope.TrayApp(
 
     val tray = remember { NativeTray() }
 
-    val internalPrimaryAction: () -> Unit = { isVisible = !isVisible }
+    val internalPrimaryAction: () -> Unit = {
+        if (os == WINDOWS && suppressNextPrimaryAction) {
+            // Suppress the immediate next primary action on Windows after deactivation/focus loss
+            suppressNextPrimaryAction = false
+        } else {
+            isVisible = !isVisible
+        }
+    }
 
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, "Open", menu)
@@ -189,7 +198,7 @@ fun ApplicationScope.TrayApp(
             state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
             DisposableEffect(Unit) {
-                java.awt.EventQueue.invokeLater {
+                invokeLater {
                     try {
                         window.toFront()
                         window.requestFocus()
@@ -198,10 +207,16 @@ fun ApplicationScope.TrayApp(
                 }
                 val focusListener = object : java.awt.event.WindowFocusListener {
                     override fun windowGainedFocus(e: java.awt.event.WindowEvent?) {}
-                    override fun windowLostFocus(e: java.awt.event.WindowEvent?) { isVisible = false }
+                    override fun windowLostFocus(e: java.awt.event.WindowEvent?) {
+                        if (os == WINDOWS) suppressNextPrimaryAction = true
+                        isVisible = false
+                    }
                 }
                 val deactivationListener = object : java.awt.event.WindowAdapter() {
-                    override fun windowDeactivated(e: java.awt.event.WindowEvent?) { isVisible = false }
+                    override fun windowDeactivated(e: java.awt.event.WindowEvent?) {
+                        if (os == WINDOWS) suppressNextPrimaryAction = true
+                        isVisible = false
+                    }
                 }
                 window.addWindowFocusListener(focusListener)
                 window.addWindowListener(deactivationListener)
