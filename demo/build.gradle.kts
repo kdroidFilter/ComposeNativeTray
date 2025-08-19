@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
-    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.1.0"
+    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.0"
 }
 
 kotlin {
@@ -67,6 +67,13 @@ tasks.register("buildAndRunDemo") {
 
 linuxDebConfig {
     startupWMClass.set("com.kdroid.composetray.demo.DynamicTrayMenuKt")
-    debDepends.set(listOf("libqt5widgets5t64"))
-
+    debDepends.set(
+        listOf(
+            "libqt5core5t64 | libqt5core5a",
+            "libqt5gui5t64 | libqt5gui5",
+            "libqt5widgets5t64 | libqt5widgets5",
+            "libdbusmenu-qt5-2"
+        )
+    )
+    enableT64AlternativeDeps = true
 }
