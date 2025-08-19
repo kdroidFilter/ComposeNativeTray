@@ -85,69 +85,7 @@ interface SNIWrapper : Library {
             }
         }
 
-        private fun preloadLinuxDependencies() {
-            if (!isLinux()) return
-
-            val tmpBase = Files.createTempDirectory("composetray-natives-")
-
-            // First, extract ALL libraries to the temp directory
-            val base = archFolder()
-            val libraries = listOf(
-                "$base/libdbusmenu-qt5.so.2",
-            )
-
-            // Extract all libraries first
-            for (res in libraries) {
-                extractResourceToDir(res, tmpBase)
-            }
-
-            // Add the temp directory to JNA's search path BEFORE loading
-            try {
-                NativeLibrary.addSearchPath("tray", tmpBase.toAbsolutePath().toString())
-                // Also add to java.library.path for System.loadLibrary to find them
-                val currentPath = System.getProperty("java.library.path", "")
-                val newPath = if (currentPath.isNotEmpty()) {
-                    "$currentPath:${tmpBase.toAbsolutePath()}"
-                } else {
-                    tmpBase.toAbsolutePath().toString()
-                }
-                System.setProperty("java.library.path", newPath)
-
-                // Force ClassLoader to reload the library path
-                // This is a hack but necessary for runtime modifications
-                try {
-                    val sysPathsField = ClassLoader::class.java.getDeclaredField("sys_paths")
-                    sysPathsField.isAccessible = true
-                    sysPathsField.set(null, null)
-                } catch (_: Throwable) {
-                    // Ignore - this hack might not work on all JVMs
-                }
-            } catch (_: Throwable) {
-                // ignore
-            }
-
-            // Now load libraries in dependency order
-            val loadOrder = listOf(
-                "libdbusmenu-qt5.so.2"
-            )
-
-            for (libName in loadOrder) {
-                val libPath = tmpBase.resolve(libName)
-                if (libPath.toFile().exists()) {
-                    try {
-                        System.load(libPath.toAbsolutePath().toString())
-                    } catch (e: Throwable) {
-                        // Log but continue - some might already be loaded
-                        println("Warning: Could not load $libName: ${e.message}")
-                    }
-                }
-            }
-        }
-
         val INSTANCE: SNIWrapper = run {
-            // Preload Linux-only dependencies bundled in resources
-            preloadLinuxDependencies()
-
             var loaded = false
 
             // 1) FIRST try System.loadLibrary - this supports Conveyor and standard JVM library paths
