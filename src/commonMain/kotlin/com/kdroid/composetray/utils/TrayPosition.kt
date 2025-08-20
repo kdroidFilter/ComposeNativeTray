@@ -267,7 +267,7 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
         ?: return fallbackCornerPosition(windowWidth, windowHeight) // aucun point fiable
 
         return calculateWindowPositionFromClick(
-            posToUse.x, posToUse.y, posToUse.position,
+            posToUse.x + 15, posToUse.y, posToUse.position,
             windowWidth, windowHeight,
             screenSize.width, screenSize.height
         )
@@ -423,7 +423,7 @@ internal fun getStatusItemXYForMac(): Pair<Int, Int> {
  * to ensure future loads don't pick stale values during debugging.
  */
 fun debugDeleteTrayPropertiesFiles() {
-    val files = buildList<File> {
+    val files = buildList {
         add(trayPropertiesFile())
         add(legacyPropertiesFile())
         add(oldTmpPropertiesFile())
