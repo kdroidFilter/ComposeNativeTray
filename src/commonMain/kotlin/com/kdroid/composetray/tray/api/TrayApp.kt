@@ -162,12 +162,23 @@ fun ApplicationScope.TrayApp(
 
     val tray = remember { NativeTray() }
 
-    // Action : toggle de la visibilité avec protection
+    // Timestamp of last focus loss to avoid Windows double-toggle (hide then immediate re-show)
+    var lastFocusLostAt by remember { mutableStateOf(0L) }
+
+    // Action: toggle visibility with Windows-specific debounce
     val internalPrimaryAction: () -> Unit = {
-        if (!isVisible) {
-            isVisible = true
-        } else {
+        val now = System.currentTimeMillis()
+        if (isVisible) {
+            // Request hide
             isVisible = false
+        } else {
+            // Guard: if on Windows and we just lost focus very recently, ignore this show
+            if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
+                // Ignore to prevent re-show right after a click-caused focus loss
+                // Do nothing
+            } else {
+                isVisible = true
+            }
         }
     }
 
@@ -255,6 +266,7 @@ fun ApplicationScope.TrayApp(
                     }
 
                     override fun windowLostFocus(e: WindowEvent?) {
+                        lastFocusLostAt = System.currentTimeMillis()
                         isVisible = false
                     }
                 }
