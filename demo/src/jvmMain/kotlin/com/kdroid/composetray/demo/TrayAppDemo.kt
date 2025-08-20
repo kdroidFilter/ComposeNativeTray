@@ -19,9 +19,10 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.tray.api.TrayApp
+import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
 
 fun main() {
-
+    debugDeleteTrayPropertiesFiles()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
         var shouldRestoreWindow by remember { mutableStateOf(false) }
@@ -30,7 +31,7 @@ fun main() {
             tooltip = "TrayAppDemo",
             windowSize = DpSize(300.dp, 500.dp),
             transparent = true,
-            visibleOnStart = false,
+            visibleOnStart = true,
             content = {
                 MaterialTheme {
                     Box(

@@ -257,15 +257,13 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
 
     // For Windows, try to use exact click coordinates, fallback to native and save like Linux
     if (getOperatingSystem() == OperatingSystem.WINDOWS) {
-        // 1) on tente de récupérer ce qu’on a déjà
-        val cachedPos = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
 
-    // 2) on interroge la DLL (asynchrone, peut échouer)
+        // on interroge la DLL (asynchrone, peut échouer)
         getNotificationAreaXYForWindows()
 
         // 3) on choisit la meilleure info disponible
         val freshPos = TrayClickTracker.getLastClickPosition()
-        val posToUse = cachedPos ?: freshPos
+        val posToUse = freshPos
         ?: return fallbackCornerPosition(windowWidth, windowHeight) // aucun point fiable
 
         return calculateWindowPositionFromClick(
@@ -277,9 +275,6 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
     }
 
     if (getOperatingSystem() == OperatingSystem.MACOS) {
-        // 1) cache éventuel
-        val cached = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
-
         // 2) interroge Cocoa
         val (x0, y0) = getStatusItemXYForMac()
         if (x0 != 0 || y0 != 0) {
@@ -290,7 +285,7 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
         }
 
         // 3) choisit la meilleure info
-        val pos = TrayClickTracker.getLastClickPosition() ?: cached
+        val pos = TrayClickTracker.getLastClickPosition()
         if (pos != null) {
             return calculateWindowPositionFromClick(
                 pos.x, pos.y, pos.position,
@@ -420,4 +415,31 @@ internal fun getStatusItemXYForMac(): Pair<Int, Int> {
 
     val precise = lib.tray_get_status_item_position(xRef, yRef) != 0
     return xRef.value to yRef.value    // si !precise, valeurs = (0,0)
+}
+
+/**
+ * Debug utility to erase the tray properties file(s).
+ * It attempts to delete the preferred file as well as legacy fallback locations
+ * to ensure future loads don't pick stale values during debugging.
+ */
+fun debugDeleteTrayPropertiesFiles() {
+    val files = buildList<File> {
+        add(trayPropertiesFile())
+        add(legacyPropertiesFile())
+        add(oldTmpPropertiesFile())
+        macCachePropertiesFile()?.let { add(it) }
+    }.distinctBy { it.absolutePath }
+
+    var deletedAny = false
+    for (f in files) {
+        if (f.exists()) {
+            val deleted = runCatching { f.delete() }.getOrDefault(false)
+            if (deleted) deletedAny = true
+        }
+    }
+
+    debugln {
+        val targets = files.joinToString { it.absolutePath }
+        if (deletedAny) "[debug] Deleted tray properties file(s): $targets" else "[debug] No tray properties file found to delete: $targets"
+    }
 }
