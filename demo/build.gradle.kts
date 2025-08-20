@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
+    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.1"
 }
 
 kotlin {
@@ -62,4 +63,10 @@ tasks.register("buildAndRunDemo") {
     // Description for the task
     description = "Builds the native libraries and then runs the demo application"
     group = "application"
+}
+
+linuxDebConfig {
+    startupWMClass.set("com.kdroid.composetray.demo.DynamicTrayMenuKt")
+    addComposeNativeTrayDeps()
+    enableT64AlternativeDeps = true
 }
