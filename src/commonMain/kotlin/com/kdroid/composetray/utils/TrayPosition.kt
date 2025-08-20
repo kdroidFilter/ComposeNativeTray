@@ -478,3 +478,44 @@ internal fun isPointWithinMacStatusItem(px: Int, py: Int): Boolean {
     val bottom = iy + half
     return px in left..right && py in top..bottom
 }
+
+// Returns true if the given AWT screen point (px, py) lies within the Linux tray icon area.
+// We approximate the icon bounds as a square centered at the last known tray click position.
+// On Linux there isn't a stable public API to fetch the status item bounds across DEs,
+// so this uses a heuristic based on DE defaults and DPI scaling.
+// If we lack any remembered click coordinates, we conservatively return false.
+internal fun isPointWithinLinuxStatusItem(px: Int, py: Int): Boolean {
+    if (getOperatingSystem() != OperatingSystem.LINUX) return false
+
+    // Prefer fresh in-memory click; fallback to persisted properties
+    val click = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition() ?: return false
+    val (ix, iy) = click.x to click.y
+
+    // Determine a reasonable base icon size by DE (in logical px at 100% scale).
+    // GNOME/Cinnamon/MATE/XFCE commonly use 24–32 px; KDE often 22–24 px.
+    val baseIconSizeAt1x = when (detectLinuxDesktopEnvironment()) {
+        LinuxDesktopEnvironment.KDE      -> 22
+        LinuxDesktopEnvironment.GNOME    -> 24
+        LinuxDesktopEnvironment.CINNAMON -> 24
+        LinuxDesktopEnvironment.MATE     -> 24
+        LinuxDesktopEnvironment.XFCE     -> 24
+        else                             -> 24
+    }
+
+    // DPI scaling (96 DPI == 1.0). Guard for headless/odd setups.
+    val dpi = runCatching { Toolkit.getDefaultToolkit().screenResolution }.getOrDefault(96)
+    val scale = (dpi / 96.0).coerceAtLeast(0.5) // avoid absurdly small/zero
+
+    // Half-size of the square around the icon center.
+    val half = (baseIconSizeAt1x * 0.5 * scale).toInt().coerceAtLeast(8)
+
+    // A small tolerance to account for panel paddings/hover effects.
+    val fudge = (4 * scale).toInt().coerceAtLeast(2)
+
+    val left   = ix - half - fudge
+    val right  = ix + half + fudge
+    val top    = iy - half - fudge
+    val bottom = iy + half + fudge
+
+    return px in left..right && py in top..bottom
+}

@@ -19,6 +19,7 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberDialogState
+import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
@@ -36,6 +37,7 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
+import io.github.kdroidfilter.platformtools.OperatingSystem
 
 
 /**
@@ -162,20 +164,19 @@ fun ApplicationScope.TrayApp(
 
     val tray = remember { NativeTray() }
 
-    // Timestamp of last focus loss to avoid Windows double-toggle (hide then immediate re-show)
+    // Timestamp of the last focus loss to avoid Windows double-toggle (hide then immediate re-show)
     var lastFocusLostAt by remember { mutableStateOf(0L) }
 
-    // Action: toggle visibility with Windows-specific debounce
+    // Primary action: toggle visibility with Windows-specific debounce
     val internalPrimaryAction: () -> Unit = {
         val now = System.currentTimeMillis()
         if (isVisible) {
-            // Request hide
+            // Hide
             isVisible = false
         } else {
-            // Guard: if on Windows and we just lost focus very recently, ignore this show
+            // On Windows, ignore a re-show that happens immediately after focus loss
             if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
-                // Ignore to prevent re-show right after a click-caused focus loss
-                // Do nothing
+                // Ignore
             } else {
                 isVisible = true
             }
@@ -186,7 +187,7 @@ fun ApplicationScope.TrayApp(
         tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu)
     }
 
-    // Gestion du visibleOnStart
+    // Handle visibleOnStart
     LaunchedEffect(visibleOnStart, os) {
         if (!visibleOnStart) return@LaunchedEffect
 
@@ -194,6 +195,7 @@ fun ApplicationScope.TrayApp(
         val maxAttempts = 20
         when (os) {
             WINDOWS -> {
+                // Try to fetch the notification area position so the window can appear near it
                 while (attempts < maxAttempts && TrayClickTracker.getLastClickPosition() == null) {
                     runCatching { getNotificationAreaXYForWindows() }
                     if (TrayClickTracker.getLastClickPosition() != null) break
@@ -201,13 +203,12 @@ fun ApplicationScope.TrayApp(
                     delay(100)
                 }
             }
-
             MACOS -> {
+                // Give the status item some time to settle so getStatusItemXYForMac() is more reliable
                 delay(500)
             }
-
             else -> {
-                // Linux ou autres
+                // Linux or others: nothing special here
             }
         }
         isVisible = true
@@ -217,7 +218,7 @@ fun ApplicationScope.TrayApp(
         onDispose { tray.dispose() }
     }
 
-    // Fenêtre invisible toujours présente (nécessaire pour Compose Desktop)
+    // Invisible helper window (required by Compose Desktop)
     DialogWindow(
         onCloseRequest = { },
         visible = false,
@@ -231,7 +232,7 @@ fun ApplicationScope.TrayApp(
         focusable = false,
     ) { }
 
-    // Fenêtre popup principale
+    // Main popup window
     if (isVisible) {
         val widthPx = windowSize.width.value.toInt()
         val heightPx = windowSize.height.value.toInt()
@@ -248,32 +249,35 @@ fun ApplicationScope.TrayApp(
             state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
             DisposableEffect(Unit) {
-                // Forcer la fenêtre au premier plan à l'ouverture
+                // Force bring-to-front on open
                 invokeLater {
                     try {
                         window.toFront()
                         window.requestFocus()
                         window.requestFocusInWindow()
-
                     } catch (_: Throwable) {
                     }
                 }
 
-                // Listener simple pour la perte de focus
                 val focusListener = object : WindowFocusListener {
-                    override fun windowGainedFocus(e: WindowEvent?) {
-                        // Rien à faire
-                    }
-
+                    override fun windowGainedFocus(e: WindowEvent?) = Unit
                     override fun windowLostFocus(e: WindowEvent?) {
                         lastFocusLostAt = System.currentTimeMillis()
                         isVisible = false
                     }
                 }
 
-                // macOS: watch for outside-clicks using encapsulated watcher
+                // macOS outside-click watcher
                 val macWatcher = if (getOperatingSystem() == MACOS) {
                     MacOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = { invokeLater { isVisible = false } }
+                    ).also { it.start() }
+                } else null
+
+                // Linux outside-click watcher (X11/XWayland). Safe no-op if X11 is not available.
+                val linuxWatcher = if (getOperatingSystem() == OperatingSystem.LINUX) {
+                    LinuxOutsideClickWatcher(
                         windowSupplier = { window },
                         onOutsideClick = { invokeLater { isVisible = false } }
                     ).also { it.start() }
@@ -284,6 +288,7 @@ fun ApplicationScope.TrayApp(
                 onDispose {
                     window.removeWindowFocusListener(focusListener)
                     macWatcher?.stop()
+                    linuxWatcher?.stop()
                 }
             }
 

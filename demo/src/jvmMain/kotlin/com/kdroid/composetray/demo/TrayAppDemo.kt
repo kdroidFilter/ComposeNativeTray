@@ -33,7 +33,7 @@ import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiv
 import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
 
 fun main() {
-    debugDeleteTrayPropertiesFiles()
+//    debugDeleteTrayPropertiesFiles()
     setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
