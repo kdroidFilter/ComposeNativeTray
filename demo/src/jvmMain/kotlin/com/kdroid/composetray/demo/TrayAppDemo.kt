@@ -32,7 +32,7 @@ fun main() {
 
         TrayApp(
             icon = Icons.Default.Book,
-            tooltip = "SeforimApp",
+            tooltip = "TrayAppDemo",
             windowSize = DpSize(300.dp, 500.dp),
             transparent = true,
             visibleOnStart = false,
