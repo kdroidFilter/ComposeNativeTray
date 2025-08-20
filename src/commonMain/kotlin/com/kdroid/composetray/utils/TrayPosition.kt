@@ -15,6 +15,7 @@ import java.awt.Toolkit
 import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.roundToInt
 
 enum class TrayPosition {
     TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
@@ -266,8 +267,12 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
         val posToUse = freshPos
         ?: return fallbackCornerPosition(windowWidth, windowHeight) // aucun point fiable
 
+        // The native coordinate corresponds to the corner/edge of the notification area.
+        // Use a DPI-aware half-icon offset so the window is centered on the icon, not the area's edge.
+        val offsetX = dpiAwareHalfIconOffset()
+
         return calculateWindowPositionFromClick(
-            posToUse.x + 15, posToUse.y, posToUse.position,
+            posToUse.x + offsetX, posToUse.y, posToUse.position,
             windowWidth, windowHeight,
             screenSize.width, screenSize.height
         )
@@ -441,5 +446,18 @@ fun debugDeleteTrayPropertiesFiles() {
     debugln {
         val targets = files.joinToString { it.absolutePath }
         if (deletedAny) "[debug] Deleted tray properties file(s): $targets" else "[debug] No tray properties file found to delete: $targets"
+    }
+}
+
+
+// Computes a DPI-aware horizontal offset approximating half the tray icon width on Windows.
+// Standard 100% scale is 96 DPI; the historical constant was 15 px at 100%.
+private fun dpiAwareHalfIconOffset(): Int {
+    return try {
+        val dpi = Toolkit.getDefaultToolkit().screenResolution
+        val scale = dpi / 96.0
+        (15 * scale).roundToInt().coerceAtLeast(0)
+    } catch (t: Throwable) {
+        15
     }
 }
