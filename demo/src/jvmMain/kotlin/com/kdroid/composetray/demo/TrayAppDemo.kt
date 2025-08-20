@@ -30,6 +30,7 @@ import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
+import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
 
 fun main() {
     debugDeleteTrayPropertiesFiles()
@@ -93,6 +94,7 @@ fun main() {
                 },
                 title = "Main App",
             ) {
+                window.setWindowsAdaptiveTitleBar()
                 MaterialTheme(colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()) {
                     Box(
                         modifier = Modifier
