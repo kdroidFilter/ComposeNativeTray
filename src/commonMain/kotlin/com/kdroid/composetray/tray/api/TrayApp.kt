@@ -141,10 +141,8 @@ fun ApplicationScope.TrayApp(
     menu: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     var isVisible by remember { mutableStateOf(false) }
-    var suppressNextPrimaryAction by remember { mutableStateOf(false) }
 
-    val isDark = isMenuBarInDarkMode() // force recomposition if menu bar theme changes and icon depends on it
-
+    val isDark = isMenuBarInDarkMode()
     val os = getOperatingSystem()
 
     val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) +
@@ -152,34 +150,32 @@ fun ApplicationScope.TrayApp(
 
     val menuHash = MenuContentHash.calculateMenuHash(menu)
 
-    val pngIconPath = remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
+    val pngIconPath = remember(contentHash) {
+        ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
+    }
     val windowsIconPath = remember(contentHash) {
-        if (os == WINDOWS) ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent) else pngIconPath
+        if (os == WINDOWS)
+            ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent)
+        else pngIconPath
     }
 
     val tray = remember { NativeTray() }
 
+    // Action simple : toggle de la visibilité
     val internalPrimaryAction: () -> Unit = {
-        if (os == WINDOWS && suppressNextPrimaryAction) {
-            // Suppress the immediate next primary action on Windows after deactivation/focus loss
-            suppressNextPrimaryAction = false
-        } else {
-            isVisible = !isVisible
-        }
+        isVisible = !isVisible
     }
 
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu)
     }
 
-    // If the window should be visible on start, wait for the native lib to provide
-    // a reliable position before showing the window (especially important on Windows/macOS).
+    // Gestion du visibleOnStart
     LaunchedEffect(visibleOnStart, os) {
         if (!visibleOnStart) return@LaunchedEffect
 
-        // Small grace delay to ensure native libs are loaded and ready
         var attempts = 0
-        val maxAttempts = 20 // ~2 seconds at 100ms intervals
+        val maxAttempts = 20
         when (os) {
             WINDOWS -> {
                 while (attempts < maxAttempts && TrayClickTracker.getLastClickPosition() == null) {
@@ -190,11 +186,10 @@ fun ApplicationScope.TrayApp(
                 }
             }
             MACOS -> {
-                // Simplified: just wait a short time for native libs to be ready on macOS
                 delay(500)
             }
             else -> {
-                // For Linux or others, we don't have a synchronous query on start; show immediately
+                // Linux ou autres
             }
         }
         isVisible = true
@@ -204,6 +199,7 @@ fun ApplicationScope.TrayApp(
         onDispose { tray.dispose() }
     }
 
+    // Fenêtre invisible toujours présente (nécessaire pour Compose Desktop)
     DialogWindow(
         onCloseRequest = { },
         visible = false,
@@ -217,6 +213,7 @@ fun ApplicationScope.TrayApp(
         focusable = false,
     ) { }
 
+    // Fenêtre popup principale
     if (isVisible) {
         val widthPx = windowSize.width.value.toInt()
         val heightPx = windowSize.height.value.toInt()
@@ -233,6 +230,7 @@ fun ApplicationScope.TrayApp(
             state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
             DisposableEffect(Unit) {
+                // Forcer la fenêtre au premier plan à l'ouverture
                 invokeLater {
                     try {
                         window.toFront()
@@ -240,26 +238,26 @@ fun ApplicationScope.TrayApp(
                         window.requestFocusInWindow()
                     } catch (_: Throwable) { }
                 }
+
+                // Listener simplifié : fermer la fenêtre dès qu'elle perd le focus
                 val focusListener = object : WindowFocusListener {
-                    override fun windowGainedFocus(e: WindowEvent?) {}
+                    override fun windowGainedFocus(e: WindowEvent?) {
+                        // Rien à faire quand on gagne le focus
+                    }
+
                     override fun windowLostFocus(e: WindowEvent?) {
-                        if (os == WINDOWS) suppressNextPrimaryAction = true
+                        // Fermer immédiatement quand on perd le focus
                         isVisible = false
                     }
                 }
-                val deactivationListener = object : WindowAdapter() {
-                    override fun windowDeactivated(e: WindowEvent?) {
-                        if (os == WINDOWS) suppressNextPrimaryAction = true
-                        isVisible = false
-                    }
-                }
+
                 window.addWindowFocusListener(focusListener)
-                window.addWindowListener(deactivationListener)
+
                 onDispose {
                     window.removeWindowFocusListener(focusListener)
-                    window.removeWindowListener(deactivationListener)
                 }
             }
+
             content()
         }
     }
