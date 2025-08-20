@@ -1,6 +1,7 @@
 package com.kdroid.composetray.demo
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +56,7 @@ fun main() {
                             .clip(RoundedCornerShape(8.dp))
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
                             .padding(16.dp),
                         contentAlignment = Center,
                     ) {
