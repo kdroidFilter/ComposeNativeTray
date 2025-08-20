@@ -25,7 +25,6 @@ import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.MenuContentHash
 import com.kdroid.composetray.utils.TrayClickTracker
 import com.kdroid.composetray.utils.getNotificationAreaXYForWindows
-import com.kdroid.composetray.utils.getStatusItemXYForMac
 import com.kdroid.composetray.utils.getTrayWindowPosition
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
@@ -33,6 +32,9 @@ import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.EventQueue.invokeLater
 import kotlinx.coroutines.delay
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
+import java.awt.event.WindowFocusListener
 
 
 /**
@@ -188,17 +190,8 @@ fun ApplicationScope.TrayApp(
                 }
             }
             MACOS -> {
-                while (attempts < maxAttempts && TrayClickTracker.getLastClickPosition() == null) {
-                    val (x, y) = runCatching { getStatusItemXYForMac() }.getOrDefault(0 to 0)
-                    if (x != 0 || y != 0) {
-                        // We use current tray orientation from getTrayPosition()
-                        val pos = com.kdroid.composetray.utils.getTrayPosition()
-                        com.kdroid.composetray.utils.TrayClickTracker.setClickPosition(x, y, pos)
-                        break
-                    }
-                    attempts++
-                    delay(100)
-                }
+                // Simplified: just wait a short time for native libs to be ready on macOS
+                delay(500)
             }
             else -> {
                 // For Linux or others, we don't have a synchronous query on start; show immediately
@@ -247,15 +240,15 @@ fun ApplicationScope.TrayApp(
                         window.requestFocusInWindow()
                     } catch (_: Throwable) { }
                 }
-                val focusListener = object : java.awt.event.WindowFocusListener {
-                    override fun windowGainedFocus(e: java.awt.event.WindowEvent?) {}
-                    override fun windowLostFocus(e: java.awt.event.WindowEvent?) {
+                val focusListener = object : WindowFocusListener {
+                    override fun windowGainedFocus(e: WindowEvent?) {}
+                    override fun windowLostFocus(e: WindowEvent?) {
                         if (os == WINDOWS) suppressNextPrimaryAction = true
                         isVisible = false
                     }
                 }
-                val deactivationListener = object : java.awt.event.WindowAdapter() {
-                    override fun windowDeactivated(e: java.awt.event.WindowEvent?) {
+                val deactivationListener = object : WindowAdapter() {
+                    override fun windowDeactivated(e: WindowEvent?) {
                         if (os == WINDOWS) suppressNextPrimaryAction = true
                         isVisible = false
                     }
