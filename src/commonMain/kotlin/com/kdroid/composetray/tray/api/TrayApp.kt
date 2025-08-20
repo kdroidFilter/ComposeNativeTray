@@ -1,6 +1,10 @@
 package com.kdroid.composetray.tray.api
 
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -10,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -130,7 +135,7 @@ fun ApplicationScope.TrayApp(
 }
 
 /**
- * TrayApp overload: accepts a composable iconContent.
+ * TrayApp overload: accepts a composable iconContent with fade in/out animation.
  */
 @Composable
 fun ApplicationScope.TrayApp(
@@ -140,13 +145,22 @@ fun ApplicationScope.TrayApp(
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     transparent: Boolean = false,
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200, // Durée de l'animation en ms
     content: @Composable () -> Unit,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     var isVisible by remember { mutableStateOf(false) }
+    var shouldShowWindow by remember { mutableStateOf(false) }
 
     val isDark = isMenuBarInDarkMode()
     val os = getOperatingSystem()
+
+    // Animation de l'opacité
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+        label = "window_fade"
+    )
 
     val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) +
             isDark.hashCode()
@@ -180,6 +194,18 @@ fun ApplicationScope.TrayApp(
             } else {
                 isVisible = true
             }
+        }
+    }
+
+    // Gestion de l'ouverture/fermeture de la fenêtre avec animation
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            // Ouvrir la fenêtre immédiatement pour commencer l'animation fade in
+            shouldShowWindow = true
+        } else {
+            // Attendre la fin de l'animation fade out avant de fermer la fenêtre
+            delay(fadeDurationMs.toLong())
+            shouldShowWindow = false
         }
     }
 
@@ -233,7 +259,7 @@ fun ApplicationScope.TrayApp(
     ) { }
 
     // Main popup window
-    if (isVisible) {
+    if (shouldShowWindow) {
         val widthPx = windowSize.width.value.toInt()
         val heightPx = windowSize.height.value.toInt()
         val windowPosition = getTrayWindowPosition(widthPx, heightPx)
@@ -292,7 +318,14 @@ fun ApplicationScope.TrayApp(
                 }
             }
 
-            content()
+            // Wrapper avec animation d'opacité
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(alpha)
+            ) {
+                content()
+            }
         }
     }
 }
