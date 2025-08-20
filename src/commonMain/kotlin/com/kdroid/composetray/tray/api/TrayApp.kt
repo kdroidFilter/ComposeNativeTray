@@ -23,11 +23,16 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.MenuContentHash
+import com.kdroid.composetray.utils.TrayClickTracker
+import com.kdroid.composetray.utils.getNotificationAreaXYForWindows
+import com.kdroid.composetray.utils.getStatusItemXYForMac
 import com.kdroid.composetray.utils.getTrayWindowPosition
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
+import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
 import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.EventQueue.invokeLater
+import kotlinx.coroutines.delay
 
 
 /**
@@ -133,7 +138,7 @@ fun ApplicationScope.TrayApp(
     content: @Composable () -> Unit,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
-    var isVisible by remember { mutableStateOf(visibleOnStart) }
+    var isVisible by remember { mutableStateOf(false) }
     var suppressNextPrimaryAction by remember { mutableStateOf(false) }
 
     val isDark = isMenuBarInDarkMode() // force recomposition if menu bar theme changes and icon depends on it
@@ -163,6 +168,43 @@ fun ApplicationScope.TrayApp(
 
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu)
+    }
+
+    // If the window should be visible on start, wait for the native lib to provide
+    // a reliable position before showing the window (especially important on Windows/macOS).
+    LaunchedEffect(visibleOnStart, os) {
+        if (!visibleOnStart) return@LaunchedEffect
+
+        // Small grace delay to ensure native libs are loaded and ready
+        var attempts = 0
+        val maxAttempts = 20 // ~2 seconds at 100ms intervals
+        when (os) {
+            WINDOWS -> {
+                while (attempts < maxAttempts && TrayClickTracker.getLastClickPosition() == null) {
+                    runCatching { getNotificationAreaXYForWindows() }
+                    if (TrayClickTracker.getLastClickPosition() != null) break
+                    attempts++
+                    delay(100)
+                }
+            }
+            MACOS -> {
+                while (attempts < maxAttempts && TrayClickTracker.getLastClickPosition() == null) {
+                    val (x, y) = runCatching { getStatusItemXYForMac() }.getOrDefault(0 to 0)
+                    if (x != 0 || y != 0) {
+                        // We use current tray orientation from getTrayPosition()
+                        val pos = com.kdroid.composetray.utils.getTrayPosition()
+                        com.kdroid.composetray.utils.TrayClickTracker.setClickPosition(x, y, pos)
+                        break
+                    }
+                    attempts++
+                    delay(100)
+                }
+            }
+            else -> {
+                // For Linux or others, we don't have a synchronous query on start; show immediately
+            }
+        }
+        isVisible = true
     }
 
     DisposableEffect(Unit) {
