@@ -162,7 +162,7 @@ fun ApplicationScope.TrayApp(
     }
 
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
-        tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, "Open", menu)
+        tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu)
     }
 
     DisposableEffect(Unit) {
