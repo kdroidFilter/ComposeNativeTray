@@ -54,7 +54,6 @@ fun main() {
                     if (!isWindowVisible) {
                         isWindowVisible = true
                     } else {
-                        // Si la fenêtre est visible mais minimisée, on la restaure
                         shouldRestoreWindow = true
                     }
                 })
@@ -71,11 +70,10 @@ fun main() {
                     isWindowVisible = false
                 }) {
 
-                // Gestion de la restauration de la fenêtre
                 LaunchedEffect(shouldRestoreWindow) {
                     if (shouldRestoreWindow) {
                         state.isMinimized = false
-                        shouldRestoreWindow = false // Reset le flag
+                        shouldRestoreWindow = false 
                     }
                 }
 
