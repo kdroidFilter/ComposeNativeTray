@@ -35,6 +35,7 @@ import kotlinx.coroutines.delay
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
+import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 
 
 /**
@@ -161,9 +162,13 @@ fun ApplicationScope.TrayApp(
 
     val tray = remember { NativeTray() }
 
-    // Action simple : toggle de la visibilité
+    // Action : toggle de la visibilité avec protection
     val internalPrimaryAction: () -> Unit = {
-        isVisible = !isVisible
+        if (!isVisible) {
+            isVisible = true
+        } else {
+            isVisible = false
+        }
     }
 
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
@@ -185,9 +190,11 @@ fun ApplicationScope.TrayApp(
                     delay(100)
                 }
             }
+
             MACOS -> {
                 delay(500)
             }
+
             else -> {
                 // Linux ou autres
             }
@@ -236,25 +243,35 @@ fun ApplicationScope.TrayApp(
                         window.toFront()
                         window.requestFocus()
                         window.requestFocusInWindow()
-                    } catch (_: Throwable) { }
+
+                    } catch (_: Throwable) {
+                    }
                 }
 
-                // Listener simplifié : fermer la fenêtre dès qu'elle perd le focus
+                // Listener simple pour la perte de focus
                 val focusListener = object : WindowFocusListener {
                     override fun windowGainedFocus(e: WindowEvent?) {
-                        // Rien à faire quand on gagne le focus
+                        // Rien à faire
                     }
 
                     override fun windowLostFocus(e: WindowEvent?) {
-                        // Fermer immédiatement quand on perd le focus
                         isVisible = false
                     }
                 }
+
+                // macOS: watch for outside-clicks using encapsulated watcher
+                val macWatcher = if (getOperatingSystem() == MACOS) {
+                    MacOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = { invokeLater { isVisible = false } }
+                    ).also { it.start() }
+                } else null
 
                 window.addWindowFocusListener(focusListener)
 
                 onDispose {
                     window.removeWindowFocusListener(focusListener)
+                    macWatcher?.stop()
                 }
             }
 

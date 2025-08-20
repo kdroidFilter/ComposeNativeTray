@@ -461,3 +461,20 @@ private fun dpiAwareHalfIconOffset(): Int {
         15
     }
 }
+
+
+// Returns true if the given AWT screen point (px,py) lies within the macOS status item (tray icon) area.
+// We approximate the icon bounds as a square centered at the native (x,y) with DPI-aware half-size.
+internal fun isPointWithinMacStatusItem(px: Int, py: Int): Boolean {
+    if (getOperatingSystem() != OperatingSystem.MACOS) return false
+    val (ix, iy) = getStatusItemXYForMac()
+    if (ix == 0 && iy == 0) return false
+    val dpi = try { Toolkit.getDefaultToolkit().screenResolution } catch (_: Throwable) { 96 }
+    val scale = dpi / 96.0
+    val half = (14 * scale).roundToInt().coerceAtLeast(8) // ~28px at 1x, ~56px at 2x
+    val left = ix - half
+    val right = ix + half
+    val top = iy - half
+    val bottom = iy + half
+    return px in left..right && py in top..bottom
+}

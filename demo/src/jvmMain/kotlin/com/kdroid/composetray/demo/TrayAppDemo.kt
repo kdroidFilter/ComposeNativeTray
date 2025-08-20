@@ -1,8 +1,11 @@
 package com.kdroid.composetray.demo
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -10,6 +13,9 @@ import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
@@ -22,12 +28,17 @@ import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
+import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
+import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
 
 fun main() {
     debugDeleteTrayPropertiesFiles()
+    setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
         var shouldRestoreWindow by remember { mutableStateOf(false) }
+        var textFieldValue by remember { mutableStateOf("") }
+
         TrayApp(
             icon = Icons.Default.Book,
             tooltip = "TrayAppDemo",
@@ -35,15 +46,21 @@ fun main() {
             transparent = true,
             visibleOnStart = true,
             content = {
-                MaterialTheme {
+                MaterialTheme(
+                    colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
+                ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background),
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(16.dp),
                         contentAlignment = Center,
                     ) {
-                        Text("Hello World !")
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Your futur awesome compagnon App !", color = MaterialTheme.colorScheme.onBackground)
+                            TextField(value = textFieldValue, onValueChange = { textFieldValue = it }, placeholder = { Text("Enter some text") })
+                        }
                     }
                 }
             },
@@ -73,18 +90,32 @@ fun main() {
                 state = state,
                 onCloseRequest = {
                     isWindowVisible = false
-                }) {
+                },
+                title = "Main App",
+            ) {
+                MaterialTheme(colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Center,
+                    ) {
+                        Column {
+                            Text("Your futur awesome Main App !", color = MaterialTheme.colorScheme.onBackground)
+                        }
+                    }
 
-                LaunchedEffect(shouldRestoreWindow) {
-                    if (shouldRestoreWindow) {
-                        state.isMinimized = false
-                        window.toFront()
-                        window.requestFocusInWindow()
-                        window.requestFocus()
-                        shouldRestoreWindow = false
+
+                    LaunchedEffect(shouldRestoreWindow) {
+                        if (shouldRestoreWindow) {
+                            state.isMinimized = false
+                            window.toFront()
+                            window.requestFocusInWindow()
+                            window.requestFocus()
+                            shouldRestoreWindow = false
+                        }
                     }
                 }
-                Text("Compose Native Tray Demo")
             }
         } else {
             MacOSWindowManager().hideFromDock()
