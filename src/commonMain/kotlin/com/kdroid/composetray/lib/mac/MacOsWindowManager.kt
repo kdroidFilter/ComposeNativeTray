@@ -4,6 +4,8 @@ import com.kdroid.composetray.utils.debugln
 import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
+import io.github.kdroidfilter.platformtools.OperatingSystem
+import io.github.kdroidfilter.platformtools.getOperatingSystem
 
 // JNA interface to access the Objective-C runtime
 interface ObjectiveC : Library {
@@ -39,36 +41,57 @@ class MacOSWindowManager {
         const val NSModalPanelWindowLevel = 8L
     }
 
-    private val objc = ObjectiveC.INSTANCE
+    // Detect platform once
+    private val isMacOs: Boolean = getOperatingSystem() == OperatingSystem.MACOS
+
+
+    // Load Objective-C runtime only on macOS and only when needed
+    private val objc: ObjectiveC? by lazy {
+        if (!isMacOs) return@lazy null
+        try {
+            ObjectiveC.INSTANCE
+        } catch (t: Throwable) {
+            debugln { "Failed to load Objective-C runtime: ${t.message}" }
+            null
+        }
+    }
+
     private var nsApplicationInstance: Pointer? = null
 
     /**
      * Initialize NSApplication if not already done
      */
     private fun ensureNSApplicationInitialized(): Boolean {
+        if (!isMacOs) {
+            // Not on macOS: pretend not initialized, but avoid side effects
+            return false
+        }
+
         if (nsApplicationInstance != null && nsApplicationInstance != Pointer.NULL) {
             return true
         }
+
+        val localObjc = objc ?: return false
 
         return try {
             debugln { "Initializing NSApplication..." }
 
             // Get NSApplication class
-            val nsApplicationClass = objc.objc_getClass("NSApplication")
+            val nsApplicationClass = localObjc.objc_getClass("NSApplication")
             if (nsApplicationClass == Pointer.NULL) {
                 debugln { "Unable to get NSApplication class" }
                 return false
             }
 
             // Get selector for sharedApplication
-            val sharedApplicationSelector = objc.sel_registerName("sharedApplication")
+            val sharedApplicationSelector = localObjc.sel_registerName("sharedApplication")
             if (sharedApplicationSelector == Pointer.NULL) {
                 debugln { "Unable to get sharedApplication selector" }
                 return false
             }
 
             // Call [NSApplication sharedApplication]
-            nsApplicationInstance = objc.objc_msgSend(nsApplicationClass, sharedApplicationSelector)
+            nsApplicationInstance = localObjc.objc_msgSend(nsApplicationClass, sharedApplicationSelector)
             if (nsApplicationInstance == Pointer.NULL) {
                 debugln { "Unable to get NSApplication instance" }
                 nsApplicationInstance = null
@@ -95,11 +118,17 @@ class MacOSWindowManager {
         }
         return nsApplicationInstance
     }
-    
+
     /**
      * Show the application in the Dock
      */
     fun showInDock(): Boolean {
+        if (!isMacOs) {
+            // No-op on non-macOS
+            debugln { "showInDock(): non-macOS platform detected, no action performed" }
+            return true
+        }
+        val localObjc = objc ?: return false
         return try {
             val nsApp = getNSApplication()
             if (nsApp == null) {
@@ -107,14 +136,14 @@ class MacOSWindowManager {
                 return false
             }
 
-            val setActivationPolicySelector = objc.sel_registerName("setActivationPolicy:")
+            val setActivationPolicySelector = localObjc.sel_registerName("setActivationPolicy:")
             if (setActivationPolicySelector == Pointer.NULL) {
                 debugln { "Unable to get setActivationPolicy: selector" }
                 return false
             }
 
             // Restore normal policy
-            objc.objc_msgSend(
+            localObjc.objc_msgSend(
                 nsApp,
                 setActivationPolicySelector,
                 NSApplicationActivationPolicyRegular
@@ -134,6 +163,12 @@ class MacOSWindowManager {
      * Set the application as accessory (no Dock icon, but can have a menu)
      */
     fun hideFromDock(): Boolean {
+        if (!isMacOs) {
+            // No-op on non-macOS
+            debugln { "hideFromDock(): non-macOS platform detected, no action performed" }
+            return true
+        }
+        val localObjc = objc ?: return false
         return try {
             val nsApp = getNSApplication()
             if (nsApp == null) {
@@ -141,13 +176,13 @@ class MacOSWindowManager {
                 return false
             }
 
-            val setActivationPolicySelector = objc.sel_registerName("setActivationPolicy:")
+            val setActivationPolicySelector = localObjc.sel_registerName("setActivationPolicy:")
             if (setActivationPolicySelector == Pointer.NULL) {
                 debugln { "Unable to get setActivationPolicy: selector" }
                 return false
             }
 
-            objc.objc_msgSend(
+            localObjc.objc_msgSend(
                 nsApp,
                 setActivationPolicySelector,
                 NSApplicationActivationPolicyAccessory
@@ -167,8 +202,9 @@ class MacOSWindowManager {
      * Check if the application can be hidden from the Dock
      */
     fun canHideFromDock(): Boolean {
+        if (!isMacOs) return false
         return getNSApplication() != null
     }
-    
+
 }
 
