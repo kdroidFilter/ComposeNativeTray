@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.KeyboardHide
+import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -46,13 +48,19 @@ fun main() {
                 }
             },
             menu = {
-                Item("Open the app", onClick = {
-                    if (!isWindowVisible) {
-                        isWindowVisible = true
-                    } else {
-                        shouldRestoreWindow = true
-                    }
-                })
+
+                Item(
+                    if (isWindowVisible) "Hide the app" else "Open the App",
+                    icon = if (isWindowVisible) Icons.Default.KeyboardHide else Icons.Default.Window,
+                    onClick = {
+                        if (!isWindowVisible) {
+                            isWindowVisible = true
+                        } else {
+                            shouldRestoreWindow = true
+                            isWindowVisible = false
+                        }
+                    })
+
                 Item("Exit", onClick = { exitApplication() })
             }
         )
@@ -73,7 +81,7 @@ fun main() {
                         window.toFront()
                         window.requestFocusInWindow()
                         window.requestFocus()
-                        shouldRestoreWindow = false 
+                        shouldRestoreWindow = false
                     }
                 }
                 Text("Compose Native Tray Demo")
