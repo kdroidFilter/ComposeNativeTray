@@ -72,9 +72,9 @@ fun ApplicationScope.TrayApp(
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     transparent: Boolean = false,
     visibleOnStart: Boolean = false,
-    content: @Composable () -> Unit,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-) {
+    content: @Composable () -> Unit,
+    ) {
     // Build the icon as composable content and delegate to the iconContent-based TrayApp
     val iconContent: @Composable () -> Unit = {
         val isDark = isMenuBarInDarkMode()
@@ -111,9 +111,9 @@ fun ApplicationScope.TrayApp(
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     transparent: Boolean = false,
     visibleOnStart: Boolean = false,
-    content: @Composable () -> Unit,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-) {
+    content: @Composable () -> Unit,
+    ) {
     // Build the icon as composable content and delegate to the iconContent-based TrayApp
     val iconContent: @Composable () -> Unit = {
         Image(
@@ -146,9 +146,9 @@ fun ApplicationScope.TrayApp(
     transparent: Boolean = false,
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200, // Durée de l'animation en ms
-    content: @Composable () -> Unit,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-) {
+    content: @Composable () -> Unit,
+    ) {
     var isVisible by remember { mutableStateOf(false) }
     var shouldShowWindow by remember { mutableStateOf(false) }
 

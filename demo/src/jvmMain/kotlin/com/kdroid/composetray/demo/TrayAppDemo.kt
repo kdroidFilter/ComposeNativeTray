@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.KeyboardHide
+import androidx.compose.material.icons.filled.Minimize
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,9 +30,12 @@ import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
+import composenativetray.demo.generated.resources.Res
+import composenativetray.demo.generated.resources.icon
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
 import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
+import org.jetbrains.compose.resources.painterResource
 
 fun main() {
 //    debugDeleteTrayPropertiesFiles()
@@ -47,31 +51,10 @@ fun main() {
             windowSize = DpSize(300.dp, 500.dp),
             transparent = true,
             visibleOnStart = true,
-            content = {
-                MaterialTheme(
-                    colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background)
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-                            .padding(16.dp),
-                        contentAlignment = Center,
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Your futur awesome compagnon App !", color = MaterialTheme.colorScheme.onBackground)
-                            TextField(value = textFieldValue, onValueChange = { textFieldValue = it }, placeholder = { Text("Enter some text") })
-                        }
-                    }
-                }
-            },
             menu = {
-
                 Item(
                     if (isWindowVisible) "Hide the app" else "Open the App",
-                    icon = if (isWindowVisible) Icons.Default.KeyboardHide else Icons.Default.Window,
+                    icon = if (isWindowVisible) Icons.Default.Minimize else Icons.Default.Window,
                     onClick = {
                         if (!isWindowVisible) {
                             isWindowVisible = true
@@ -83,7 +66,29 @@ fun main() {
 
                 Item("Exit", onClick = { exitApplication() })
             }
-        )
+        ) {
+            MaterialTheme(
+                colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                        .padding(16.dp),
+                    contentAlignment = Center,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Your futur awesome compagnon App !", color = MaterialTheme.colorScheme.onBackground)
+                        TextField(
+                            value = textFieldValue,
+                            onValueChange = { textFieldValue = it },
+                            placeholder = { Text("Enter some text") })
+                    }
+                }
+            }
+        }
 
         if (isWindowVisible) {
             MacOSWindowManager().showInDock()
@@ -95,6 +100,7 @@ fun main() {
                     isWindowVisible = false
                 },
                 title = "Main App",
+                icon = painterResource(Res.drawable.icon),
             ) {
                 window.setWindowsAdaptiveTitleBar()
                 MaterialTheme(colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()) {
