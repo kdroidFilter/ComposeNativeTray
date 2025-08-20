@@ -23,7 +23,6 @@ kotlin {
             implementation(compose.materialIconsExtended)
             implementation(libs.kermit)
             implementation(libs.platformtools.darkmodedetector)
-
         }
     }
 }
@@ -31,7 +30,7 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.kdroid.composetray.demo.DynamicTrayMenuKt"
+        mainClass = "com.kdroid.composetray.demo.TrayAppDemoKt"
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
             packageName = "tray-demo"

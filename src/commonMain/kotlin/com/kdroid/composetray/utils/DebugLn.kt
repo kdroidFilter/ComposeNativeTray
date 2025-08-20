@@ -22,7 +22,7 @@ private const val COLOR_LIGHT_GRAY = "\u001b[37m"
 private const val COLOR_ORANGE = "\u001b[38;2;255;165;0m"
 private const val COLOR_RESET = "\u001b[0m"
 
-// Formatter pour l'heure
+// Time formatter
 private val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
 private fun getCurrentTimestamp(): String {

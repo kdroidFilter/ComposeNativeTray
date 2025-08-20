@@ -8,20 +8,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.tray.api.TrayApp
 
 fun main() {
@@ -29,7 +25,6 @@ fun main() {
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
         var shouldRestoreWindow by remember { mutableStateOf(false) }
-
         TrayApp(
             icon = Icons.Default.Book,
             tooltip = "TrayAppDemo",
@@ -50,18 +45,19 @@ fun main() {
                 }
             },
             menu = {
-                Item("Ouvrir l'application", onClick = {
+                Item("Open the app", onClick = {
                     if (!isWindowVisible) {
                         isWindowVisible = true
                     } else {
                         shouldRestoreWindow = true
                     }
                 })
-                Item("Quitter", onClick = { exitApplication() })
+                Item("Exit", onClick = { exitApplication() })
             }
         )
 
         if (isWindowVisible) {
+            MacOSWindowManager().showInDock()
             val state = rememberWindowState()
 
             Window(
@@ -73,13 +69,16 @@ fun main() {
                 LaunchedEffect(shouldRestoreWindow) {
                     if (shouldRestoreWindow) {
                         state.isMinimized = false
+                        window.toFront()
+                        window.requestFocusInWindow()
+                        window.requestFocus()
                         shouldRestoreWindow = false 
                     }
                 }
-
-
                 Text("Compose Native Tray Demo")
             }
+        } else {
+            MacOSWindowManager().hideFromDock()
         }
     }
 }
