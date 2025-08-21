@@ -73,7 +73,6 @@ fun ApplicationScope.TrayApp(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
-    transparent: Boolean = false,
     visibleOnStart: Boolean = false,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -95,7 +94,6 @@ fun ApplicationScope.TrayApp(
         iconRenderProperties = iconRenderProperties,
         tooltip = tooltip,
         windowSize = windowSize,
-        transparent = transparent,
         visibleOnStart = visibleOnStart,
         content = content,
         menu = menu,
@@ -112,7 +110,6 @@ fun ApplicationScope.TrayApp(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
-    transparent: Boolean = false,
     visibleOnStart: Boolean = false,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -130,7 +127,6 @@ fun ApplicationScope.TrayApp(
         iconRenderProperties = iconRenderProperties,
         tooltip = tooltip,
         windowSize = windowSize,
-        transparent = transparent,
         visibleOnStart = visibleOnStart,
         content = content,
         menu = menu,
@@ -146,7 +142,6 @@ fun ApplicationScope.TrayApp(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
-    transparent: Boolean = false,
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200, // Durée de l'animation en ms
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -286,7 +281,7 @@ fun ApplicationScope.TrayApp(
             resizable = false,
             focusable = true,
             alwaysOnTop = true,
-            transparent = transparent,
+            transparent = true,
             state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
             DisposableEffect(Unit) {

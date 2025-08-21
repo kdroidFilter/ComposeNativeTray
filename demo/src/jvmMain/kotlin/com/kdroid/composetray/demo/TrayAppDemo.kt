@@ -45,7 +45,6 @@ fun main() {
             icon = Icons.Default.Book,
             tooltip = "TrayAppDemo",
             windowSize = DpSize(300.dp, 500.dp),
-            transparent = true,
             visibleOnStart = true,
             menu = {
                 Item(
