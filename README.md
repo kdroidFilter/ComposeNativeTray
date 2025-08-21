@@ -285,7 +285,7 @@ If you use **jpackage** (Compose Multiplatform native distributions), you can us
 ```kotlin
 plugins {
     // ... your existing plugins
-    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.1"
+    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.2"
 }
 ```
 
