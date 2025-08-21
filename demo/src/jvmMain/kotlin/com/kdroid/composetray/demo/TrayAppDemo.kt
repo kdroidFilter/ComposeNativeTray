@@ -111,10 +111,7 @@ fun main() {
                     // Restore & raise when visibility toggles to true
                     LaunchedEffect(isWindowVisible) {
                         if (isWindowVisible) {
-                            // 1) Ensure it’s not minimized
-                            state.isMinimized = false
-                            // 2) Raise to front (portable helper)
-                            WindowRaise.forceFront(window)
+                            WindowRaise.forceFront(window, state)
                         }
                     }
                 }
