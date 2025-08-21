@@ -65,7 +65,7 @@ tasks.register("buildAndRunDemo") {
 }
 
 linuxDebConfig {
-    startupWMClass.set("com.kdroid.composetray.demo.DynamicTrayMenuKt")
+    startupWMClass.set("com.kdroid.composetray.demo.TrayAppDemoKt")
     addComposeNativeTrayDeps()
     enableT64AlternativeDeps = true
 }

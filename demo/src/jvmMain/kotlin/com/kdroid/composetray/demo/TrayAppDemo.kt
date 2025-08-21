@@ -38,7 +38,6 @@ import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsA
 import org.jetbrains.compose.resources.painterResource
 
 fun main() {
-//    debugDeleteTrayPropertiesFiles()
     setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
