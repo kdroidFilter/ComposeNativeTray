@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
 import composenativetray.demo.generated.resources.Res
@@ -90,7 +89,6 @@ fun main() {
         }
 
         if (isWindowVisible) {
-            MacOSWindowManager().showInDock()
             val state = rememberWindowState()
 
             Window(
@@ -126,8 +124,6 @@ fun main() {
                     }
                 }
             }
-        } else {
-            MacOSWindowManager().hideFromDock()
         }
     }
 }

@@ -43,6 +43,9 @@ import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 import io.github.kdroidfilter.platformtools.OperatingSystem
+import com.kdroid.composetray.utils.WindowVisibilityMonitor
+import com.kdroid.composetray.lib.mac.MacOSWindowManager
+import kotlinx.coroutines.flow.collectLatest
 
 
 /**
@@ -211,6 +214,18 @@ fun ApplicationScope.TrayApp(
 
     LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
         tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu)
+    }
+
+    // On macOS, automatically manage Dock visibility based on whether any AWT window is visible
+    LaunchedEffect(os) {
+        if (os == MACOS) {
+            WindowVisibilityMonitor.hasAnyVisibleWindows.collectLatest { hasVisible ->
+                runCatching {
+                    val manager = MacOSWindowManager()
+                    if (hasVisible) manager.showInDock() else manager.hideFromDock()
+                }
+            }
+        }
     }
 
     // Handle visibleOnStart
