@@ -39,7 +39,6 @@ fun main() {
     setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
-        var shouldRestoreWindow by remember { mutableStateOf(false) }
         var textFieldValue by remember { mutableStateOf("") }
 
         TrayApp(
@@ -53,14 +52,9 @@ fun main() {
                     if (isWindowVisible) "Hide the app" else "Open the App",
                     icon = if (isWindowVisible) Icons.Default.Minimize else Icons.Default.Window,
                     onClick = {
-                        if (!isWindowVisible) {
-                            isWindowVisible = true
-                        } else {
-                            shouldRestoreWindow = true
-                            isWindowVisible = false
-                        }
-                    })
-
+                        isWindowVisible = !isWindowVisible
+                    }
+                )
                 Item("Exit", onClick = { exitApplication() })
             }
         ) {
@@ -81,7 +75,8 @@ fun main() {
                         TextField(
                             value = textFieldValue,
                             onValueChange = { textFieldValue = it },
-                            placeholder = { Text("Enter some text") })
+                            placeholder = { Text("Enter some text") }
+                        )
                     }
                 }
             }
@@ -92,14 +87,16 @@ fun main() {
 
             Window(
                 state = state,
-                onCloseRequest = {
-                    isWindowVisible = false
-                },
+                onCloseRequest = { isWindowVisible = false },
                 title = "Main App",
                 icon = painterResource(Res.drawable.icon),
             ) {
+                // Use Windows adaptive title bar when available
                 window.setWindowsAdaptiveTitleBar()
-                MaterialTheme(colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()) {
+
+                MaterialTheme(
+                    colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -111,16 +108,13 @@ fun main() {
                         }
                     }
 
-
-                    LaunchedEffect(shouldRestoreWindow) {
-                        if (shouldRestoreWindow) {
+                    // Restore & raise when visibility toggles to true
+                    LaunchedEffect(isWindowVisible) {
+                        if (isWindowVisible) {
                             // 1) Ensure it’s not minimized
                             state.isMinimized = false
-
-                            // 2) Raise (portable) and auto-unraise after a short delay
+                            // 2) Raise to front (portable helper)
                             WindowRaise.forceFront(window)
-
-                            shouldRestoreWindow = false
                         }
                     }
                 }
