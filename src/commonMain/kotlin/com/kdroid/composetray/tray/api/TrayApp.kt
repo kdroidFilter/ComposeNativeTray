@@ -134,6 +134,50 @@ fun ApplicationScope.TrayApp(
 }
 
 /**
+ * TrayApp overload: accepts platform-specific icon types similar to Tray:
+ * - Windows: Painter
+ * - macOS/Linux: ImageVector (with optional tint)
+ */
+@Composable
+fun ApplicationScope.TrayApp(
+    windowsIcon: Painter,
+    macLinuxIcon: ImageVector,
+    tint: Color? = null,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    windowSize: DpSize = DpSize(300.dp, 200.dp),
+    visibleOnStart: Boolean = false,
+    menu: (TrayMenuBuilder.() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val os = getOperatingSystem()
+    if (os == WINDOWS) {
+        // Delegate to Painter overload for Windows
+        TrayApp(
+            icon = windowsIcon,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            windowSize = windowSize,
+            visibleOnStart = visibleOnStart,
+            menu = menu,
+            content = content,
+        )
+    } else {
+        // Delegate to ImageVector overload for macOS/Linux
+        TrayApp(
+            icon = macLinuxIcon,
+            tint = tint,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            windowSize = windowSize,
+            visibleOnStart = visibleOnStart,
+            menu = menu,
+            content = content,
+        )
+    }
+}
+
+/**
  * TrayApp overload: accepts a composable iconContent with fade in/out animation.
  */
 @Composable
