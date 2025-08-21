@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Minimize
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +28,6 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.WindowRaise
-import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
@@ -120,7 +118,7 @@ fun main() {
                             state.isMinimized = false
 
                             // 2) Raise (portable) and auto-unraise after a short delay
-                            WindowRaise.raiseAndUnraise(window)
+                            WindowRaise.forceFront(window)
 
                             shouldRestoreWindow = false
                         }

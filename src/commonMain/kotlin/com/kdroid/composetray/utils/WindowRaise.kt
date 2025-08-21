@@ -21,7 +21,7 @@ object WindowRaise {
      * Convenience helper to raise a window, give the window manager a brief moment,
      * then revert the temporary always-on-top flag. Useful especially on Windows.
      */
-    suspend fun raiseAndUnraise(window: java.awt.Window, delayMs: Long = 250) {
+    suspend fun forceFront(window: java.awt.Window, delayMs: Long = 250) {
         // Raise first
         raise(window)
         try {
