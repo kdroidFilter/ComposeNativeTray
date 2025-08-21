@@ -28,6 +28,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.TrayApp
+import com.kdroid.composetray.utils.WindowRaise
 import com.kdroid.composetray.utils.debugDeleteTrayPropertiesFiles
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
@@ -115,10 +116,12 @@ fun main() {
 
                     LaunchedEffect(shouldRestoreWindow) {
                         if (shouldRestoreWindow) {
+                            // 1) Ensure it’s not minimized
                             state.isMinimized = false
-                            window.toFront()
-                            window.requestFocusInWindow()
-                            window.requestFocus()
+
+                            // 2) Raise (portable) and auto-unraise after a short delay
+                            WindowRaise.raiseAndUnraise(window)
+
                             shouldRestoreWindow = false
                         }
                     }
