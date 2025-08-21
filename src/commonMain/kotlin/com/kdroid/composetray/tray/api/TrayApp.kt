@@ -66,6 +66,7 @@ import kotlinx.coroutines.flow.collectLatest
  * - No primaryAction parameter: clicking the tray icon toggles the popup visibility
  * - Manages an undecorated always-on-top window that hides on focus loss
  */
+@ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
     icon: ImageVector,
@@ -104,6 +105,7 @@ fun ApplicationScope.TrayApp(
 /**
  * TrayApp overload: accepts a Painter as tray icon.
  */
+@ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
     icon: Painter,
@@ -138,6 +140,7 @@ fun ApplicationScope.TrayApp(
  * - Windows: Painter
  * - macOS/Linux: ImageVector (with optional tint)
  */
+@ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
     windowsIcon: Painter,
@@ -180,6 +183,7 @@ fun ApplicationScope.TrayApp(
 /**
  * TrayApp overload: accepts a composable iconContent with fade in/out animation.
  */
+@ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
     iconContent: @Composable () -> Unit,
