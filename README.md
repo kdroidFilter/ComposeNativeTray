@@ -58,9 +58,15 @@
 - [⚠️ Platform-Specific Notes](#️-platform-specific-notes)
   - [Icon Limitations](#icon-limitations)
   - [Theme Behavior](#theme-behavior)
+- [🧪 TrayApp (Experimental)](#-trayapp-experimental)
+    - [Overview](#overview)
+    - [Overloads](#overloads)
+    - [Parameters](#parameters)
+    - [Examples](#examples)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
 - [👨‍💻 Author](#-author)
+
 
 ## 🎯 Why Compose Native Tray?
 
@@ -487,6 +493,107 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
 - **macOS**: The menu bar color depends on the wallpaper, not the system theme
 - **Windows**: Follows the system theme
 - **Linux**: Varies by desktop environment (GNOME/KDE/etc.)
+
+## 🧪 TrayApp (Experimental)
+
+<table>
+  <tr>
+    <td><img src="screenshots/windows.png" alt="Windows" /><br /><center>Windows</center></td>
+    <td><img src="screenshots/mac.png" alt="macOS" /><br /><center>macOS</center></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/trayapp-gnome.png" alt="Ubuntu GNOME" /><br /><center>Ubuntu GNOME</center></td>
+    <td><img src="screenshots/kde.png" alt="Ubuntu KDE" /><br /><center>Ubuntu KDE</center></td>
+  </tr>
+</table>
+
+### Overview
+TrayApp is a high-level API that creates a system tray icon and an undecorated popup window that toggles when the tray icon is clicked. The popup auto-hides when it loses focus or when you click outside it (macOS/Linux watchers supported) and can fade in/out.
+
+Use TrayApp when you want a compact companion window (like a quick settings or mini dashboard) anchored to the system tray, in addition to or instead of your main window — ideal for building apps in the style of JetBrains Toolbox.
+
+### Overloads
+- TrayApp(icon: ImageVector, tint: Color? = null, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, menu: TrayMenuBuilder.() -> Unit = {}, content)
+- TrayApp(icon: Painter, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, menu: TrayMenuBuilder.() -> Unit = {}, content)
+- TrayApp(windowsIcon: Painter, macLinuxIcon: ImageVector, tint: Color? = null, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, menu: TrayMenuBuilder.() -> Unit = {}, content)
+- TrayApp(iconContent: @Composable () -> Unit, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, fadeDurationMs: Int = 200, menu: TrayMenuBuilder.() -> Unit = {}, content)
+
+All overloads also accept IconRenderProperties for advanced icon rendering; defaults are chosen per OS.
+
+### Parameters
+- icon / windowsIcon / macLinuxIcon / iconContent: the tray icon source.
+- tint: optional tint (macOS/Linux ImageVector convenience).
+- tooltip: text shown on hover.
+- windowSize: popup size (default 300x200dp).
+- visibleOnStart: if true, shows the popup shortly after startup with OS-specific handling. On Linux, this is not recommended because there is no system API to retrieve the tray position; the library records the position from the first user click, so on the first launch the popup position will be approximate. After that, the position is saved and persists even after a cold boot.
+- menu: optional tray context menu (see Tray menu DSL).
+- content: the composable content of the popup window.
+
+### Examples
+Minimal with ImageVector:
+
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    TrayApp(
+        icon = Icons.Default.Book,
+        tooltip = "My App",
+        windowSize = DpSize(300.dp, 500.dp),
+        visibleOnStart = true,
+        menu = {
+            Item("Open") { /* ... */ }
+            Divider()
+            Item("Quit") { exitApplication() }
+        }
+    ) {
+        // Popup content
+        MaterialTheme { /* ... */ }
+    }
+}
+```
+
+Using a Painter:
+
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    TrayApp(
+        icon = painterResource(Res.drawable.icon),
+        tooltip = "My App"
+    ) {
+        /* popup */
+    }
+}
+```
+
+Platform-specific icons:
+
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    TrayApp(
+        windowsIcon = painterResource(Res.drawable.icon),
+        macLinuxIcon = Icons.Default.Book,
+        tint = null, // or provide a tint if desired
+        tooltip = "My App"
+    ) { /* popup */ }
+}
+```
+
+Custom composable icon with fade:
+
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    TrayApp(
+        iconContent = { Icon(Icons.Default.Book, contentDescription = null) },
+        fadeDurationMs = 200,
+        tooltip = "My App"
+    ) { /* popup */ }
+}
+```
+
+See full demo: demo/src/jvmMain/kotlin/com/kdroid/composetray/demo/TrayAppDemo.kt
 
 ## 📄 License
 
