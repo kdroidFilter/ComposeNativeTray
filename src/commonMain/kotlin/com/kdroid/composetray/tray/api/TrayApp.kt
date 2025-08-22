@@ -226,6 +226,8 @@ fun ApplicationScope.TrayApp(
 
     // Timestamp of the last focus loss to avoid Windows double-toggle (hide then immediate re-show)
     var lastFocusLostAt by remember { mutableStateOf(0L) }
+    // On Windows, delay auto-hide on startup when visibleOnStart is true to avoid immediate disappearance
+    var autoHideEnabledAt by remember { mutableStateOf(0L) }
 
     // Primary action: toggle visibility with Windows-specific debounce
     val internalPrimaryAction: () -> Unit = {
@@ -295,6 +297,10 @@ fun ApplicationScope.TrayApp(
                 // Linux or others: nothing special here
             }
         }
+        // On Windows, provide a short grace period where focus-loss won't auto-hide the window
+        if (os == WINDOWS) {
+            autoHideEnabledAt = System.currentTimeMillis() + 1000
+        }
         isVisible = true
     }
 
@@ -347,6 +353,10 @@ fun ApplicationScope.TrayApp(
                     override fun windowGainedFocus(e: WindowEvent?) = Unit
                     override fun windowLostFocus(e: WindowEvent?) {
                         lastFocusLostAt = System.currentTimeMillis()
+                        if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
+                            // Ignore focus loss during startup grace period on Windows
+                            return
+                        }
                         isVisible = false
                     }
                 }
