@@ -51,7 +51,6 @@ fun main() {
             menu = {
                 Item(
                     if (isWindowVisible) "Hide the app" else "Open the App",
-                    icon = if (isWindowVisible) Icons.Default.Minimize else Icons.Default.Window,
                     onClick = {
                         isWindowVisible = !isWindowVisible
                     }
