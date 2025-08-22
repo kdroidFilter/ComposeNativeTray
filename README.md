@@ -503,7 +503,7 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
   </tr>
   <tr>
     <td><img src="screenshots/trayapp-gnome.png" alt="Ubuntu GNOME" /><br /><center>Ubuntu GNOME</center></td>
-    <td><img src="screenshots/kde.png" alt="Ubuntu KDE" /><br /><center>Ubuntu KDE</center></td>
+    <td><img src="screenshots/trayapp-kde.png" alt="Ubuntu KDE" /><br /><center>Ubuntu KDE</center></td>
   </tr>
 </table>
 
