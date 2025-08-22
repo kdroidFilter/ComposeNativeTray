@@ -1,5 +1,6 @@
 package com.kdroid.composetray.tray.api
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -75,6 +76,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
     ) {
@@ -96,6 +99,8 @@ fun ApplicationScope.TrayApp(
         tooltip = tooltip,
         windowSize = windowSize,
         visibleOnStart = visibleOnStart,
+        fadeDurationMs = fadeDurationMs,
+        animationSpec = animationSpec,
         content = content,
         menu = menu,
     )
@@ -113,6 +118,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
     ) {
@@ -130,6 +137,8 @@ fun ApplicationScope.TrayApp(
         tooltip = tooltip,
         windowSize = windowSize,
         visibleOnStart = visibleOnStart,
+        fadeDurationMs = fadeDurationMs,
+        animationSpec = animationSpec,
         content = content,
         menu = menu,
     )
@@ -150,6 +159,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -162,6 +173,8 @@ fun ApplicationScope.TrayApp(
             tooltip = tooltip,
             windowSize = windowSize,
             visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
@@ -174,6 +187,8 @@ fun ApplicationScope.TrayApp(
             tooltip = tooltip,
             windowSize = windowSize,
             visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
@@ -191,7 +206,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
-    fadeDurationMs: Int = 200, // Durée de l'animation en ms
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
     ) {
@@ -204,7 +220,7 @@ fun ApplicationScope.TrayApp(
     // Animation de l'opacité
     val alpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+        animationSpec = animationSpec,
         label = "window_fade"
     )
 
