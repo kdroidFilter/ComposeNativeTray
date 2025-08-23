@@ -355,6 +355,10 @@ fun ApplicationScope.TrayApp(
             state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
             DisposableEffect(Unit) {
+                // Mark this as the tray popup window so visibility checks can ignore it on macOS
+                try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
+                // Recompute visibility to avoid counting this tray popup as an app window
+                runCatching { WindowVisibilityMonitor.recompute() }
                 // Force bring-to-front on open
                 invokeLater {
                     try {
@@ -399,6 +403,8 @@ fun ApplicationScope.TrayApp(
                     window.removeWindowFocusListener(focusListener)
                     macWatcher?.stop()
                     linuxWatcher?.stop()
+                    // Recompute visibility when closing the tray popup
+                    runCatching { WindowVisibilityMonitor.recompute() }
                 }
             }
 
