@@ -9,6 +9,7 @@ import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardWatchEventKinds
 
 
@@ -39,6 +40,9 @@ object SingleInstanceManager {
     ) {
         val lockFileName: String = "$lockIdentifier.lock"
         val restoreRequestFileName: String = "$lockIdentifier.restore_request"
+
+        val lockFilePath: Path = lockFilesDir.resolve(lockFileName)
+        val restoreRequestFilePath: Path = lockFilesDir.resolve(restoreRequestFileName)
     }
 
     var configuration: Configuration = Configuration()
@@ -56,7 +60,7 @@ object SingleInstanceManager {
      *
      * @param onRestoreRequest A function to be executed if a restore request is received from another instance.
      */
-    fun isSingleInstance(onRestoreRequest: () -> Unit): Boolean {
+    fun isSingleInstance(onRestoreFileCreated: (Path.() -> Unit)? = null, onRestoreRequest: Path.() -> Unit): Boolean {
         // If the lock is already acquired by this process, we are the first instance
         if (fileLock != null) {
             debugln { "$TAG: The lock is already held by this process" }
@@ -83,7 +87,7 @@ object SingleInstanceManager {
                 true
             } else {
                 // Another instance is already running
-                sendRestoreRequest()
+                sendRestoreRequest(onRestoreFileCreated)
                 debugln { "$TAG: Restore request sent to the existing instance" }
                 false
             }
@@ -98,12 +102,12 @@ object SingleInstanceManager {
     }
 
     private fun createLockFile(): File {
-        val lockFile = configuration.lockFilesDir.resolve(configuration.lockFileName).toFile()
+        val lockFile = configuration.lockFilePath.toFile()
         lockFile.parentFile.mkdirs()
         return lockFile
     }
 
-    private fun watchForRestoreRequests(onRestoreRequest: () -> Unit) {
+    private fun watchForRestoreRequests(onRestoreRequest: Path.() -> Unit) {
         Thread {
             try {
                 val watchService = FileSystems.getDefault().newWatchService()
@@ -119,7 +123,7 @@ object SingleInstanceManager {
                         val filename = event.context() as Path
                         if (filename.toString() == configuration.restoreRequestFileName) {
                             debugln { "$TAG: Restore request file detected" }
-                            onRestoreRequest()
+                            configuration.restoreRequestFilePath.onRestoreRequest()
                             // Remove the request file after processing
                             deleteRestoreRequestFile()
                         }
@@ -135,10 +139,16 @@ object SingleInstanceManager {
         }.start()
     }
 
-    private fun sendRestoreRequest() {
+    private fun sendRestoreRequest(onRestoreFileCreated: (Path.() -> Unit)?) {
         try {
-            val restoreRequestFilePath = configuration.lockFilesDir.resolve(configuration.restoreRequestFileName)
-            Files.createFile(restoreRequestFilePath)
+            val restoreRequestFilePath = configuration.restoreRequestFilePath
+            if (onRestoreFileCreated != null) {
+                val tempRestoreFilePath = Files.createTempFile(configuration.lockIdentifier, ".restore_request")
+                tempRestoreFilePath.onRestoreFileCreated()
+                Files.move(tempRestoreFilePath, restoreRequestFilePath, StandardCopyOption.REPLACE_EXISTING)
+            } else {
+                Files.createFile(restoreRequestFilePath)
+            }
             debugln { "$TAG: Restore request file created: $restoreRequestFilePath" }
         } catch (e: Exception) {
             errorln { "$TAG: Error while sending restore request: $e" }
@@ -147,7 +157,7 @@ object SingleInstanceManager {
 
     private fun deleteRestoreRequestFile() {
         try {
-            val restoreRequestFilePath = configuration.lockFilesDir.resolve(configuration.restoreRequestFileName)
+            val restoreRequestFilePath = configuration.restoreRequestFilePath
             Files.deleteIfExists(restoreRequestFilePath)
             debugln { "$TAG: Restore request file deleted: $restoreRequestFilePath" }
         } catch (e: Exception) {

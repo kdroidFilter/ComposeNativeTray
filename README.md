@@ -196,6 +196,28 @@ if (!isSingleInstance) {
 
 In this example, the `SingleInstanceManager` will check if an instance is already running. If not, it will acquire the lock and start watching for restore requests. If an instance is already running, it will send a restore request to bring the existing window to the foreground, allowing you to focus on the already-running application rather than starting a new instance.
 
+#### Passing data to the main instance
+
+In some cases, you may want to pass some data to the main instance, e.g. pass a deeplink,
+that new instance got in the arguments of the `main` function from OS.
+
+For this purpose you can use optional `onRestoreFileCreated` handler to write required data to the special file,
+that will be later accessible to read in the `onRestoreRequest` handler of the main instance.
+
+Both handlers have the `Path` as a receiver, so you can do any read/write operations on it.
+
+```kotlin
+SingleInstanceManager.isSingleInstance(
+    onRestoreFileCreated = {
+        args.firstOrNull()?.let(::writeText)
+    },
+    onRestoreRequest = {
+        log("Restored with arg: '${readText()}'")
+        // restore window/etc.
+    }
+)
+```
+
 #### Configuration
 
 `SingleInstanceManager` can be configured:
