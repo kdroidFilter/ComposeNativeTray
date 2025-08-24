@@ -5,7 +5,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.kdroid.composetray.lib.mac.MacTrayLoader
 import com.kdroid.composetray.lib.mac.MacTrayManager
-import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
@@ -192,8 +191,7 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition {
 fun getTrayPosition(): TrayPosition {
     when (getOperatingSystem()) {
         OperatingSystem.WINDOWS -> {
-            val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
-            return getWindowsTrayPosition(trayLib.tray_get_notification_icons_region())
+            return getWindowsTrayPosition(WindowsNativeTrayLibrary.tray_get_notification_icons_region())
         }
         OperatingSystem.MACOS -> {
             val lib = MacTrayLoader.lib
@@ -373,10 +371,7 @@ fun getNotificationAreaXYForWindows(): Pair<Int, Int> {
     val xRef = IntByReference()
     val yRef = IntByReference()
 
-    val trayLib: WindowsNativeTrayLibrary =
-        Native.load("tray", WindowsNativeTrayLibrary::class.java)
-
-    val precise = trayLib.tray_get_notification_icons_position(xRef, yRef) != 0
+    val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
 
     val x = xRef.value
     val y = yRef.value
