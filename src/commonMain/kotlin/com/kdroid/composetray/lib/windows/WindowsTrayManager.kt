@@ -1,7 +1,6 @@
 package com.kdroid.composetray.lib.windows
 
 import com.kdroid.composetray.utils.debugln
-import com.sun.jna.Native
 import kotlinx.coroutines.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -14,7 +13,6 @@ internal class WindowsTrayManager(
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
 ) {
-    private val trayLib: WindowsNativeTrayLibrary = Native.load("tray", WindowsNativeTrayLibrary::class.java)
     private var tray: AtomicReference<WindowsNativeTray?> = AtomicReference(null)
     private val running = AtomicBoolean(false)
     private val initialized = AtomicBoolean(false)
@@ -96,7 +94,7 @@ internal class WindowsTrayManager(
 
                     // Initialize the tray on this thread
                     log("Calling tray_init() on tray thread")
-                    val initResult = trayLib.tray_init(newTray)
+                    val initResult = WindowsNativeTrayLibrary.tray_init(newTray)
                     log("tray_init() returned: $initResult")
 
                     if (initResult != 0) {
@@ -164,7 +162,7 @@ internal class WindowsTrayManager(
                 processUpdateQueue()
 
                 // Process Windows messages with blocking call for responsiveness
-                val result = trayLib.tray_loop(0)
+                val result = WindowsNativeTrayLibrary.tray_loop(0)
 
                 when (result) {
                     -1 -> {
@@ -182,7 +180,7 @@ internal class WindowsTrayManager(
                             if (currentTray != null) {
                                 try {
                                     log("Attempting to recover tray...")
-                                    trayLib.tray_update(currentTray)
+                                    WindowsNativeTrayLibrary.tray_update(currentTray)
                                     consecutiveErrors = 0
                                 } catch (e: Exception) {
                                     log("Failed to recover: ${e.message}")
@@ -255,7 +253,7 @@ internal class WindowsTrayManager(
 
         // Update the native tray
         log("Calling tray_update()")
-        trayLib.tray_update(newTray)
+        WindowsNativeTrayLibrary.tray_update(newTray)
         log("tray_update() completed")
 
         // Update the reference
@@ -376,7 +374,7 @@ internal class WindowsTrayManager(
         if (initialized.get()) {
             try {
                 log("Calling tray_exit()")
-                trayLib.tray_exit()
+                WindowsNativeTrayLibrary.tray_exit()
             } catch (e: Exception) {
                 log("Error in tray_exit(): ${e.message}")
                 e.printStackTrace()

@@ -518,16 +518,10 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
 
 ## 🧪 TrayApp (Experimental)
 
-<table>
-  <tr>
-    <td><img src="screenshots/windows.png" alt="Windows" /><br /><center>Windows</center></td>
-    <td><img src="screenshots/mac.png" alt="macOS" /><br /><center>macOS</center></td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/trayapp-gnome.png" alt="Ubuntu GNOME" /><br /><center>Ubuntu GNOME</center></td>
-    <td><img src="screenshots/trayapp-kde.png" alt="Ubuntu KDE" /><br /><center>Ubuntu KDE</center></td>
-  </tr>
-</table>
+
+<p align="center">
+  <img src="screenshots/trayappdemo.gif" alt="demo">
+</p>
 
 ### Overview
 TrayApp is a high-level API that creates a system tray icon and an undecorated popup window that toggles when the tray icon is clicked. The popup auto-hides when it loses focus or when you click outside it (macOS/Linux watchers supported) and can fade in/out.

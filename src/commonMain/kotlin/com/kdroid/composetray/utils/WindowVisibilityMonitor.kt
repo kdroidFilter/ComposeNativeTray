@@ -9,6 +9,9 @@ import java.awt.event.WindowEvent
 
 object WindowVisibilityMonitor {
 
+    // Public marker name used to identify the tray popup dialog window so it can be excluded from checks
+    const val TRAY_DIALOG_NAME: String = "ComposeTrayPopup"
+
     // Expose current visibility status as a StateFlow<Boolean>
     private val _hasVisible = MutableStateFlow(false)
     val hasAnyVisibleWindows: StateFlow<Boolean> = _hasVisible
@@ -43,6 +46,9 @@ object WindowVisibilityMonitor {
 
     /** Recalculate and publish the current visibility state */
     fun recompute() {
-        _hasVisible.value = Window.getWindows().any { it.isEffectivelyVisible() }
+        _hasVisible.value = Window.getWindows()
+            .asSequence()
+            .filter { it.name != TRAY_DIALOG_NAME }
+            .any { it.isEffectivelyVisible() }
     }
 }

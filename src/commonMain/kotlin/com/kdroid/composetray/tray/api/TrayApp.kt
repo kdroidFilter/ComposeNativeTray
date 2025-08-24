@@ -1,5 +1,6 @@
 package com.kdroid.composetray.tray.api
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -75,6 +76,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
     ) {
@@ -96,6 +99,8 @@ fun ApplicationScope.TrayApp(
         tooltip = tooltip,
         windowSize = windowSize,
         visibleOnStart = visibleOnStart,
+        fadeDurationMs = fadeDurationMs,
+        animationSpec = animationSpec,
         content = content,
         menu = menu,
     )
@@ -113,6 +118,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
     ) {
@@ -130,6 +137,8 @@ fun ApplicationScope.TrayApp(
         tooltip = tooltip,
         windowSize = windowSize,
         visibleOnStart = visibleOnStart,
+        fadeDurationMs = fadeDurationMs,
+        animationSpec = animationSpec,
         content = content,
         menu = menu,
     )
@@ -150,6 +159,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -162,6 +173,8 @@ fun ApplicationScope.TrayApp(
             tooltip = tooltip,
             windowSize = windowSize,
             visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
@@ -174,6 +187,8 @@ fun ApplicationScope.TrayApp(
             tooltip = tooltip,
             windowSize = windowSize,
             visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
@@ -191,7 +206,8 @@ fun ApplicationScope.TrayApp(
     tooltip: String,
     windowSize: DpSize = DpSize(300.dp, 200.dp),
     visibleOnStart: Boolean = false,
-    fadeDurationMs: Int = 200, // Durée de l'animation en ms
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
     ) {
@@ -204,7 +220,7 @@ fun ApplicationScope.TrayApp(
     // Animation de l'opacité
     val alpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+        animationSpec = animationSpec,
         label = "window_fade"
     )
 
@@ -226,6 +242,8 @@ fun ApplicationScope.TrayApp(
 
     // Timestamp of the last focus loss to avoid Windows double-toggle (hide then immediate re-show)
     var lastFocusLostAt by remember { mutableStateOf(0L) }
+    // On Windows, delay auto-hide on startup when visibleOnStart is true to avoid immediate disappearance
+    var autoHideEnabledAt by remember { mutableStateOf(0L) }
 
     // Primary action: toggle visibility with Windows-specific debounce
     val internalPrimaryAction: () -> Unit = {
@@ -289,11 +307,15 @@ fun ApplicationScope.TrayApp(
             }
             MACOS -> {
                 // Give the status item some time to settle so getStatusItemXYForMac() is more reliable
-                delay(500)
+                delay( 100)
             }
             else -> {
                 // Linux or others: nothing special here
             }
+        }
+        // On Windows, provide a short grace period where focus-loss won't auto-hide the window
+        if (os == WINDOWS) {
+            autoHideEnabledAt = System.currentTimeMillis() + 1000
         }
         isVisible = true
     }
@@ -333,6 +355,10 @@ fun ApplicationScope.TrayApp(
             state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
             DisposableEffect(Unit) {
+                // Mark this as the tray popup window so visibility checks can ignore it on macOS
+                try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
+                // Recompute visibility to avoid counting this tray popup as an app window
+                runCatching { WindowVisibilityMonitor.recompute() }
                 // Force bring-to-front on open
                 invokeLater {
                     try {
@@ -347,6 +373,10 @@ fun ApplicationScope.TrayApp(
                     override fun windowGainedFocus(e: WindowEvent?) = Unit
                     override fun windowLostFocus(e: WindowEvent?) {
                         lastFocusLostAt = System.currentTimeMillis()
+                        if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
+                            // Ignore focus loss during startup grace period on Windows
+                            return
+                        }
                         isVisible = false
                     }
                 }
@@ -373,6 +403,8 @@ fun ApplicationScope.TrayApp(
                     window.removeWindowFocusListener(focusListener)
                     macWatcher?.stop()
                     linuxWatcher?.stop()
+                    // Recompute visibility when closing the tray popup
+                    runCatching { WindowVisibilityMonitor.recompute() }
                 }
             }
 

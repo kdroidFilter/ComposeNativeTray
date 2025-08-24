@@ -13,6 +13,7 @@ private var app: NSApplication? = nil
 private var statusBar: NSStatusBar? = nil
 private var statusItem: NSStatusItem? = nil
 private var themeCallback: ThemeCallback? = nil
+private var contextMenu: NSMenu? = nil  // Stockage du menu sans l'assigner à statusItem
 
 // MARK: - Menu delegate
 private class MenuDelegate: NSObject, NSMenuDelegate {
@@ -22,28 +23,30 @@ private class MenuDelegate: NSObject, NSMenuDelegate {
             .assumingMemoryBound(to: MenuItemCallback?.self)
         callbackPtr.pointee?(menuItemPtr)
     }
-
-    func menuWillOpen(_ menu: NSMenu) {
-        guard menu == statusItem?.menu,
-              let currentEvent = NSApp.currentEvent,
-              currentEvent.buttonNumber == 0,
-              let trayPtr = trayInstance else { return }
-
-        // Left‑click: cancel menu & fire callback immediately
-        menu.cancelTracking()
-        let callbackPtr = trayPtr.advanced(by: 24)
-            .assumingMemoryBound(to: TrayCallback?.self)
-        callbackPtr.pointee?(trayPtr)
-    }
 }
 
-// MARK: - Left‑click handler when no menu is present
+// MARK: - Unified click handler for both left and right clicks
 @objc private class ButtonClickHandler: NSObject {
     @objc func handleClick(_ sender: NSStatusBarButton) {
-        guard let trayPtr = trayInstance else { return }
-        let callbackPtr = trayPtr.advanced(by: 24)
-            .assumingMemoryBound(to: TrayCallback?.self)
-        callbackPtr.pointee?(trayPtr)
+        guard let event = NSApp.currentEvent else { return }
+
+        if event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+            // Clic droit ou Ctrl+clic : afficher le menu
+            if let menu = contextMenu {
+                // Position du menu juste sous le bouton
+                let menuLocation = NSPoint(
+                    x: sender.frame.minX,
+                    y: sender.frame.minY - 5
+                )
+                menu.popUp(positioning: nil, at: menuLocation, in: sender)
+            }
+        } else if event.type == .leftMouseUp {
+            // Clic gauche : appeler le callback si défini
+            guard let trayPtr = trayInstance else { return }
+            let callbackPtr = trayPtr.advanced(by: 24)
+                .assumingMemoryBound(to: TrayCallback?.self)
+            callbackPtr.pointee?(trayPtr)
+        }
     }
 }
 
@@ -206,6 +209,7 @@ public func tray_update(_ tray: UnsafeMutableRawPointer) {
     let menuPtr      = tray.advanced(by: 16).load(as: UnsafeMutableRawPointer?.self)
     let callbackPtr  = tray.advanced(by: 24).load(as: TrayCallback?.self)
 
+    // Mettre à jour l'icône
     if let iconPath = iconPathPtr.flatMap({ String(cString: $0) }),
        let image = NSImage(contentsOfFile: iconPath) {
         let height = NSStatusBar.system.thickness
@@ -214,19 +218,28 @@ public func tray_update(_ tray: UnsafeMutableRawPointer) {
         statusItem?.button?.image = image
     }
 
+    // Mettre à jour le tooltip
     statusItem?.button?.toolTip = tooltipPtr.flatMap { String(cString: $0) }
 
+    // Configuration du menu et des actions
+    // Important : on ne met JAMAIS le menu dans statusItem?.menu pour garder le contrôle du highlight
+    statusItem?.menu = nil
+
     if let menuPtr = menuPtr {
-        statusItem?.menu = nativeMenu(from: menuPtr)
-        statusItem?.button?.target = nil
-        statusItem?.button?.action = nil
-    } else if callbackPtr != nil {
-        statusItem?.menu = nil
+        // Créer et stocker le menu sans l'assigner à statusItem
+        contextMenu = nativeMenu(from: menuPtr)
+    } else {
+        contextMenu = nil
+    }
+
+    // Configurer les actions du bouton
+    if callbackPtr != nil || contextMenu != nil {
+        // On a soit un callback, soit un menu, soit les deux
         statusItem?.button?.target = buttonClickHandler
         statusItem?.button?.action = #selector(ButtonClickHandler.handleClick(_:))
-        statusItem?.button?.sendAction(on: [.leftMouseUp])
+        statusItem?.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
     } else {
-        statusItem?.menu = nil
+        // Ni callback ni menu
         statusItem?.button?.target = nil
         statusItem?.button?.action = nil
     }
@@ -250,6 +263,7 @@ public func tray_exit() {
     menuDelegate = nil
     buttonClickHandler = nil
     appearanceObserver = nil
+    contextMenu = nil
 }
 
 @_cdecl("tray_set_theme_callback")
