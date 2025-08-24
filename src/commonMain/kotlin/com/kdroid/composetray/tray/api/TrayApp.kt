@@ -307,7 +307,7 @@ fun ApplicationScope.TrayApp(
             }
             MACOS -> {
                 // Give the status item some time to settle so getStatusItemXYForMac() is more reliable
-                delay(500)
+                delay( 100)
             }
             else -> {
                 // Linux or others: nothing special here

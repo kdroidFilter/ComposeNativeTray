@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
-import com.sun.jna.Library
 import com.sun.jna.Callback
 import com.sun.jna.ptr.IntByReference
 import kotlinx.coroutines.*
@@ -21,7 +20,8 @@ internal class MacTrayManager(
     private var tooltip: String = "",
     onLeftClick: (() -> Unit)? = null
 ) {
-    private val trayLib: MacTrayLibrary = MacTrayLoader.lib
+    // Use JNA direct mapping via object MacTrayLibrary
+    private val trayLib = MacTrayLibrary
     private var tray: MacTray? = null
     private val menuItems: MutableList<MenuItem> = mutableListOf()
     private val running = AtomicBoolean(false)
@@ -326,18 +326,22 @@ internal class MacTrayManager(
         fun invoke(isDark: Int)
     }
 
-    // JNA interface for the native library
-    interface MacTrayLibrary : Library {
-        fun tray_init(tray: MacTray): Int
-        fun tray_loop(blocking: Int): Int
-        fun tray_update(tray: MacTray)
-        fun tray_exit()
-        fun tray_set_theme_callback(cb: ThemeCallback)
-        fun tray_is_menu_dark(): Int
+    // JNA direct-mapped native library
+    object MacTrayLibrary {
+        init {
+            Native.register("MacTray")
+        }
 
-        fun tray_get_status_item_position(x: IntByReference, y: IntByReference): Int
+        @JvmStatic external fun tray_init(tray: MacTray): Int
+        @JvmStatic external fun tray_loop(blocking: Int): Int
+        @JvmStatic external fun tray_update(tray: MacTray)
+        @JvmStatic external fun tray_exit()
+        @JvmStatic external fun tray_set_theme_callback(cb: ThemeCallback)
+        @JvmStatic external fun tray_is_menu_dark(): Int
 
-        fun tray_get_status_item_region(): String?
+        @JvmStatic external fun tray_get_status_item_position(x: IntByReference, y: IntByReference): Int
+
+        @JvmStatic external fun tray_get_status_item_region(): String?
     }
 
     // Structure for a menu item
