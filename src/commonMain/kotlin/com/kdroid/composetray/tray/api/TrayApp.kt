@@ -30,9 +30,8 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.MenuContentHash
-import com.kdroid.composetray.utils.TrayClickTracker
-import com.kdroid.composetray.utils.getNotificationAreaXYForWindows
 import com.kdroid.composetray.utils.getTrayWindowPosition
+import com.kdroid.composetray.utils.getTrayWindowPositionForInstance
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
 import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
@@ -293,28 +292,19 @@ fun ApplicationScope.TrayApp(
     LaunchedEffect(visibleOnStart, os) {
         if (!visibleOnStart) return@LaunchedEffect
 
-        var attempts = 0
-        val maxAttempts = 20
-        when (os) {
-            WINDOWS -> {
-                // Try to fetch the notification area position so the window can appear near it
-                while (attempts < maxAttempts && TrayClickTracker.getLastClickPosition() == null) {
-                    runCatching { getNotificationAreaXYForWindows() }
-                    if (TrayClickTracker.getLastClickPosition() != null) break
-                    attempts++
-                    delay(100)
-                }
-            }
-            MACOS -> {
-                // Give the status item some time to settle so getStatusItemXYForMac() is more reliable
-                delay( 100)
-            }
-            else -> {
-                // Linux or others: nothing special here
-            }
+        if (os == MACOS) {
+            // Give the status item some time to settle
+            delay(100)
         }
-        // On Windows, provide a short grace period where focus-loss won't auto-hide the window
         if (os == WINDOWS) {
+            // Wait briefly for this instance's initial tray position to be captured on the tray thread
+            val deadline = System.currentTimeMillis() + 2000
+            val key = tray.instanceKey()
+            while (com.kdroid.composetray.utils.TrayClickTracker.getLastClickPosition(key) == null &&
+                System.currentTimeMillis() < deadline) {
+                delay(50)
+            }
+            // Provide a short grace period where focus-loss won't auto-hide the window
             autoHideEnabledAt = System.currentTimeMillis() + 1000
         }
         isVisible = true
@@ -342,7 +332,7 @@ fun ApplicationScope.TrayApp(
     if (shouldShowWindow) {
         val widthPx = windowSize.width.value.toInt()
         val heightPx = windowSize.height.value.toInt()
-        val windowPosition = getTrayWindowPosition(widthPx, heightPx)
+        val windowPosition = getTrayWindowPositionForInstance(tray.instanceKey(), widthPx, heightPx)
 
         DialogWindow(
             onCloseRequest = { isVisible = false },

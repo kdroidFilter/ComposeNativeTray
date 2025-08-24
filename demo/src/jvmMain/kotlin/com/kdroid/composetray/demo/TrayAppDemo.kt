@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
@@ -17,6 +18,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.ExperimentalTrayAppApi
+import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.WindowRaise
 import composenativetray.demo.generated.resources.Res
@@ -32,6 +34,7 @@ fun main() {
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
         var textFieldValue by remember { mutableStateOf("") }
+        var textFieldValue2 by remember { mutableStateOf("") }
 
         TrayApp(
             icon = Icons.Default.Book,
@@ -71,6 +74,46 @@ fun main() {
                 }
             }
         }
+
+        TrayApp(
+            icon = Icons.Default.Window,
+            tooltip = "TrayAppDemo",
+            windowSize = DpSize(300.dp, 500.dp),
+            visibleOnStart = true,
+            menu = {
+                Item(
+                    if (isWindowVisible) "Hide the app" else "Open the App",
+                    onClick = {
+                        isWindowVisible = !isWindowVisible
+                    }
+                )
+                Item("Exit", onClick = { exitApplication() })
+            }
+        ) {
+            MaterialTheme(
+                colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                        .padding(16.dp),
+                    contentAlignment = Center,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Your futur awesome compagnon App !", color = MaterialTheme.colorScheme.onBackground)
+                        TextField(
+                            value = textFieldValue2,
+                            onValueChange = { textFieldValue2 = it },
+                            placeholder = { Text("Enter some text") }
+                        )
+                    }
+                }
+            }
+        }
+
 
         if (isWindowVisible) {
             val state = rememberWindowState()

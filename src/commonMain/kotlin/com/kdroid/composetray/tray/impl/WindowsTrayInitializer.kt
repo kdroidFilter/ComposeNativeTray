@@ -6,33 +6,56 @@ import com.kdroid.composetray.menu.impl.WindowsTrayMenuBuilderImpl
 
 object WindowsTrayInitializer {
 
-    private var trayManager: WindowsTrayManager? = null
+    private const val DEFAULT_ID: String = "_default"
 
-    fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) {
-        // Create menu items
-        val trayMenuImpl = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
+    // Manage multiple tray managers by ID to allow multiple tray icons
+    private val trayManagers: MutableMap<String, WindowsTrayManager> = mutableMapOf()
+
+    @Synchronized
+    fun initialize(
+        id: String,
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+    ) {
+        val menuItems = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
             menuContent?.let { it() }
-        }
-        val menuItems = trayMenuImpl.build()
+        }.build()
 
-        if (trayManager == null) {
-            // Create new manager
-            val windowsTrayManager = WindowsTrayManager(iconPath, tooltip, onLeftClick)
-            trayManager = windowsTrayManager
+        val manager = trayManagers[id]
+        if (manager == null) {
+            val windowsTrayManager = WindowsTrayManager(id, iconPath, tooltip, onLeftClick)
+            trayManagers[id] = windowsTrayManager
             windowsTrayManager.initialize(menuItems)
         } else {
-            // Update existing manager
-            trayManager?.update(iconPath, tooltip, onLeftClick, menuItems)
+            manager.update(iconPath, tooltip, onLeftClick, menuItems)
         }
     }
 
-    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) {
-        // Same as initialize - it will handle both cases
-        initialize(iconPath, tooltip, onLeftClick, menuContent)
+    @Synchronized
+    fun update(
+        id: String,
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+    ) {
+        // Same as initialize - it will handle both cases per ID
+        initialize(id, iconPath, tooltip, onLeftClick, menuContent)
     }
 
-    fun dispose() {
-        trayManager?.stopTray()
-        trayManager = null
+    @Synchronized
+    fun dispose(id: String) {
+        trayManagers.remove(id)?.stopTray()
     }
+
+    // Backward-compatible API for existing callers (single default tray)
+    fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
+        initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+
+    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
+        update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+
+    fun dispose() = dispose(DEFAULT_ID)
 }

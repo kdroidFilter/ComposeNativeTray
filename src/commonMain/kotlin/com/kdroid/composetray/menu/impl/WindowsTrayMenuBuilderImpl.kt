@@ -305,7 +305,7 @@ internal class WindowsTrayMenuBuilderImpl(
 
     override fun dispose() {
         lock.withLock {
-            WindowsTrayManager(iconPath = iconPath, tooltip = tooltip, onLeftClick = onLeftClick).stopTray()
+            WindowsTrayManager(instanceId = "_temp", iconPath = iconPath, tooltip = tooltip, onLeftClick = onLeftClick).stopTray()
             persistentMenuItems.clear() // Clear references when disposing
         }
     }

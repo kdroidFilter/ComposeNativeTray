@@ -34,7 +34,11 @@ internal class NativeTray {
     private val awtTrayUsed = AtomicBoolean(false)
 
     private val os = getOperatingSystem()
+    private val instanceId: String = "tray-" + System.identityHashCode(this)
     private var initialized = false
+
+    // Expose the unique instance key so UI code (TrayApp) can compute per-instance positions
+    fun instanceKey(): String = instanceId
 
     fun update(
         iconPath: String,
@@ -52,7 +56,7 @@ internal class NativeTray {
         try {
             when (os) {
                 LINUX -> LinuxSNITrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
-                WINDOWS -> WindowsTrayInitializer.update(windowsIconPath, tooltip, primaryAction, menuContent)
+                WINDOWS -> WindowsTrayInitializer.update(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
                 MACOS -> MacTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                 UNKNOWN -> {
                     AwtTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
@@ -68,7 +72,7 @@ internal class NativeTray {
     fun dispose() {
         when (os) {
             LINUX -> LinuxSNITrayInitializer.dispose()
-            WINDOWS -> WindowsTrayInitializer.dispose()
+            WINDOWS -> WindowsTrayInitializer.dispose(instanceId)
             MACOS -> MacTrayInitializer.dispose()
             UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
             else -> {}
@@ -104,7 +108,7 @@ internal class NativeTray {
 
                     WINDOWS -> {
                         debugln { "NativeTray: Initializing Windows tray with icon path: $windowsIconPath" }
-                        WindowsTrayInitializer.initialize(windowsIconPath, tooltip, primaryAction, menuContent)
+                        WindowsTrayInitializer.initialize(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
