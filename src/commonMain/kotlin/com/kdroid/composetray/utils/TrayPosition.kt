@@ -331,12 +331,15 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
 
 // New: per-instance variant used by Windows multi-tray
 fun getTrayWindowPositionForInstance(instanceId: String, windowWidth: Int, windowHeight: Int): WindowPosition {
-    if (getOperatingSystem() != OperatingSystem.WINDOWS) {
+    val os = getOperatingSystem()
+    if (os != OperatingSystem.WINDOWS && os != OperatingSystem.LINUX) {
         return getTrayWindowPosition(windowWidth, windowHeight)
     }
 
     val screenSize = Toolkit.getDefaultToolkit().screenSize
     val pos = TrayClickTracker.getLastClickPosition(instanceId)
+        ?: TrayClickTracker.getLastClickPosition() // fallback to global if instance-specific missing
+        ?: loadTrayClickPosition() // persisted fallback (Linux)
         ?: return fallbackCornerPosition(windowWidth, windowHeight)
 
     return calculateWindowPositionFromClick(

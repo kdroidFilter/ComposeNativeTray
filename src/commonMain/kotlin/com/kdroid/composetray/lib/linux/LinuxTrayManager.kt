@@ -26,6 +26,7 @@ import kotlin.concurrent.withLock
  * • <em>New:</em> Capture of click position for precise window placement.
  */
 internal class LinuxTrayManager(
+    private val instanceId: String,
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
@@ -300,9 +301,9 @@ internal class LinuxTrayManager(
         trayHandle?.let { handle ->
             activateCallback = object : SNIWrapper.ActivateCallback {
                 override fun invoke(x: Int, y: Int, data: Pointer?) {
-                    // Capture click position
-                    TrayClickTracker.updateClickPosition(x, y)
-                    debugln { "LinuxTrayManager: Tray clicked at position ($x, $y)" }
+                    // Capture click position (per instance)
+                    TrayClickTracker.updateClickPosition(instanceId, x, y)
+                    debugln { "LinuxTrayManager: Tray clicked at position ($x, $y) [id=$instanceId]" }
                     onLeftClick?.invoke()
                 }
             }
@@ -310,9 +311,9 @@ internal class LinuxTrayManager(
 
             secondaryActivateCallback = object : SNIWrapper.SecondaryActivateCallback {
                 override fun invoke(x: Int, y: Int, data: Pointer?) {
-                    // Also capture right-click position
-                    TrayClickTracker.updateClickPosition(x, y)
-                    debugln { "LinuxTrayManager: Tray right-clicked at position ($x, $y)" }
+                    // Also capture right-click position (per instance)
+                    TrayClickTracker.updateClickPosition(instanceId, x, y)
+                    debugln { "LinuxTrayManager: Tray right-clicked at position ($x, $y) [id=$instanceId]" }
                     /* secondary click */
                 }
             }

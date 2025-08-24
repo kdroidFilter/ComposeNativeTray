@@ -10,8 +10,10 @@ import kotlin.concurrent.withLock
 
 object LinuxSNITrayInitializer {
 
-    private var trayMenuImpl: LinuxTrayMenuBuilderImpl? = null
-    private var linuxTrayManager: LinuxTrayManager? = null
+    private const val DEFAULT_ID: String = "_default"
+
+    private val trayMenuImpls: MutableMap<String, LinuxTrayMenuBuilderImpl> = mutableMapOf()
+    private val linuxTrayManagers: MutableMap<String, LinuxTrayManager> = mutableMapOf()
     private val lock = ReentrantLock()
 
     init {
@@ -20,93 +22,82 @@ object LinuxSNITrayInitializer {
             SNIWrapper.INSTANCE.sni_set_debug_mode(if (debugMode) 1 else 0)
         } catch (e: Exception) {
         }
-
     }
 
+    @Synchronized
     fun initialize(
+        id: String,
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         lock.withLock {
-            if (linuxTrayManager == null) {
-                // Create a new instance of LinuxTrayManager if it doesn't exist
-                linuxTrayManager = LinuxTrayManager(iconPath, tooltip, onLeftClick)
+            val existing = linuxTrayManagers[id]
+            if (existing == null) {
+                val manager = LinuxTrayManager(id, iconPath, tooltip, onLeftClick)
+                linuxTrayManagers[id] = manager
 
-                // Create an instance of LinuxTrayMenuBuilderImpl and apply the menu content
-                if (menuContent != null) {
-                    trayMenuImpl = LinuxTrayMenuBuilderImpl(
-                        iconPath,
-                        tooltip,
-                        onLeftClick,
-                        trayManager = linuxTrayManager // Pass the tray manager reference
-                    ).apply {
+                val menuImpl = if (menuContent != null) {
+                    LinuxTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick, trayManager = manager).apply {
                         menuContent()
                     }
-                    val menuItems = trayMenuImpl!!.build()
-
-                    // Add each menu item to LinuxTrayManager
-                    menuItems.forEach { linuxTrayManager!!.addMenuItem(it) }
+                } else null
+                menuImpl?.let { impl ->
+                    trayMenuImpls[id]?.dispose()
+                    trayMenuImpls[id] = impl
+                    impl.build().forEach { item -> manager.addMenuItem(item) }
                 }
 
-                // Start the Linux tray (this will initialize and run the event loop in its own thread)
-                linuxTrayManager!!.startTray()
+                manager.startTray()
             } else {
-                // Update the existing tray manager
-                update(iconPath, tooltip, onLeftClick, menuContent)
+                update(id, iconPath, tooltip, onLeftClick, menuContent)
             }
         }
     }
 
+    @Synchronized
     fun update(
+        id: String,
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null
     ) {
         lock.withLock {
-            if (linuxTrayManager == null) {
-                // If tray manager doesn't exist, initialize it
-                initialize(iconPath, tooltip, onLeftClick, menuContent)
+            val manager = linuxTrayManagers[id]
+            if (manager == null) {
+                initialize(id, iconPath, tooltip, onLeftClick, menuContent)
                 return
             }
 
-            // Create a new menu builder and build the menu items
             val newMenuItems = if (menuContent != null) {
-                val newTrayMenuImpl = LinuxTrayMenuBuilderImpl(
-                    iconPath,
-                    tooltip,
-                    onLeftClick,
-                    trayManager = linuxTrayManager
-                ).apply {
+                val newImpl = LinuxTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick, trayManager = manager).apply {
                     menuContent()
                 }
+                trayMenuImpls[id]?.dispose()
+                trayMenuImpls[id] = newImpl
+                newImpl.build()
+            } else null
 
-                // Store the new menu builder
-                trayMenuImpl?.dispose()
-                trayMenuImpl = newTrayMenuImpl
-
-                // Build the menu items
-                newTrayMenuImpl.build()
-            } else {
-                null
-            }
-
-            // Update the tray manager with new properties and menu items
-            linuxTrayManager!!.update(iconPath, tooltip, onLeftClick, newMenuItems)
+            manager.update(iconPath, tooltip, onLeftClick, newMenuItems)
         }
     }
 
-    fun dispose() {
+    @Synchronized
+    fun dispose(id: String) {
         lock.withLock {
-            // Stop the tray manager
-            linuxTrayManager?.stopTray()
-            linuxTrayManager = null
-
-            // Clear menu implementation
-            trayMenuImpl?.dispose()
-            trayMenuImpl = null
+            linuxTrayManagers.remove(id)?.stopTray()
+            trayMenuImpls.remove(id)?.dispose()
         }
     }
+
+    // Backward-compatible single-tray API
+    fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
+        initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+
+    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
+        update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+
+    fun dispose() = dispose(DEFAULT_ID)
 }
