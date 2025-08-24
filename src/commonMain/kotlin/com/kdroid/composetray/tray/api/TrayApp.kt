@@ -7,13 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -26,26 +20,23 @@ import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberDialogState
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
+import com.kdroid.composetray.lib.mac.MacOSWindowManager
+import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
-import com.kdroid.composetray.utils.ComposableIconUtils
-import com.kdroid.composetray.utils.IconRenderProperties
-import com.kdroid.composetray.utils.MenuContentHash
-import com.kdroid.composetray.utils.getTrayWindowPosition
-import com.kdroid.composetray.utils.getTrayWindowPositionForInstance
-import com.kdroid.composetray.utils.isMenuBarInDarkMode
+import com.kdroid.composetray.utils.*
+import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
 import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
 import io.github.kdroidfilter.platformtools.getOperatingSystem
-import java.awt.EventQueue.invokeLater
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
-import java.awt.event.WindowAdapter
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
-import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
-import io.github.kdroidfilter.platformtools.OperatingSystem
-import com.kdroid.composetray.utils.WindowVisibilityMonitor
-import com.kdroid.composetray.lib.mac.MacOSWindowManager
-import kotlinx.coroutines.flow.collectLatest
 
 
 /**
@@ -216,6 +207,16 @@ fun ApplicationScope.TrayApp(
     val isDark = isMenuBarInDarkMode()
     val os = getOperatingSystem()
 
+    // Simple global debounce to stabilize show/hide toggle across platforms
+    var lastPrimaryActionAt by remember { mutableStateOf(0L) }
+    val toggleDebounceMs = 280L
+
+    // Stabilization windows: enforce minimum visible/hidden durations
+    var lastShownAt by remember { mutableStateOf(0L) }
+    var lastHiddenAt by remember { mutableStateOf(0L) }
+    val minVisibleDurationMs = 350L
+    val minHiddenDurationMs = 250L
+
     // Animation de l'opacité
     val alpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
@@ -244,18 +245,55 @@ fun ApplicationScope.TrayApp(
     // On Windows, delay auto-hide on startup when visibleOnStart is true to avoid immediate disappearance
     var autoHideEnabledAt by remember { mutableStateOf(0L) }
 
-    // Primary action: toggle visibility with Windows-specific debounce
+    // Helper to request hide with a minimum visible duration guard
+    val requestHide: () -> Unit = {
+        val now = System.currentTimeMillis()
+        val sinceShow = now - lastShownAt
+        if (sinceShow >= minVisibleDurationMs) {
+            isVisible = false
+            lastHiddenAt = System.currentTimeMillis()
+        } else {
+            val wait = minVisibleDurationMs - sinceShow
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(wait)
+                isVisible = false
+                lastHiddenAt = System.currentTimeMillis()
+            }
+        }
+    }
+
+    // Primary action: toggle visibility with global debounce and Windows-specific guard
     val internalPrimaryAction: () -> Unit = {
         val now = System.currentTimeMillis()
-        if (isVisible) {
-            // Hide
-            isVisible = false
-        } else {
-            // On Windows, ignore a re-show that happens immediately after focus loss
-            if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
-                // Ignore
+        // Global debounce across all OS to avoid double execution due to rapid duplicate events
+        if (now - lastPrimaryActionAt >= toggleDebounceMs) {
+            lastPrimaryActionAt = now
+
+            if (isVisible) {
+                // Hide with guard
+                val sinceShow = now - lastShownAt
+                if (sinceShow >= minVisibleDurationMs) {
+                    isVisible = false
+                    lastHiddenAt = System.currentTimeMillis()
+                } else {
+                    val wait = minVisibleDurationMs - sinceShow
+                    CoroutineScope(Dispatchers.IO).launch {
+                        delay(wait)
+                        isVisible = false
+                        lastHiddenAt = System.currentTimeMillis()
+                    }
+                }
             } else {
-                isVisible = true
+                // Enforce a short minimum hidden duration to avoid hide->show bounce
+                if (now - lastHiddenAt >= minHiddenDurationMs) {
+                    // On Windows, ignore a re-show that happens immediately after focus loss
+                    if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
+                        // Ignore
+                    } else {
+                        isVisible = true
+                        lastShownAt = System.currentTimeMillis()
+                    }
+                }
             }
         }
     }
@@ -300,7 +338,7 @@ fun ApplicationScope.TrayApp(
             // Wait briefly for this instance's initial tray position to be captured on the tray thread
             val deadline = System.currentTimeMillis() + 2000
             val key = tray.instanceKey()
-            while (com.kdroid.composetray.utils.TrayClickTracker.getLastClickPosition(key) == null &&
+            while (TrayClickTracker.getLastClickPosition(key) == null &&
                 System.currentTimeMillis() < deadline) {
                 delay(50)
             }
@@ -308,6 +346,7 @@ fun ApplicationScope.TrayApp(
             autoHideEnabledAt = System.currentTimeMillis() + 1000
         }
         isVisible = true
+        lastShownAt = System.currentTimeMillis()
     }
 
     DisposableEffect(Unit) {
@@ -335,7 +374,7 @@ fun ApplicationScope.TrayApp(
         val windowPosition = getTrayWindowPositionForInstance(tray.instanceKey(), widthPx, heightPx)
 
         DialogWindow(
-            onCloseRequest = { isVisible = false },
+            onCloseRequest = { requestHide() },
             title = "",
             undecorated = true,
             resizable = false,
@@ -367,7 +406,7 @@ fun ApplicationScope.TrayApp(
                             // Ignore focus loss during startup grace period on Windows
                             return
                         }
-                        isVisible = false
+                        requestHide()
                     }
                 }
 
@@ -375,7 +414,7 @@ fun ApplicationScope.TrayApp(
                 val macWatcher = if (getOperatingSystem() == MACOS) {
                     MacOutsideClickWatcher(
                         windowSupplier = { window },
-                        onOutsideClick = { invokeLater { isVisible = false } }
+                        onOutsideClick = { invokeLater { requestHide() } }
                     ).also { it.start() }
                 } else null
 
@@ -383,7 +422,7 @@ fun ApplicationScope.TrayApp(
                 val linuxWatcher = if (getOperatingSystem() == OperatingSystem.LINUX) {
                     LinuxOutsideClickWatcher(
                         windowSupplier = { window },
-                        onOutsideClick = { invokeLater { isVisible = false } }
+                        onOutsideClick = { invokeLater { requestHide() } }
                     ).also { it.start() }
                 } else null
 
