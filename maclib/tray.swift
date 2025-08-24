@@ -11,9 +11,22 @@ private var loopStatus: Int32 = 0
 private var trayInstance: UnsafeMutableRawPointer? = nil
 private var app: NSApplication? = nil
 private var statusBar: NSStatusBar? = nil
-private var statusItem: NSStatusItem? = nil
 private var themeCallback: ThemeCallback? = nil
-private var contextMenu: NSMenu? = nil  // Stockage du menu sans l'assigner à statusItem
+
+// Per-instance context keyed by the raw tray pointer (struct tray*)
+private class TrayContext {
+    let statusItem: NSStatusItem
+    let clickHandler: InstanceButtonClickHandler
+    var contextMenu: NSMenu?
+    let appearanceObserver: MenuBarAppearanceObserver
+    init(statusItem: NSStatusItem, clickHandler: InstanceButtonClickHandler, appearanceObserver: MenuBarAppearanceObserver) {
+        self.statusItem = statusItem
+        self.clickHandler = clickHandler
+        self.appearanceObserver = appearanceObserver
+    }
+}
+
+private var contexts: [UnsafeMutableRawPointer: TrayContext] = [:]
 
 // MARK: - Menu delegate
 private class MenuDelegate: NSObject, NSMenuDelegate {
@@ -25,15 +38,17 @@ private class MenuDelegate: NSObject, NSMenuDelegate {
     }
 }
 
-// MARK: - Unified click handler for both left and right clicks
-@objc private class ButtonClickHandler: NSObject {
+// MARK: - Unified click handler per instance
+@objc private class InstanceButtonClickHandler: NSObject {
+    private let trayPtr: UnsafeMutableRawPointer
+    init(trayPtr: UnsafeMutableRawPointer) { self.trayPtr = trayPtr }
+
     @objc func handleClick(_ sender: NSStatusBarButton) {
         guard let event = NSApp.currentEvent else { return }
+        guard let ctx = contexts[trayPtr] else { return }
 
         if event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
-            // Clic droit ou Ctrl+clic : afficher le menu
-            if let menu = contextMenu {
-                // Position du menu juste sous le bouton
+            if let menu = ctx.contextMenu {
                 let menuLocation = NSPoint(
                     x: sender.frame.minX,
                     y: sender.frame.minY - 5
@@ -41,8 +56,6 @@ private class MenuDelegate: NSObject, NSMenuDelegate {
                 menu.popUp(positioning: nil, at: menuLocation, in: sender)
             }
         } else if event.type == .leftMouseUp {
-            // Clic gauche : appeler le callback si défini
-            guard let trayPtr = trayInstance else { return }
             let callbackPtr = trayPtr.advanced(by: 24)
                 .assumingMemoryBound(to: TrayCallback?.self)
             callbackPtr.pointee?(trayPtr)
@@ -101,8 +114,6 @@ private class MenuBarAppearanceObserver {
 
 // MARK: - Globals that need to live for app lifetime
 private var menuDelegate: MenuDelegate?
-private var buttonClickHandler: ButtonClickHandler?
-private var appearanceObserver: MenuBarAppearanceObserver?
 
 // MARK: - Helpers
 private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
@@ -161,24 +172,29 @@ public func tray_get_instance() -> UnsafeMutableRawPointer? { trayInstance }
 
 @_cdecl("tray_init")
 public func tray_init(_ tray: UnsafeMutableRawPointer) -> Int32 {
-    // Guarantee work is on main thread.
     if !Thread.isMainThread {
         return DispatchQueue.main.sync { tray_init(tray) }
     }
 
     loopStatus = 0
-    menuDelegate = MenuDelegate()
-    buttonClickHandler = ButtonClickHandler()
-    appearanceObserver = MenuBarAppearanceObserver()
 
-    app = NSApplication.shared
-    statusBar = NSStatusBar.system
-    statusItem = statusBar?.statusItem(withLength: NSStatusItem.variableLength)
+    if app == nil { app = NSApplication.shared }
+    if statusBar == nil { statusBar = NSStatusBar.system }
+    if menuDelegate == nil { menuDelegate = MenuDelegate() }
 
-    if let statusItem = statusItem {
-        appearanceObserver?.startObserving(statusItem)
-    }
+    // Create a new status item for this tray instance
+    guard let bar = statusBar else { return -1 }
+    let statusItem = bar.statusItem(withLength: NSStatusItem.variableLength)
 
+    let observer = MenuBarAppearanceObserver()
+    observer.startObserving(statusItem)
+
+    let clickHandler = InstanceButtonClickHandler(trayPtr: tray)
+
+    let ctx = TrayContext(statusItem: statusItem, clickHandler: clickHandler, appearanceObserver: observer)
+    contexts[tray] = ctx
+
+    // First-time update sets image/tooltip/menu and target/action
     tray_update(tray)
     return 0
 }
@@ -204,44 +220,59 @@ public func tray_update(_ tray: UnsafeMutableRawPointer) {
 
     trayInstance = tray
 
+    guard let ctx = contexts[tray] else { return }
+    let statusItem = ctx.statusItem
+
     let iconPathPtr  = tray.load(as: UnsafePointer<CChar>?.self)
     let tooltipPtr   = tray.advanced(by: 8).load(as: UnsafePointer<CChar>?.self)
     let menuPtr      = tray.advanced(by: 16).load(as: UnsafeMutableRawPointer?.self)
     let callbackPtr  = tray.advanced(by: 24).load(as: TrayCallback?.self)
 
-    // Mettre à jour l'icône
+    // Update icon
     if let iconPath = iconPathPtr.flatMap({ String(cString: $0) }),
        let image = NSImage(contentsOfFile: iconPath) {
         let height = NSStatusBar.system.thickness
         let width  = image.size.width * (height / image.size.height)
         image.size = NSSize(width: width, height: height)
-        statusItem?.button?.image = image
+        statusItem.button?.image = image
     }
 
-    // Mettre à jour le tooltip
-    statusItem?.button?.toolTip = tooltipPtr.flatMap { String(cString: $0) }
+    // Update tooltip
+    statusItem.button?.toolTip = tooltipPtr.flatMap { String(cString: $0) }
 
-    // Configuration du menu et des actions
-    // Important : on ne met JAMAIS le menu dans statusItem?.menu pour garder le contrôle du highlight
-    statusItem?.menu = nil
+    // Menu and actions configuration
+    // Important: never set statusItem.menu to keep highlight control
+    statusItem.menu = nil
 
     if let menuPtr = menuPtr {
-        // Créer et stocker le menu sans l'assigner à statusItem
-        contextMenu = nativeMenu(from: menuPtr)
+        // Create and store the menu without assigning it to statusItem
+        ctx.contextMenu = nativeMenu(from: menuPtr)
     } else {
-        contextMenu = nil
+        ctx.contextMenu = nil
     }
 
-    // Configurer les actions du bouton
-    if callbackPtr != nil || contextMenu != nil {
-        // On a soit un callback, soit un menu, soit les deux
-        statusItem?.button?.target = buttonClickHandler
-        statusItem?.button?.action = #selector(ButtonClickHandler.handleClick(_:))
-        statusItem?.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+    // Configure button actions
+    if callbackPtr != nil || ctx.contextMenu != nil {
+        // We have either a callback, a menu, or both
+        statusItem.button?.target = ctx.clickHandler
+        statusItem.button?.action = #selector(InstanceButtonClickHandler.handleClick(_:))
+        statusItem.button?.sendAction(on: NSEvent.EventTypeMask.leftMouseUp.union(.rightMouseUp))
     } else {
-        // Ni callback ni menu
-        statusItem?.button?.target = nil
-        statusItem?.button?.action = nil
+        // Neither callback nor menu
+        statusItem.button?.target = nil
+        statusItem.button?.action = nil
+    }
+}
+
+@_cdecl("tray_dispose")
+public func tray_dispose(_ tray: UnsafeMutableRawPointer) {
+    if !Thread.isMainThread {
+        return DispatchQueue.main.async { tray_dispose(tray) }
+    }
+    if let ctx = contexts.removeValue(forKey: tray) {
+        ctx.appearanceObserver.invalidate()
+        NSStatusBar.system.removeStatusItem(ctx.statusItem)
+        if trayInstance == tray { trayInstance = nil }
     }
 }
 
@@ -252,18 +283,17 @@ public func tray_exit() {
     }
 
     loopStatus = -1
-    appearanceObserver?.invalidate()
 
-    if let statusItem = statusItem {
-        NSStatusBar.system.removeStatusItem(statusItem)
+    // Dispose all existing status items
+    for (ptr, ctx) in contexts {
+        ctx.appearanceObserver.invalidate()
+        NSStatusBar.system.removeStatusItem(ctx.statusItem)
+        if trayInstance == ptr { trayInstance = nil }
     }
+    contexts.removeAll()
 
-    trayInstance = nil
-    statusItem = nil
+    // Optionally release delegates
     menuDelegate = nil
-    buttonClickHandler = nil
-    appearanceObserver = nil
-    contextMenu = nil
 }
 
 @_cdecl("tray_set_theme_callback")
@@ -273,7 +303,9 @@ public func tray_set_theme_callback(_ cb: @escaping ThemeCallback) {
 
 @_cdecl("tray_is_menu_dark")
 public func tray_is_menu_dark() -> Int32 {
-    guard let name = statusItem?.button?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) else {
+    let ctx = trayInstance.flatMap { contexts[$0] } ?? contexts.values.first
+    guard let button = ctx?.statusItem.button else { return 1 }
+    guard let name = button.effectiveAppearance.bestMatch(from: [NSAppearance.Name.darkAqua, NSAppearance.Name.aqua]) else {
         return 1 // assume dark if unknown
     }
     return name == .darkAqua ? 1 : 0
@@ -288,8 +320,9 @@ public func tray_get_status_item_position(
     _ y: UnsafeMutablePointer<Int32>?
 ) -> Int32
 {
+    let ctx = trayInstance.flatMap { contexts[$0] } ?? contexts.values.first
     guard
-        let button = statusItem?.button,
+        let button = ctx?.statusItem.button,
         let window = button.window,
         let screen = window.screen
     else {
@@ -299,7 +332,7 @@ public func tray_get_status_item_position(
     }
 
     // Button frame in screen space (origin at bottom-left)
-    var rect = button.convert(button.bounds, to: nil)
+    var rect = button.convert(button.bounds, to: nil as NSView?)
     rect      = window.convertToScreen(rect)
 
     // -- X ---------------------------------------------------------------
@@ -317,15 +350,66 @@ public func tray_get_status_item_position(
 /// Returns "top-left" or "top-right" (menu-bar always at top).
 @_cdecl("tray_get_status_item_region")
 public func tray_get_status_item_region() -> UnsafeMutablePointer<CChar>? {
-    guard let button = statusItem?.button,
+    let ctx = trayInstance.flatMap { contexts[$0] } ?? contexts.values.first
+    guard let button = ctx?.statusItem.button,
           let screen = button.window?.screen else {
         return strdup("top-right")          // default value
     }
 
     let rect   = button.window!.convertToScreen(
-        button.convert(button.bounds, to: nil)
+        button.convert(button.bounds, to: nil as NSView?)
     )
     let midX   = screen.frame.midX
     let region = rect.minX < midX ? "top-left" : "top-right"
     return strdup(region)                   // to be freed on JVM/JNA side
+}
+
+// Per-instance geometry exports
+@_cdecl("tray_get_status_item_position_for")
+public func tray_get_status_item_position_for(
+    _ tray: UnsafeMutableRawPointer?,
+    _ x: UnsafeMutablePointer<Int32>?,
+    _ y: UnsafeMutablePointer<Int32>?
+) -> Int32 {
+    guard let tray = tray, let ctx = contexts[tray] else {
+        x?.pointee = 0
+        y?.pointee = 0
+        return 0
+    }
+    guard
+        let button = ctx.statusItem.button,
+        let window = button.window,
+        let screen = window.screen
+    else {
+        x?.pointee = 0
+        y?.pointee = 0
+        return 0
+    }
+
+    var rect = button.convert(button.bounds, to: nil as NSView?)
+    rect      = window.convertToScreen(rect)
+
+    x?.pointee = Int32(lround(rect.midX))
+    let flippedY = Int32(screen.frame.maxY - rect.maxY)
+    y?.pointee = flippedY
+    return 1
+}
+
+@_cdecl("tray_get_status_item_region_for")
+public func tray_get_status_item_region_for(
+    _ tray: UnsafeMutableRawPointer?
+) -> UnsafeMutablePointer<CChar>? {
+    guard let tray = tray, let ctx = contexts[tray] else {
+        return strdup("top-right")
+    }
+    guard let button = ctx.statusItem.button,
+          let screen = button.window?.screen else {
+        return strdup("top-right")
+    }
+    let rect   = button.window!.convertToScreen(
+        button.convert(button.bounds, to: nil as NSView?)
+    )
+    let midX   = screen.frame.midX
+    let region = rect.minX < midX ? "top-left" : "top-right"
+    return strdup(region)
 }

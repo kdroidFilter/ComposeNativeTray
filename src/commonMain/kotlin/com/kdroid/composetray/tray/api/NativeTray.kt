@@ -57,7 +57,7 @@ internal class NativeTray {
             when (os) {
                 LINUX -> LinuxSNITrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
                 WINDOWS -> WindowsTrayInitializer.update(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
-                MACOS -> MacTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
+                MACOS -> MacTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
                 UNKNOWN -> {
                     AwtTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                     awtTrayUsed.set(true)
@@ -73,7 +73,7 @@ internal class NativeTray {
         when (os) {
             LINUX -> LinuxSNITrayInitializer.dispose(instanceId)
             WINDOWS -> WindowsTrayInitializer.dispose(instanceId)
-            MACOS -> MacTrayInitializer.dispose()
+            MACOS -> MacTrayInitializer.dispose(instanceId)
             UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
             else -> {}
         }
@@ -114,7 +114,7 @@ internal class NativeTray {
 
                     MACOS -> {
                         debugln { "NativeTray: Initializing macOS tray with icon path: $iconPath" }
-                        MacTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
+                        MacTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 

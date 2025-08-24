@@ -58,6 +58,7 @@ TRAY_API struct tray *tray_get_instance(void);
 TRAY_API int  tray_init (struct tray *tray);   /* 0 = OK, <0 = error         */
 TRAY_API int  tray_loop (int blocking);        /* 0 = running, -1 = finished */
 TRAY_API void tray_update(struct tray *tray);  /* refresh icon / menu        */
+TRAY_API void tray_dispose(struct tray *tray); /* dispose a single instance  */
 TRAY_API void tray_exit (void);                /* free everything and exit   */
 
 /* -------------------------------------------------------------------------- */
@@ -73,6 +74,10 @@ TRAY_API const char *tray_get_notification_icons_region(void);
 /* macOS: corner and coordinates of status item                               */
 TRAY_API int         tray_get_status_item_position(int *x, int *y);
 TRAY_API const char *tray_get_status_item_region(void);
+
+/* macOS: per-instance variants */
+TRAY_API int         tray_get_status_item_position_for(struct tray *tray, int *x, int *y);
+TRAY_API const char *tray_get_status_item_region_for(struct tray *tray);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -270,7 +270,7 @@ internal class MacTrayManager(
         lock.withLock {
             tray?.let {
                 try {
-                    trayLib.tray_exit()
+                    trayLib.tray_dispose(it)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -313,6 +313,10 @@ internal class MacTrayManager(
         trayThread = null
     }
 
+    fun getNativeTrayStruct(): MacTray? {
+        return tray
+    }
+
     // Callback interfaces
     interface TrayCallback : Callback {
         fun invoke(tray: Pointer?)
@@ -335,13 +339,16 @@ internal class MacTrayManager(
         @JvmStatic external fun tray_init(tray: MacTray): Int
         @JvmStatic external fun tray_loop(blocking: Int): Int
         @JvmStatic external fun tray_update(tray: MacTray)
+        @JvmStatic external fun tray_dispose(tray: MacTray)
         @JvmStatic external fun tray_exit()
         @JvmStatic external fun tray_set_theme_callback(cb: ThemeCallback)
         @JvmStatic external fun tray_is_menu_dark(): Int
 
         @JvmStatic external fun tray_get_status_item_position(x: IntByReference, y: IntByReference): Int
+        @JvmStatic external fun tray_get_status_item_position_for(tray: MacTray, x: IntByReference, y: IntByReference): Int
 
         @JvmStatic external fun tray_get_status_item_region(): String?
+        @JvmStatic external fun tray_get_status_item_region_for(tray: MacTray): String?
     }
 
     // Structure for a menu item
