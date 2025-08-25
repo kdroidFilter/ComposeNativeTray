@@ -119,8 +119,10 @@ func RunWithExternalLoop(onReady, onExit func()) (start, end func()) {
 	Register(onReady, onExit)
 
 	return nativeStart, func() {
-		// Signal the main loop to exit; it will invoke nativeEnd() itself.
+		// External loop: no nativeLoop is running, so perform full teardown here.
+		// First signal quit (idempotent), then run nativeEnd() to unexport and release resources.
 		Quit()
+		nativeEnd()
 	}
 }
 

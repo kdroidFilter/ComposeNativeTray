@@ -7,6 +7,7 @@ import com.kdroid.composetray.utils.warnln
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -187,33 +188,44 @@ internal class LinuxGoTrayManager(
     override fun stopTray() {
         if (!running.compareAndSet(true, false)) return
         val latch = exitLatch
-        try { go.Systray_Quit() } catch (_: Throwable) {}
         try {
-            // Wait up to 3 seconds for the Go systray to signal exit
-            latch?.await(3, TimeUnit.SECONDS)
+            // 1) Ask Go to quit its loop
+            go.Systray_Quit()
         } catch (_: Throwable) {}
-        try { go.Systray_NativeEnd() } catch (_: Throwable) {}
+
         try {
-            loopThread?.join(3000)
+            // 2) End native side immediately so Go can invoke systrayExit (exit callback)
+            go.Systray_NativeEnd()
+        } catch (_: Throwable) {}
+
+        try {
+            // 3) Wait a short time for the exit callback to arrive (it will countDown the latch)
+            //    No need to wait seconds — 150–300ms is enough on healthy paths.
+            latch?.await(150, MILLISECONDS)
+        } catch (_: Throwable) {}
+
+        try {
+            // 4) Join the loop thread briefly; it's a daemon anyway
+            loopThread?.join(500)
             if (loopThread?.isAlive == true) {
-                // As a fallback, we cannot interrupt native wait, but log state
+                // We can't interrupt native waits; just log and move on
                 warnln { "LinuxGoTrayManager: loop thread still alive after join timeout" }
             }
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
         }
+
         loopThread = null
         exitLatch = null
-        // Clear action maps to avoid stale IDs on next start
         idByTitle.clear()
         actionById.clear()
         try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
         shutdownHook = null
-        // Release lifecycle permit now that teardown is complete
         if (permitHeld.compareAndSet(true, false)) {
             try { lifecyclePermit.release() } catch (_: Throwable) {}
         }
     }
+
 
     // ----------------------------------------------------------------------------------------
     private fun setIconFromFileSafe(path: String) {
