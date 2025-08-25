@@ -613,8 +613,7 @@ See full demo: demo/src/jvmMain/kotlin/com/kdroid/composetray/demo/TrayAppDemo.k
 
 ## 📄 License
 
-This library is licensed under the MIT License. The Linux module uses LGPL v2.1.
-
+This library is licensed under the MIT License. The Linux module uses Apache 2.0
 ## 🤝 Contribution
 
 Contributions are welcome! Feel free to:
