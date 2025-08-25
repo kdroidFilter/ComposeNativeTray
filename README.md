@@ -60,6 +60,7 @@
   - [Theme Behavior](#theme-behavior)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
     - [Overview](#overview)
+    - [Parameters](#parameters)
     - [Examples](#examples)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
