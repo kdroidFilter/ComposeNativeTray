@@ -36,44 +36,6 @@ fun main() {
         var textFieldValue by remember { mutableStateOf("") }
         var textFieldValue2 by remember { mutableStateOf("") }
 
-        TrayApp(
-            icon = Icons.Default.Book,
-            tooltip = "TrayAppDemo",
-            windowSize = DpSize(300.dp, 500.dp),
-            visibleOnStart = true,
-            menu = {
-                Item(
-                    if (isWindowVisible) "Hide the app" else "Open the App",
-                    onClick = {
-                        isWindowVisible = !isWindowVisible
-                    }
-                )
-                Item("Exit", onClick = { exitApplication() })
-            }
-        ) {
-            MaterialTheme(
-                colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-                        .padding(16.dp),
-                    contentAlignment = Center,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Your futur awesome compagnon App !", color = MaterialTheme.colorScheme.onBackground)
-                        TextField(
-                            value = textFieldValue,
-                            onValueChange = { textFieldValue = it },
-                            placeholder = { Text("Enter some text") }
-                        )
-                    }
-                }
-            }
-        }
 
         TrayApp(
             icon = Icons.Default.Window,

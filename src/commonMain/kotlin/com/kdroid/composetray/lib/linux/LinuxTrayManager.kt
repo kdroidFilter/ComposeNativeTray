@@ -30,7 +30,7 @@ internal class LinuxTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
-) {
+) : LinuxTrayController {
     private val sni = SNIWrapper.INSTANCE
 
     // Native handles ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ internal class LinuxTrayManager(
         val isSubmenu: Boolean = false
     )
 
-    fun addMenuItem(menuItem: MenuItem) {
+    override fun addMenuItem(menuItem: LinuxTrayManager.MenuItem) {
         lock.withLock { menuItems.add(menuItem) }
     }
 
@@ -113,7 +113,7 @@ internal class LinuxTrayManager(
      * Updates the <i>checked / unchecked</i> state of an item in real-time without
      * triggering a complete menu rebuild, whenever possible.
      */
-    fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
+    override fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
         var fallbackRefreshNeeded = false
         lock.withLock {
             val idx = menuItems.indexOfFirst { it.text == label }
@@ -141,11 +141,11 @@ internal class LinuxTrayManager(
     }
 
     // ---------------------------------------------------------------------------------- update
-    fun update(
+    override fun update(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
-        newMenuItems: List<MenuItem>? = null
+        newMenuItems: List<MenuItem>?
     ) {
         var iconChanged: Boolean
         var tooltipChanged: Boolean
@@ -244,7 +244,7 @@ internal class LinuxTrayManager(
     }
 
     // ------------------------------------------------------------------------------- tray life
-    fun startTray() {
+    override fun startTray() {
         lock.withLock {
             if (running.get()) return
             running.set(true)
@@ -416,7 +416,7 @@ internal class LinuxTrayManager(
         }
     }
 
-    fun stopTray() {
+    override fun stopTray() {
         lock.withLock { if (!running.get()) return; running.set(false) }
         sni.sni_stop_exec()
         trayThread?.interrupt()

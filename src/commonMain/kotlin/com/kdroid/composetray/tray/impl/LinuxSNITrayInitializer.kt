@@ -1,10 +1,9 @@
 package com.kdroid.composetray.tray.impl
 
-import com.kdroid.composetray.lib.linux.LinuxTrayManager
-import com.kdroid.composetray.lib.linux.SNIWrapper
+import com.kdroid.composetray.lib.linux.LinuxGoTrayManager
+import com.kdroid.composetray.lib.linux.LinuxTrayController
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
-import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -13,16 +12,8 @@ object LinuxSNITrayInitializer {
     private const val DEFAULT_ID: String = "_default"
 
     private val trayMenuImpls: MutableMap<String, LinuxTrayMenuBuilderImpl> = mutableMapOf()
-    private val linuxTrayManagers: MutableMap<String, LinuxTrayManager> = mutableMapOf()
+    private val linuxTrayManagers: MutableMap<String, LinuxTrayController> = mutableMapOf()
     private val lock = ReentrantLock()
-
-    init {
-        val debugMode = allowComposeNativeTrayLogging
-        try {
-            SNIWrapper.INSTANCE.sni_set_debug_mode(if (debugMode) 1 else 0)
-        } catch (e: Exception) {
-        }
-    }
 
     @Synchronized
     fun initialize(
@@ -35,7 +26,7 @@ object LinuxSNITrayInitializer {
         lock.withLock {
             val existing = linuxTrayManagers[id]
             if (existing == null) {
-                val manager = LinuxTrayManager(id, iconPath, tooltip, onLeftClick)
+                val manager: LinuxTrayController = LinuxGoTrayManager(id, iconPath, tooltip, onLeftClick)
                 linuxTrayManagers[id] = manager
 
                 val menuImpl = if (menuContent != null) {
@@ -86,9 +77,23 @@ object LinuxSNITrayInitializer {
 
     @Synchronized
     fun dispose(id: String) {
+        // Remove references under lock quickly to avoid holding the lock during teardown
+        val manager: LinuxTrayController?
+        val menuImpl: LinuxTrayMenuBuilderImpl?
         lock.withLock {
-            linuxTrayManagers.remove(id)?.stopTray()
-            trayMenuImpls.remove(id)?.dispose()
+            manager = linuxTrayManagers.remove(id)
+            menuImpl = trayMenuImpls.remove(id)
+        }
+        // Dispose menu builder immediately (cheap)
+        try { menuImpl?.dispose() } catch (_: Throwable) {}
+        // Stop tray asynchronously to avoid freezing the UI thread and avoid holding the lock
+        manager?.let { m ->
+            Thread({
+                try { m.stopTray() } catch (_: Throwable) {}
+            }, "LinuxTray-Dispose-$id").apply {
+                isDaemon = true
+                start()
+            }
         }
     }
 

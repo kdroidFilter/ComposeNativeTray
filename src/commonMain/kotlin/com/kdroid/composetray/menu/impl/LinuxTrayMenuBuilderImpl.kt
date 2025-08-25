@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.lib.linux.LinuxTrayManager
+import com.kdroid.composetray.lib.linux.LinuxTrayController
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
@@ -20,7 +21,7 @@ internal class LinuxTrayMenuBuilderImpl(
     private val iconPath: String,
     private val tooltip: String = "",
     private val onLeftClick: (() -> Unit)?,
-    private val trayManager: LinuxTrayManager? = null
+    private val trayManager: LinuxTrayController? = null
 ) : TrayMenuBuilder {
     private val menuItems = mutableListOf<LinuxTrayManager.MenuItem>()
     private val lock = ReentrantLock()
