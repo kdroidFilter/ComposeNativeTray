@@ -249,12 +249,6 @@ internal class LinuxGoTrayManager(
         exitLatch = null
         idByTitle.clear()
         actionById.clear()
-        // Clear strong references to callbacks to allow GC after clean stop
-        cbReady = null
-        cbExit = null
-        cbOnClick = null
-        cbOnRClick = null
-        cbOnMenuItem = null
         try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
         shutdownHook = null
         if (permitHeld.compareAndSet(true, false)) {

@@ -7,7 +7,7 @@ import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-object LinuxSNITrayInitializer {
+object LinuxTrayInitializer {
 
     private const val DEFAULT_ID: String = "_default"
 

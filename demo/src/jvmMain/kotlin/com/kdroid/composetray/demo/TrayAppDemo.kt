@@ -36,7 +36,6 @@ fun main() {
         var textFieldValue by remember { mutableStateOf("") }
         var textFieldValue2 by remember { mutableStateOf("") }
 
-
         TrayApp(
             icon = Icons.Default.Window,
             tooltip = "TrayAppDemo",

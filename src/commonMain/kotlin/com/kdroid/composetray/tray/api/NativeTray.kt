@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
-import com.kdroid.composetray.tray.impl.LinuxSNITrayInitializer
+import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.*
@@ -55,7 +55,7 @@ internal class NativeTray {
 
         try {
             when (os) {
-                LINUX -> LinuxSNITrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                LINUX -> LinuxTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
                 WINDOWS -> WindowsTrayInitializer.update(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
                 MACOS -> MacTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
                 UNKNOWN -> {
@@ -71,7 +71,7 @@ internal class NativeTray {
 
     fun dispose() {
         when (os) {
-            LINUX -> LinuxSNITrayInitializer.dispose(instanceId)
+            LINUX -> LinuxTrayInitializer.dispose(instanceId)
             WINDOWS -> WindowsTrayInitializer.dispose(instanceId)
             MACOS -> MacTrayInitializer.dispose(instanceId)
             UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
@@ -102,7 +102,7 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         debugln { "NativeTray: Initializing Linux tray with icon path: $iconPath" }
-                        LinuxSNITrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                        LinuxTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
