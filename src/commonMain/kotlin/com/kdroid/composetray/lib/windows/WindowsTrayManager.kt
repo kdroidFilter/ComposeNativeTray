@@ -1,6 +1,8 @@
 package com.kdroid.composetray.lib.windows
 
 import com.kdroid.composetray.utils.debugln
+import com.kdroid.composetray.utils.TrayClickTracker
+import com.sun.jna.ptr.IntByReference
 import kotlinx.coroutines.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -9,6 +11,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 internal class WindowsTrayManager(
+    private val instanceId: String,
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
@@ -155,9 +158,29 @@ internal class WindowsTrayManager(
     private fun runMessageLoop() {
         log("Entering message loop on tray thread")
         var consecutiveErrors = 0
+        var initialPosCaptured = false
+        var initialPosAttempts = 0
 
         while (running.get()) {
             try {
+                // Try to capture initial precise tray icon position (per instance)
+                if (!initialPosCaptured && initialPosAttempts < 60) {
+                    initialPosAttempts++
+                    try {
+                        val xRef = IntByReference()
+                        val yRef = IntByReference()
+                        val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
+                        if (precise) {
+                            val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
+                            val corner = com.kdroid.composetray.utils.convertPositionToCorner(xRef.value, yRef.value, screen.width, screen.height)
+                            TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
+                            initialPosCaptured = true
+                            log("Captured initial tray icon position: ${xRef.value}, ${yRef.value}")
+                        }
+                    } catch (e: Exception) {
+                        // ignore and retry later
+                    }
+                }
                 // Check for pending updates
                 processUpdateQueue()
 
@@ -267,6 +290,16 @@ internal class WindowsTrayManager(
                 override fun invoke(tray: WindowsNativeTray) {
                     log("Left click callback invoked")
                     try {
+                        // Capture precise tray position on the tray thread (per-instance)
+                        val xRef = IntByReference()
+                        val yRef = IntByReference()
+                        val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
+                        if (precise) {
+                            val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
+                            val corner = com.kdroid.composetray.utils.convertPositionToCorner(xRef.value, yRef.value, screen.width, screen.height)
+                            TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
+                        }
+
                         // Execute callback in IO scope (like macOS)
                         mainScope?.launch {
                             ioScope?.launch {
@@ -326,6 +359,16 @@ internal class WindowsTrayManager(
                 override fun invoke(item: WindowsNativeTrayMenuItem) {
                     log("Menu item clicked: ${menuItem.text}")
                     try {
+                        // Capture precise tray position on the tray thread (per-instance)
+                        val xRef = IntByReference()
+                        val yRef = IntByReference()
+                        val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
+                        if (precise) {
+                            val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
+                            val corner = com.kdroid.composetray.utils.convertPositionToCorner(xRef.value, yRef.value, screen.width, screen.height)
+                            TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
+                        }
+
                         if (running.get()) {
                             // Execute callback in IO scope (like macOS)
                             mainScope?.launch {

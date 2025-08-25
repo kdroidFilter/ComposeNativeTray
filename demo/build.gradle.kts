@@ -30,7 +30,7 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.kdroid.composetray.demo.TrayAppDemoKt"
+        mainClass = "com.kdroid.composetray.demo.DynamicTrayMenuKt"
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
             packageName = "tray-demo"
@@ -65,7 +65,7 @@ tasks.register("buildAndRunDemo") {
 }
 
 linuxDebConfig {
-    startupWMClass.set("com.kdroid.composetray.demo.TrayAppDemoKt")
+    startupWMClass.set("com.kdroid.composetray.demo.DynamicTrayMenuKt")
     addComposeNativeTrayDeps()
     enableT64AlternativeDeps = true
 }

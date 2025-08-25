@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.kdroid.composetray.lib.mac.MacTrayLoader
 import com.kdroid.composetray.lib.mac.MacTrayManager
+import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.sun.jna.ptr.IntByReference
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
@@ -30,20 +31,43 @@ data class TrayClickPosition(
 // Global storage for last click position
 internal object TrayClickTracker {
     private val lastClickPosition = AtomicReference<TrayClickPosition?>(null)
+    private val perInstancePositions: MutableMap<String, TrayClickPosition> = Collections.synchronizedMap(mutableMapOf())
 
     fun updateClickPosition(x: Int, y: Int) {
         val screenSize = Toolkit.getDefaultToolkit().screenSize
         val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
-        lastClickPosition.set(TrayClickPosition(x, y, position))
+        val pos = TrayClickPosition(x, y, position)
+        lastClickPosition.set(pos)
+        runCatching { saveTrayClickPosition(x, y, position) }
+    }
+
+    fun updateClickPosition(instanceId: String, x: Int, y: Int) {
+        val screenSize = Toolkit.getDefaultToolkit().screenSize
+        val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
+        val pos = TrayClickPosition(x, y, position)
+        perInstancePositions[instanceId] = pos
+        // Also update the global fallback to the most recent interaction
+        lastClickPosition.set(pos)
         runCatching { saveTrayClickPosition(x, y, position) }
     }
 
     fun setClickPosition(x: Int, y: Int, position: TrayPosition) {
-        lastClickPosition.set(TrayClickPosition(x, y, position))
+        val pos = TrayClickPosition(x, y, position)
+        lastClickPosition.set(pos)
+        runCatching { saveTrayClickPosition(x, y, position) }
+    }
+
+    fun setClickPosition(instanceId: String, x: Int, y: Int, position: TrayPosition) {
+        val pos = TrayClickPosition(x, y, position)
+        perInstancePositions[instanceId] = pos
+        // Update global fallback too
+        lastClickPosition.set(pos)
         runCatching { saveTrayClickPosition(x, y, position) }
     }
 
     fun getLastClickPosition(): TrayClickPosition? = lastClickPosition.get()
+
+    fun getLastClickPosition(instanceId: String): TrayClickPosition? = perInstancePositions[instanceId]
 }
 
 internal fun convertPositionToCorner(x: Int, y: Int, width: Int, height: Int): TrayPosition {
@@ -254,40 +278,23 @@ fun getTrayPosition(): TrayPosition {
 fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
 
-    // For Windows, try to use exact click coordinates, fallback to native and save like Linux
+    // Windows: use last precise click position captured on the tray thread; fallback to corner
     if (getOperatingSystem() == OperatingSystem.WINDOWS) {
-
-        // on interroge la DLL (asynchrone, peut échouer)
-        getNotificationAreaXYForWindows()
-
-        // 3) on choisit la meilleure info disponible
         val freshPos = TrayClickTracker.getLastClickPosition()
-        val posToUse = freshPos
-        ?: return fallbackCornerPosition(windowWidth, windowHeight) // aucun point fiable
-
-        // The native coordinate corresponds to the corner/edge of the notification area.
-        // Use a DPI-aware half-icon offset so the window is centered on the icon, not the area's edge.
-        val offsetX = dpiAwareHalfIconOffset()
-
+        val posToUse = freshPos ?: return fallbackCornerPosition(windowWidth, windowHeight)
         return calculateWindowPositionFromClick(
-            posToUse.x + offsetX, posToUse.y, posToUse.position,
+            posToUse.x, posToUse.y, posToUse.position,
             windowWidth, windowHeight,
             screenSize.width, screenSize.height
         )
-
     }
 
+    // macOS: try to fetch status item coordinates then compute precise window position
     if (getOperatingSystem() == OperatingSystem.MACOS) {
-        // 2) interroge Cocoa
         val (x0, y0) = getStatusItemXYForMac()
         if (x0 != 0 || y0 != 0) {
-            TrayClickTracker.setClickPosition(
-                x0, y0,
-                getTrayPosition()        // TOP_LEFT ou TOP_RIGHT
-            )
+            TrayClickTracker.setClickPosition(x0, y0, getTrayPosition())
         }
-
-        // 3) choisit la meilleure info
         val pos = TrayClickTracker.getLastClickPosition()
         if (pos != null) {
             return calculateWindowPositionFromClick(
@@ -298,8 +305,7 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
         }
     }
 
-
-    // For Linux, try to use exact click coordinates
+    // Linux: prefer exact click coordinates when available
     if (getOperatingSystem() == OperatingSystem.LINUX) {
         val clickPos = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
         if (clickPos != null) {
@@ -321,6 +327,53 @@ fun getTrayWindowPosition(windowWidth: Int, windowHeight: Int): WindowPosition {
             x = (screenSize.width - windowWidth).dp,
             y = (screenSize.height - windowHeight).dp
         )
+    }
+}
+
+// New: per-instance variant used by Windows multi-tray
+fun getTrayWindowPositionForInstance(instanceId: String, windowWidth: Int, windowHeight: Int): WindowPosition {
+    val os = getOperatingSystem()
+    val screenSize = Toolkit.getDefaultToolkit().screenSize
+
+    when (os) {
+        OperatingSystem.WINDOWS -> {
+            val pos = TrayClickTracker.getLastClickPosition(instanceId)
+                ?: return fallbackCornerPosition(windowWidth, windowHeight)
+            return calculateWindowPositionFromClick(
+                pos.x, pos.y, pos.position,
+                windowWidth, windowHeight,
+                screenSize.width, screenSize.height
+            )
+        }
+        OperatingSystem.MACOS -> {
+            // Try per-instance native query
+            val trayStruct = MacTrayInitializer.getNativeTrayStruct(instanceId)
+            if (trayStruct != null) {
+                val xRef = IntByReference()
+                val yRef = IntByReference()
+                val lib = MacTrayLoader.lib
+                val precise = try { lib.tray_get_status_item_position_for(trayStruct, xRef, yRef) != 0 } catch (_: Throwable) { false }
+                val x = xRef.value
+                val y = yRef.value
+                if (precise) {
+                    // Prefer native region if available, else compute from halves
+                    val regionStr = runCatching { lib.tray_get_status_item_region_for(trayStruct) }.getOrNull()
+                    val trayPos = if (regionStr != null) getMacTrayPosition(regionStr) else convertPositionToCorner(x, y, screenSize.width, screenSize.height)
+                    TrayClickTracker.setClickPosition(instanceId, x, y, trayPos)
+                    return calculateWindowPositionFromClick(
+                        x, y, trayPos,
+                        windowWidth, windowHeight,
+                        screenSize.width, screenSize.height
+                    )
+                }
+            }
+            // Fallback to global estimation
+            return getTrayWindowPosition(windowWidth, windowHeight)
+        }
+        else -> {
+            // Other OS: fall back to global logic
+            return getTrayWindowPosition(windowWidth, windowHeight)
+        }
     }
 }
 

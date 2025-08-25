@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
-import com.kdroid.composetray.tray.impl.LinuxSNITrayInitializer
+import com.kdroid.composetray.tray.impl.LinuxTrayInitializer
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.*
@@ -34,7 +34,11 @@ internal class NativeTray {
     private val awtTrayUsed = AtomicBoolean(false)
 
     private val os = getOperatingSystem()
+    private val instanceId: String = "tray-" + System.identityHashCode(this)
     private var initialized = false
+
+    // Expose the unique instance key so UI code (TrayApp) can compute per-instance positions
+    fun instanceKey(): String = instanceId
 
     fun update(
         iconPath: String,
@@ -51,9 +55,9 @@ internal class NativeTray {
 
         try {
             when (os) {
-                LINUX -> LinuxSNITrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
-                WINDOWS -> WindowsTrayInitializer.update(windowsIconPath, tooltip, primaryAction, menuContent)
-                MACOS -> MacTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
+                LINUX -> LinuxTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                WINDOWS -> WindowsTrayInitializer.update(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
+                MACOS -> MacTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
                 UNKNOWN -> {
                     AwtTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                     awtTrayUsed.set(true)
@@ -67,9 +71,9 @@ internal class NativeTray {
 
     fun dispose() {
         when (os) {
-            LINUX -> LinuxSNITrayInitializer.dispose()
-            WINDOWS -> WindowsTrayInitializer.dispose()
-            MACOS -> MacTrayInitializer.dispose()
+            LINUX -> LinuxTrayInitializer.dispose(instanceId)
+            WINDOWS -> WindowsTrayInitializer.dispose(instanceId)
+            MACOS -> MacTrayInitializer.dispose(instanceId)
             UNKNOWN -> if (awtTrayUsed.get()) AwtTrayInitializer.dispose()
             else -> {}
         }
@@ -98,19 +102,19 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         debugln { "NativeTray: Initializing Linux tray with icon path: $iconPath" }
-                        LinuxSNITrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
+                        LinuxTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
                     WINDOWS -> {
                         debugln { "NativeTray: Initializing Windows tray with icon path: $windowsIconPath" }
-                        WindowsTrayInitializer.initialize(windowsIconPath, tooltip, primaryAction, menuContent)
+                        WindowsTrayInitializer.initialize(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
                     MACOS -> {
                         debugln { "NativeTray: Initializing macOS tray with icon path: $iconPath" }
-                        MacTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
+                        MacTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
