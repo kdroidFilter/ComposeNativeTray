@@ -84,6 +84,7 @@ internal interface GoSystray : Library {
     fun Systray_AddMenuItemCheckbox(title: String?, tooltip: String?, checked: Int): Int
     fun Systray_AddSubMenuItem(parentID: Int, title: String?, tooltip: String?): Int
     fun Systray_AddSubMenuItemCheckbox(parentID: Int, title: String?, tooltip: String?, checked: Int): Int
+    fun Systray_AddSubMenuSeparator(parentID: Int)
 
     // Per-item operations --------------------------------------------------------
     fun Systray_MenuItem_SetTitle(id: Int, title: String?): Int

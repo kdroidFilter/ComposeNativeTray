@@ -218,6 +218,35 @@ func addSeparator(id uint32) {
 	}
 }
 
+// addSeparatorUnder appends a separator under the given parent menu item id (0 targets root)
+func addSeparatorUnder(parentID uint32, id uint32) {
+	instance.menuLock.Lock()
+	defer instance.menuLock.Unlock()
+	var parent *menuLayout
+	if parentID == 0 {
+		parent = instance.menu
+	} else {
+		p, ok := findLayout(int32(parentID))
+		if !ok || p == nil {
+			return
+		}
+		parent = p
+		parent.V1["children-display"] = dbus.MakeVariant("submenu")
+	}
+	layout := &menuLayout{
+		V0: int32(id),
+		V1: map[string]dbus.Variant{
+			"type": dbus.MakeVariant("separator"),
+		},
+		V2: []dbus.Variant{},
+	}
+	parent.V2 = append(parent.V2, dbus.MakeVariant(layout))
+	refresh()
+	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
+		setMenuPropTo(dbus.ObjectPath(menuPath))
+	}
+}
+
 func applyItemToLayout(in *MenuItem, out *menuLayout) {
 	out.V1["enabled"] = dbus.MakeVariant(!in.disabled)
 	out.V1["label"] = dbus.MakeVariant(in.title)

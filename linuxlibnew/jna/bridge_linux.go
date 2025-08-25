@@ -205,6 +205,15 @@ func Systray_AddSubMenuItemCheckbox(parentID C.uint, title *C.char, tooltip *C.c
 	return C.uint(id)
 }
 
+//export Systray_AddSubMenuSeparator
+func Systray_AddSubMenuSeparator(parentID C.uint) {
+	defer func() { if r := recover(); r != nil { log.Printf("[systray] recovered panic in AddSubMenuSeparator: %v", r) } }()
+	if !running {
+		return
+	}
+	systraypkg.AddSeparatorByID(uint32(parentID))
+}
+
 // Per-item operations
 //
 //export Systray_MenuItem_SetTitle

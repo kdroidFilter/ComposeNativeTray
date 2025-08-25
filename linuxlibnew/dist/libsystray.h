@@ -103,6 +103,7 @@ extern void Systray_ResetMenu();
 //
 extern unsigned int Systray_AddSubMenuItem(unsigned int parentID, char* title, char* tooltip);
 extern unsigned int Systray_AddSubMenuItemCheckbox(unsigned int parentID, char* title, char* tooltip, int checked);
+extern void Systray_AddSubMenuSeparator(unsigned int parentID);
 
 // Per-item operations
 //

@@ -283,14 +283,16 @@ internal class LinuxGoTrayManager(
     private fun addMenuItemRecursive(parentId: Int?, item: LinuxTrayManager.MenuItem) {
         try {
             if (item.text == "-") {
-                // Only supported at root by our bridge; if in submenu, emulate with disabled dash item
                 if (parentId == null) {
                     go.Systray_AddSeparator()
                 } else {
-                    val id = if (item.isCheckable) go.Systray_AddSubMenuItemCheckbox(parentId, "-", null, if (item.isChecked) 1 else 0)
-                    else go.Systray_AddSubMenuItem(parentId, "-", null)
-                    idByTitle[item.text] = id
-                    go.Systray_MenuItem_Disable(id)
+                    // Proper submenu separator through native bridge
+                    runCatching { go.Systray_AddSubMenuSeparator(parentId) }
+                        .onFailure { _ ->
+                            // Fallback (should not happen if bridge supports it): disabled dash item
+                            val id = go.Systray_AddSubMenuItem(parentId, "-", null)
+                            go.Systray_MenuItem_Disable(id)
+                        }
                 }
                 return
             }

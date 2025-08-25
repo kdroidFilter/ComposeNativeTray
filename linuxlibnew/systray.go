@@ -326,6 +326,11 @@ func AddSubMenuItemCheckboxByID(parentID uint32, title, tooltip string, checked 
 	return child.ID()
 }
 
+// AddSeparatorByID adds a separator under the given parent item id. If parentID is 0, it adds to the root menu.
+func AddSeparatorByID(parentID uint32) {
+	addSeparatorUnder(parentID, atomic.AddUint32(&currentID, 1))
+}
+
 // SetMenuItemTitleByID sets the title of a menu item; returns false if not found
 func SetMenuItemTitleByID(id uint32, title string) bool {
 	if item, ok := getMenuItem(id); ok {
