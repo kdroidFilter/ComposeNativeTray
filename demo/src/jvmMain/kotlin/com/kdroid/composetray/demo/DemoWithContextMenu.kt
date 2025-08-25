@@ -209,6 +209,8 @@ fun main() = application {
     }
 
     Window(
+        transparent = true,
+        undecorated = true,
         onCloseRequest = {
             if (hideOnClose) {
                 isWindowVisible = false
