@@ -528,14 +528,6 @@ TrayApp is a high-level API that creates a system tray icon and an undecorated p
 
 Use TrayApp when you want a compact companion window (like a quick settings or mini dashboard) anchored to the system tray, in addition to or instead of your main window — ideal for building apps in the style of JetBrains Toolbox.
 
-### Overloads
-- TrayApp(icon: ImageVector, tint: Color? = null, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, menu: TrayMenuBuilder.() -> Unit = {}, content)
-- TrayApp(icon: Painter, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, menu: TrayMenuBuilder.() -> Unit = {}, content)
-- TrayApp(windowsIcon: Painter, macLinuxIcon: ImageVector, tint: Color? = null, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, menu: TrayMenuBuilder.() -> Unit = {}, content)
-- TrayApp(iconContent: @Composable () -> Unit, tooltip: String, windowSize: DpSize = DpSize(300.dp, 200.dp), visibleOnStart: Boolean = false, fadeDurationMs: Int = 200, menu: TrayMenuBuilder.() -> Unit = {}, content)
-
-All overloads also accept IconRenderProperties for advanced icon rendering; defaults are chosen per OS.
-
 ### Parameters
 - icon / windowsIcon / macLinuxIcon / iconContent: the tray icon source.
 - tint: optional tint (macOS/Linux ImageVector convenience).
