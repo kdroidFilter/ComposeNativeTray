@@ -6,6 +6,8 @@ import com.kdroid.composetray.utils.infoln
 import com.kdroid.composetray.utils.warnln
 import com.kdroid.composetray.utils.TrayClickTracker
 import com.kdroid.composetray.utils.getTrayPosition
+import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
+import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import java.awt.Toolkit
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -54,6 +56,9 @@ internal class LinuxGoTrayManager(
     // Mapping from menu item title to Go-assigned IDs (best-effort; titles should be unique)
     private val idByTitle: MutableMap<String, Int> = mutableMapOf()
     private val actionById: MutableMap<Int, () -> Unit> = mutableMapOf()
+
+    // KDE environment detection to mirror C++ backend behavior
+    private fun isKDEDesktop(): Boolean = detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE
 
     // Thread / lifecycle
     private var shutdownHook: Thread? = null
@@ -265,7 +270,8 @@ internal class LinuxGoTrayManager(
         actionById.clear()
         runCatching { go.Systray_ResetMenu() }
         val items = lock.withLock { menuItems.toList() }
-        items.forEach { addMenuItemRecursive(null, it) }
+        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(LinuxTrayManager.MenuItem("-")) else items
+        effectiveItems.forEach { addMenuItemRecursive(null, it) }
     }
 
     private fun addMenuItemRecursive(parentId: Int?, item: LinuxTrayManager.MenuItem) {
