@@ -1,99 +1,103 @@
 package com.kdroid.composetray.lib.linux
 
 import com.sun.jna.Callback
-import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
 import java.io.File
 
 /**
- * JNA interface to the Go-based systray bridge (linuxlibnew/jna/bridge_linux.go).
+ * JNA direct mapping to the Go-based systray bridge (linuxlibnew/jna/bridge_linux.go).
  *
- * We try to load a shared library named "systray_jna" first, then fallback to "systray".
+ * We try to register a shared library named "systray_jna" first, then fallback to "systray".
  * You can override via system properties:
  * -Dcomposetray.native.lib=/abs/path/to/libsystray_jna.so
  * -Dcomposetray.native.lib.path=/abs/dir/containing/lib
  */
-internal interface LinuxLibTray : Library {
-    companion object {
-        private fun tryLoadDirect(path: String?): Boolean {
-            if (path.isNullOrBlank()) return false
-            return try {
-                System.load(path)
-                true
-            } catch (_: Throwable) { false }
-        }
-        private fun tryLoadFromDir(dir: String?): Boolean {
-            if (dir.isNullOrBlank()) return false
-            val names = listOf("systray_jna", "systray")
-            for (n in names) {
-                val file = File(dir, System.mapLibraryName(n))
-                if (file.isFile && file.canRead()) {
-                    if (tryLoadDirect(file.absolutePath)) return true
-                }
-            }
-            return false
-        }
-        private fun tryLoadByName(name: String): Boolean = try {
-            System.loadLibrary(name)
-            true
-        } catch (_: Throwable) { false }
-
-        val INSTANCE: LinuxLibTray = run {
-            // Try explicit overrides first
-            val explicit = System.getProperty("composetray.native.lib")
-            val explicitDir = System.getProperty("composetray.native.lib.path")
-            var loaded = tryLoadDirect(explicit) || tryLoadFromDir(explicitDir)
-
-            // Then try common names via java.library.path
-            if (!loaded) loaded = tryLoadByName("systray_jna") || tryLoadByName("systray")
-
-            // Create proxy via JNA (it won't reload if already loaded)
-            // Prefer systray_jna, fallback to systray
-            try {
-                Native.load("systray_jna", LinuxLibTray::class.java) as LinuxLibTray
-            } catch (_: UnsatisfiedLinkError) {
-                Native.load("systray", LinuxLibTray::class.java) as LinuxLibTray
-            }
-        }
-    }
-
+internal object LinuxLibTray {
     // Callback types -------------------------------------------------------------
     interface VoidCallback : Callback { fun invoke() }
     interface MenuItemCallback : Callback { fun invoke(menuId: Int) }
-    
+
+    // Library registration logic -------------------------------------------------
+    private fun existingFile(path: String?): String? =
+        path?.takeIf { it.isNotBlank() }?.let { p -> File(p).takeIf { it.isFile && it.canRead() }?.absolutePath }
+
+    private fun findInDir(dir: String?): List<String> {
+        if (dir.isNullOrBlank()) return emptyList()
+        val d = File(dir)
+        if (!d.isDirectory || !d.canRead()) return emptyList()
+        val names = listOf("systray_jna", "systray")
+        return names.map { n -> File(d, System.mapLibraryName(n)) }
+            .filter { it.isFile && it.canRead() }
+            .map { it.absolutePath }
+    }
+
+    private fun tryRegister(target: String): Boolean = try {
+        Native.register(target)
+        true
+    } catch (_: Throwable) { false }
+
+    init {
+        // Try explicit overrides first
+        val explicitPath = existingFile(System.getProperty("composetray.native.lib"))
+        val fromDir = findInDir(System.getProperty("composetray.native.lib.path"))
+
+        val candidates = buildList {
+            if (explicitPath != null) add(explicitPath)
+            addAll(fromDir)
+            add("systray_jna")
+            add("systray")
+        }
+
+        var registered = false
+        for (c in candidates) {
+            if (tryRegister(c)) { registered = true; break }
+        }
+        if (!registered) {
+            // Last chance: if explicit path was provided but not an existing file, try to load it then register names
+            val loaded = try {
+                val p = System.getProperty("composetray.native.lib")
+                if (!p.isNullOrBlank()) { System.load(p); true } else false
+            } catch (_: Throwable) { false }
+            if (loaded) {
+                registered = tryRegister("systray_jna") || tryRegister("systray")
+            }
+        }
+        if (!registered) throw UnsatisfiedLinkError("Failed to register Linux systray native library (tried: ${candidates.joinToString()})")
+    }
+
     // Helpers to fetch last click xy
-    fun Systray_GetLastClickXY(outX: IntByReference, outY: IntByReference)
+    @JvmStatic external fun Systray_GetLastClickXY(outX: IntByReference, outY: IntByReference)
 
     // Lifecycle / loop -----------------------------------------------------------
-    fun Systray_InitCallbacks(ready: VoidCallback?, exit: VoidCallback?, onClick: VoidCallback?, onRClick: VoidCallback?, onMenuItem: MenuItemCallback?)
-    fun Systray_PrepareExternalLoop()
-    fun Systray_NativeStart()
-    fun Systray_NativeEnd()
-    fun Systray_Quit()
+    @JvmStatic external fun Systray_InitCallbacks(ready: VoidCallback?, exit: VoidCallback?, onClick: VoidCallback?, onRClick: VoidCallback?, onMenuItem: MenuItemCallback?)
+    @JvmStatic external fun Systray_PrepareExternalLoop()
+    @JvmStatic external fun Systray_NativeStart()
+    @JvmStatic external fun Systray_NativeEnd()
+    @JvmStatic external fun Systray_Quit()
 
     // Tray properties ------------------------------------------------------------
-    fun Systray_SetIcon(iconBytes: ByteArray, length: Int)
-    fun Systray_SetTitle(title: String?)
-    fun Systray_SetTooltip(tooltip: String?)
+    @JvmStatic external fun Systray_SetIcon(iconBytes: ByteArray, length: Int)
+    @JvmStatic external fun Systray_SetTitle(title: String?)
+    @JvmStatic external fun Systray_SetTooltip(tooltip: String?)
 
     // Menu building --------------------------------------------------------------
-    fun Systray_ResetMenu()
-    fun Systray_AddSeparator()
-    fun Systray_AddMenuItem(title: String?, tooltip: String?): Int
-    fun Systray_AddMenuItemCheckbox(title: String?, tooltip: String?, checked: Int): Int
-    fun Systray_AddSubMenuItem(parentID: Int, title: String?, tooltip: String?): Int
-    fun Systray_AddSubMenuItemCheckbox(parentID: Int, title: String?, tooltip: String?, checked: Int): Int
-    fun Systray_AddSubMenuSeparator(parentID: Int)
+    @JvmStatic external fun Systray_ResetMenu()
+    @JvmStatic external fun Systray_AddSeparator()
+    @JvmStatic external fun Systray_AddMenuItem(title: String?, tooltip: String?): Int
+    @JvmStatic external fun Systray_AddMenuItemCheckbox(title: String?, tooltip: String?, checked: Int): Int
+    @JvmStatic external fun Systray_AddSubMenuItem(parentID: Int, title: String?, tooltip: String?): Int
+    @JvmStatic external fun Systray_AddSubMenuItemCheckbox(parentID: Int, title: String?, tooltip: String?, checked: Int): Int
+    @JvmStatic external fun Systray_AddSubMenuSeparator(parentID: Int)
 
     // Per-item operations --------------------------------------------------------
-    fun Systray_MenuItem_SetTitle(id: Int, title: String?): Int
-    fun Systray_MenuItem_Enable(id: Int)
-    fun Systray_MenuItem_Disable(id: Int)
-    fun Systray_MenuItem_Show(id: Int)
-    fun Systray_MenuItem_Hide(id: Int)
-    fun Systray_MenuItem_Check(id: Int)
-    fun Systray_MenuItem_Uncheck(id: Int)
+    @JvmStatic external fun Systray_MenuItem_SetTitle(id: Int, title: String?): Int
+    @JvmStatic external fun Systray_MenuItem_Enable(id: Int)
+    @JvmStatic external fun Systray_MenuItem_Disable(id: Int)
+    @JvmStatic external fun Systray_MenuItem_Show(id: Int)
+    @JvmStatic external fun Systray_MenuItem_Hide(id: Int)
+    @JvmStatic external fun Systray_MenuItem_Check(id: Int)
+    @JvmStatic external fun Systray_MenuItem_Uncheck(id: Int)
 
-    fun Systray_SetMenuItemIcon(iconBytes: ByteArray, length: Int, id: Int)
+    @JvmStatic external fun Systray_SetMenuItemIcon(iconBytes: ByteArray, length: Int, id: Int)
 }

@@ -47,7 +47,7 @@ internal class LinuxTrayManager(
         val subMenuItems: List<LinuxTrayManager.MenuItem> = emptyList()
     )
 
-    private val go = LinuxLibTray.INSTANCE
+    private val go = LinuxLibTray
 
     private val lock = ReentrantLock()
     private val running = AtomicBoolean(false)
