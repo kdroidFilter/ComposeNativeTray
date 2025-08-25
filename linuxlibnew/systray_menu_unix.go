@@ -195,6 +195,7 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	if exists {
 		refresh()
 	}
+	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
 
 func addSeparator(id uint32) {
@@ -209,6 +210,7 @@ func addSeparator(id uint32) {
 	}
 	instance.menu.V2 = append(instance.menu.V2, dbus.MakeVariant(layout))
 	refresh()
+	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
 
 func applyItemToLayout(in *MenuItem, out *menuLayout) {
@@ -302,4 +304,6 @@ func resetMenu() {
 	instance.menu = &menuLayout{}
 	instance.menuVersion++
 	refresh()
+	// Menu is now empty: advertise the environment-appropriate no-menu path on SNI
+	setMenuPropTo(noMenuPathForEnvironment())
 }
