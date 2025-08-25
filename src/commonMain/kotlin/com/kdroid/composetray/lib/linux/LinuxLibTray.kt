@@ -3,67 +3,19 @@ package com.kdroid.composetray.lib.linux
 import com.sun.jna.Callback
 import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
-import java.io.File
 
 /**
  * JNA direct mapping to the Go-based systray bridge (linuxlibnew/jna/bridge_linux.go).
- *
- * We try to register a shared library named "systray_jna" first, then fallback to "systray".
- * You can override via system properties:
- * -Dcomposetray.native.lib=/abs/path/to/libsystray_jna.so
- * -Dcomposetray.native.lib.path=/abs/dir/containing/lib
  */
 internal object LinuxLibTray {
     // Callback types -------------------------------------------------------------
     interface VoidCallback : Callback { fun invoke() }
     interface MenuItemCallback : Callback { fun invoke(menuId: Int) }
 
-    // Library registration logic -------------------------------------------------
-    private fun existingFile(path: String?): String? =
-        path?.takeIf { it.isNotBlank() }?.let { p -> File(p).takeIf { it.isFile && it.canRead() }?.absolutePath }
-
-    private fun findInDir(dir: String?): List<String> {
-        if (dir.isNullOrBlank()) return emptyList()
-        val d = File(dir)
-        if (!d.isDirectory || !d.canRead()) return emptyList()
-        val names = listOf("systray_jna", "systray")
-        return names.map { n -> File(d, System.mapLibraryName(n)) }
-            .filter { it.isFile && it.canRead() }
-            .map { it.absolutePath }
-    }
-
-    private fun tryRegister(target: String): Boolean = try {
-        Native.register(target)
-        true
-    } catch (_: Throwable) { false }
-
+    // Library registration logic (simple and consistent with Windows/Mac) --------
     init {
-        // Try explicit overrides first
-        val explicitPath = existingFile(System.getProperty("composetray.native.lib"))
-        val fromDir = findInDir(System.getProperty("composetray.native.lib.path"))
-
-        val candidates = buildList {
-            if (explicitPath != null) add(explicitPath)
-            addAll(fromDir)
-            add("systray_jna")
-            add("systray")
-        }
-
-        var registered = false
-        for (c in candidates) {
-            if (tryRegister(c)) { registered = true; break }
-        }
-        if (!registered) {
-            // Last chance: if explicit path was provided but not an existing file, try to load it then register names
-            val loaded = try {
-                val p = System.getProperty("composetray.native.lib")
-                if (!p.isNullOrBlank()) { System.load(p); true } else false
-            } catch (_: Throwable) { false }
-            if (loaded) {
-                registered = tryRegister("systray_jna") || tryRegister("systray")
-            }
-        }
-        if (!registered) throw UnsatisfiedLinkError("Failed to register Linux systray native library (tried: ${candidates.joinToString()})")
+        // Register the native library "systray" for direct calls
+        Native.register("systray")
     }
 
     // Helpers to fetch last click xy
