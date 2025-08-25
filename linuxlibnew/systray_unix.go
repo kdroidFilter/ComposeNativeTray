@@ -147,8 +147,56 @@ func nativeLoop() int {
 
 func nativeEnd() {
 	systrayExit()
-	if instance.conn != nil {
-		_ = instance.conn.Close()
+
+	// Snapshot and clear shared state under lock to make teardown idempotent.
+	instance.lock.Lock()
+	conn := instance.conn
+	busName := instance.name
+	props := instance.props
+	menuProps := instance.menuProps
+	_ = menuProps
+	instance.conn = nil
+	instance.props = nil
+	instance.menuProps = nil
+	instance.iconData = nil
+	instance.title = ""
+	instance.tooltipTitle = ""
+	instance.lock.Unlock()
+
+	if conn == nil {
+		return
+	}
+
+	// Best-effort: mark status passive before unexport (optional).
+	if props != nil {
+		props.SetMust("org.kde.StatusNotifierItem", "Status", "Passive")
+	}
+
+	// Unexport SNI and menu interfaces so the host removes our icon/menu immediately.
+	_ = notifier.UnexportStatusNotifierItem(conn, path)
+	_ = menu.UnexportDbusmenu(conn, menuPath)
+
+	// Unexport Properties and Introspectable on both paths.
+	_ = conn.Export(nil, path, "org.freedesktop.DBus.Properties")
+	_ = conn.Export(nil, menuPath, "org.freedesktop.DBus.Properties")
+	_ = conn.Export(nil, path, "org.freedesktop.DBus.Introspectable")
+	_ = conn.Export(nil, menuPath, "org.freedesktop.DBus.Introspectable")
+
+	// Release our well-known bus name so watchers drop the item instantly.
+	if busName != "" {
+		_, _ = conn.ReleaseName(busName)
+	}
+
+	// Finally, close the connection asynchronously to avoid freezes.
+	done := make(chan struct{})
+	go func() {
+		_ = conn.Close()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(300 * time.Millisecond):
+		// Give up waiting; the background goroutine will finish later.
 	}
 }
 
@@ -241,6 +289,10 @@ func nativeStart() {
 	if _, err := conn.RequestName(name, dbus.NameFlagDoNotQueue); err != nil {
 		log.Printf("systray error: failed to request name: %s\n", err)
 	}
+	// store requested bus name for later immediate release on dispose
+	instance.lock.Lock()
+	instance.name = name
+	instance.lock.Unlock()
 	props, err := prop.Export(conn, path, instance.createPropSpec())
 	if err != nil {
 		log.Printf("systray error: failed to export notifier item properties to bus: %s\n", err)
@@ -294,6 +346,7 @@ func nativeStart() {
 // tray holds DBus state
 type tray struct {
 	conn           *dbus.Conn
+	name           string
 	iconData       []byte
 	title          string
 	tooltipTitle   string

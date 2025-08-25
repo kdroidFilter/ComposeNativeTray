@@ -119,7 +119,7 @@ func RunWithExternalLoop(onReady, onExit func()) (start, end func()) {
 	Register(onReady, onExit)
 
 	return nativeStart, func() {
-		nativeEnd()
+		// Signal the main loop to exit; it will invoke nativeEnd() itself.
 		Quit()
 	}
 }
