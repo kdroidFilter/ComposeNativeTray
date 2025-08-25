@@ -1,7 +1,6 @@
 package com.kdroid.composetray.tray.impl
 
 import com.kdroid.composetray.lib.linux.LinuxGoTrayManager
-import com.kdroid.composetray.lib.linux.LinuxTrayController
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.LinuxTrayMenuBuilderImpl
 import java.util.concurrent.locks.ReentrantLock
@@ -12,7 +11,7 @@ object LinuxTrayInitializer {
     private const val DEFAULT_ID: String = "_default"
 
     private val trayMenuImpls: MutableMap<String, LinuxTrayMenuBuilderImpl> = mutableMapOf()
-    private val linuxTrayManagers: MutableMap<String, LinuxTrayController> = mutableMapOf()
+    private val linuxTrayManagers: MutableMap<String, LinuxGoTrayManager> = mutableMapOf()
     private val lock = ReentrantLock()
 
     @Synchronized
@@ -26,7 +25,7 @@ object LinuxTrayInitializer {
         lock.withLock {
             val existing = linuxTrayManagers[id]
             if (existing == null) {
-                val manager: LinuxTrayController = LinuxGoTrayManager(id, iconPath, tooltip, onLeftClick)
+                val manager = LinuxGoTrayManager(id, iconPath, tooltip, onLeftClick)
                 linuxTrayManagers[id] = manager
 
                 val menuImpl = if (menuContent != null) {
@@ -78,7 +77,7 @@ object LinuxTrayInitializer {
     @Synchronized
     fun dispose(id: String) {
         // Remove references under lock quickly to avoid holding the lock during teardown
-        val manager: LinuxTrayController?
+        val manager: LinuxGoTrayManager?
         val menuImpl: LinuxTrayMenuBuilderImpl?
         lock.withLock {
             manager = linuxTrayManagers.remove(id)

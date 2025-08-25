@@ -28,7 +28,7 @@ internal class LinuxGoTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
-) : LinuxTrayController {
+) {
     // Keep strong references to JNA callbacks to prevent GC from dropping them (which would stop events)
     private var cbReady: GoSystray.VoidCallback? = null
     private var cbExit: GoSystray.VoidCallback? = null
@@ -47,7 +47,7 @@ internal class LinuxGoTrayManager(
         val isChecked: Boolean = false,
         val iconPath: String? = null,
         val onClick: (() -> Unit)? = null,
-        val subMenuItems: List<LinuxTrayManager.MenuItem> = emptyList() // accept original type for smoother interop
+        val subMenuItems: List<LinuxGoTrayManager.MenuItem> = emptyList()
     )
 
     private val go = GoSystray.INSTANCE
@@ -57,7 +57,7 @@ internal class LinuxGoTrayManager(
     private val permitHeld = AtomicBoolean(false)
 
     // Menu state built by builder
-    private val menuItems: MutableList<LinuxTrayManager.MenuItem> = mutableListOf()
+    private val menuItems: MutableList<LinuxGoTrayManager.MenuItem> = mutableListOf()
 
     // Mapping from menu item title to Go-assigned IDs (best-effort; titles should be unique)
     private val idByTitle: MutableMap<String, Int> = mutableMapOf()
@@ -71,11 +71,11 @@ internal class LinuxGoTrayManager(
     private var loopThread: Thread? = null
     private var exitLatch: CountDownLatch? = null
 
-    override fun addMenuItem(menuItem: LinuxTrayManager.MenuItem) {
+    fun addMenuItem(menuItem: LinuxGoTrayManager.MenuItem) {
         lock.withLock { menuItems.add(menuItem) }
     }
 
-    override fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
+    fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
         var fallback = false
         lock.withLock {
             val idx = menuItems.indexOfFirst { it.text == label }
@@ -95,11 +95,11 @@ internal class LinuxGoTrayManager(
         if (fallback) rebuildMenu()
     }
 
-    override fun update(
+    fun update(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
-        newMenuItems: List<LinuxTrayManager.MenuItem>?
+        newMenuItems: List<LinuxGoTrayManager.MenuItem>?
     ) {
         val iconChanged: Boolean
         val tooltipChanged: Boolean
@@ -123,7 +123,7 @@ internal class LinuxGoTrayManager(
         if (newMenuItems != null) rebuildMenu()
     }
 
-    override fun startTray() {
+    fun startTray() {
         // Acquire global lifecycle permit to prevent overlap with a previous instance teardown
         try {
             lifecyclePermit.acquire()
@@ -215,7 +215,7 @@ internal class LinuxGoTrayManager(
         }
     }
 
-    override fun stopTray() {
+    fun stopTray() {
         if (!running.compareAndSet(true, false)) return
         val latch = exitLatch
         try {
@@ -276,11 +276,11 @@ internal class LinuxGoTrayManager(
         actionById.clear()
         runCatching { go.Systray_ResetMenu() }
         val items = lock.withLock { menuItems.toList() }
-        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(LinuxTrayManager.MenuItem("-")) else items
+        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(LinuxGoTrayManager.MenuItem("-")) else items
         effectiveItems.forEach { addMenuItemRecursive(null, it) }
     }
 
-    private fun addMenuItemRecursive(parentId: Int?, item: LinuxTrayManager.MenuItem) {
+    private fun addMenuItemRecursive(parentId: Int?, item: LinuxGoTrayManager.MenuItem) {
         try {
             if (item.text == "-") {
                 if (parentId == null) {
