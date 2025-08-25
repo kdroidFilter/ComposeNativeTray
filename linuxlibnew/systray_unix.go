@@ -15,7 +15,6 @@ import (
 	_ "image/png"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -405,7 +404,7 @@ func (t *tray) createPropSpec() map[string]map[string]*prop.Prop {
 			"IconPixmap":     {Value: buildPixmaps(icon), Writable: true, Emit: prop.EmitTrue},
 			"IconThemePath":  {Value: "", Writable: false, Emit: prop.EmitTrue},
 			"ItemIsMenu":     {Value: true, Writable: false, Emit: prop.EmitTrue},
-   "Menu":           {Value: noMenuPathForEnvironment(), Writable: true, Emit: prop.EmitTrue},
+			"Menu":           {Value: dbus.ObjectPath(menuPath), Writable: true, Emit: prop.EmitTrue},
 			"ToolTip":        {Value: tooltip{V2: tooltipTitle, V1: buildPixmaps(icon)}, Writable: true, Emit: prop.EmitTrue},
 		},
 	}
@@ -481,31 +480,4 @@ func toARGB32BigEndian(img *image.RGBA) []byte {
 		}
 	}
 	return buf
-}
-
-
-// noMenuPathForEnvironment returns the DBus object path to advertise when there is NO menu.
-// - GNOME: "/"
-// - Others (including KDE/Plasma): "/NO_DBUSMENU"
-// Simple detection via environment variables.
-func noMenuPathForEnvironment() dbus.ObjectPath {
-    xdg := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP"))
-    sess := strings.ToLower(os.Getenv("DESKTOP_SESSION"))
-    if strings.Contains(xdg, "gnome") || strings.Contains(sess, "gnome") {
-        return dbus.ObjectPath("/")
-    }
-    return dbus.ObjectPath("/NO_DBUSMENU")
-}
-
-// setMenuPropTo updates the StatusNotifierItem "Menu" property to the given path.
-func setMenuPropTo(p dbus.ObjectPath) {
-	instance.lock.Lock()
-	props := instance.props
-	instance.lock.Unlock()
-	if props == nil {
-		return
-	}
-	if dbusErr := props.Set("org.kde.StatusNotifierItem", "Menu", dbus.MakeVariant(p)); dbusErr != nil {
-		log.Printf("systray error: failed to set Menu prop: %s\n", dbusErr)
-	}
 }

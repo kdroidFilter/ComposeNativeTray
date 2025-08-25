@@ -195,7 +195,6 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	if exists {
 		refresh()
 	}
-	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
 
 func addSeparator(id uint32) {
@@ -210,7 +209,6 @@ func addSeparator(id uint32) {
 	}
 	instance.menu.V2 = append(instance.menu.V2, dbus.MakeVariant(layout))
 	refresh()
-	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
 
 func applyItemToLayout(in *MenuItem, out *menuLayout) {
@@ -304,10 +302,4 @@ func resetMenu() {
 	instance.menu = &menuLayout{}
 	instance.menuVersion++
 	refresh()
-	// Menu is now empty: on GNOME advertise "/"; on KDE/others, keep pointing to the menu path to avoid breaking context menu
-	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
-		setMenuPropTo(dbus.ObjectPath("/"))
-	} else {
-		setMenuPropTo(dbus.ObjectPath(menuPath))
-	}
 }
