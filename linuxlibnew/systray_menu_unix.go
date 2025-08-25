@@ -194,8 +194,10 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	applyItemToLayout(item, layout)
 	// Always refresh after applying layout so KDE receives LayoutUpdated even for newly created items
 	refresh()
-	// Whenever we have (or add) menu items, ensure the SNI Menu prop points to the real menu path (GNOME exits no-menu state)
-	setMenuPropTo(dbus.ObjectPath(menuPath))
+	// When running under GNOME, ensure the SNI Menu prop points to the real menu path (exit no-menu state)
+	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
+		setMenuPropTo(dbus.ObjectPath(menuPath))
+	}
 }
 
 func addSeparator(id uint32) {
@@ -210,8 +212,10 @@ func addSeparator(id uint32) {
 	}
 	instance.menu.V2 = append(instance.menu.V2, dbus.MakeVariant(layout))
 	refresh()
-	// Ensure SNI Menu points to the real menu when we add items (GNOME exits no-menu state)
-	setMenuPropTo(dbus.ObjectPath(menuPath))
+	// On GNOME, ensure SNI Menu points to the real menu when items are present (exit no-menu state)
+	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
+		setMenuPropTo(dbus.ObjectPath(menuPath))
+	}
 }
 
 func applyItemToLayout(in *MenuItem, out *menuLayout) {
@@ -305,10 +309,8 @@ func resetMenu() {
 	instance.menu = &menuLayout{}
 	instance.menuVersion++
 	refresh()
-	// GNOME-only: advertise "/" when there's no menu; for others keep pointing to the real menu path
+	// GNOME-only: advertise "/" when there's no menu; do not modify the property for other environments
 	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
 		setMenuPropTo(dbus.ObjectPath("/"))
-	} else {
-		setMenuPropTo(dbus.ObjectPath(menuPath))
 	}
 }
