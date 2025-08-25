@@ -485,18 +485,16 @@ func toARGB32BigEndian(img *image.RGBA) []byte {
 
 
 // noMenuPathForEnvironment returns the DBus object path to advertise when there is NO menu.
-// - KDE/Plasma: "/NO_DBUSMENU"
-// - GNOME/Others: "/"
+// - GNOME: "/"
+// - Others (including KDE/Plasma): "/NO_DBUSMENU"
 // Simple detection via environment variables.
 func noMenuPathForEnvironment() dbus.ObjectPath {
-	xdg := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP"))
-	sess := strings.ToLower(os.Getenv("DESKTOP_SESSION"))
-	kdeFull := os.Getenv("KDE_FULL_SESSION") != ""
-	if strings.Contains(xdg, "kde") || strings.Contains(xdg, "plasma") ||
-		strings.Contains(sess, "kde") || strings.Contains(sess, "plasma") || kdeFull {
-		return dbus.ObjectPath("/NO_DBUSMENU")
-	}
-	return dbus.ObjectPath("/")
+    xdg := strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP"))
+    sess := strings.ToLower(os.Getenv("DESKTOP_SESSION"))
+    if strings.Contains(xdg, "gnome") || strings.Contains(sess, "gnome") {
+        return dbus.ObjectPath("/")
+    }
+    return dbus.ObjectPath("/NO_DBUSMENU")
 }
 
 // setMenuPropTo updates the StatusNotifierItem "Menu" property to the given path.

@@ -304,6 +304,10 @@ func resetMenu() {
 	instance.menu = &menuLayout{}
 	instance.menuVersion++
 	refresh()
-	// Menu is now empty: advertise the environment-appropriate no-menu path on SNI
-	setMenuPropTo(noMenuPathForEnvironment())
+	// Menu is now empty: on GNOME advertise "/"; on KDE/others, keep pointing to the menu path to avoid breaking context menu
+	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
+		setMenuPropTo(dbus.ObjectPath("/"))
+	} else {
+		setMenuPropTo(dbus.ObjectPath(menuPath))
+	}
 }
