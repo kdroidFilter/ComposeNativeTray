@@ -29,6 +29,12 @@ internal class LinuxGoTrayManager(
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
 ) : LinuxTrayController {
+    // Keep strong references to JNA callbacks to prevent GC from dropping them (which would stop events)
+    private var cbReady: GoSystray.VoidCallback? = null
+    private var cbExit: GoSystray.VoidCallback? = null
+    private var cbOnClick: GoSystray.VoidCallback? = null
+    private var cbOnRClick: GoSystray.VoidCallback? = null
+    private var cbOnMenuItem: GoSystray.MenuItemCallback? = null
     companion object {
         // Ensures only one systray runtime is active at a time; allows release from any thread
         private val lifecyclePermit = java.util.concurrent.Semaphore(1, true)
@@ -142,36 +148,36 @@ internal class LinuxGoTrayManager(
             val readyLatch = CountDownLatch(1)
             exitLatch = CountDownLatch(1)
 
-            // Register callbacks
-            go.Systray_InitCallbacks(
-                object : GoSystray.VoidCallback { override fun invoke() {
-                    infoln { "LinuxGoTrayManager: systray ready" }
-                    readyLatch.countDown()
-                } },
-                object : GoSystray.VoidCallback { override fun invoke() {
-                    infoln { "LinuxGoTrayManager: systray exit" }
-                    try { exitLatch?.countDown() } catch (_: Throwable) {}
-                } },
-                object : GoSystray.VoidCallback { override fun invoke() {
-                    // Try to fetch the last click xy from native Go layer and store it for positioning
-                    try {
-                        val xRef = com.sun.jna.ptr.IntByReference()
-                        val yRef = com.sun.jna.ptr.IntByReference()
-                        go.Systray_GetLastClickXY(xRef, yRef)
-                        val x = xRef.value
-                        val y = yRef.value
-                        // Infer corner and persist for Linux positioning
-                        val screen = try { Toolkit.getDefaultToolkit().screenSize } catch (_: Throwable) { java.awt.Dimension(0,0) }
-                        val pos = com.kdroid.composetray.utils.convertPositionToCorner(x, y, screen.width, screen.height)
-                        TrayClickTracker.setClickPosition(x, y, pos)
-                    } catch (_: Throwable) {
-                        // ignore, still invoke user callback
-                    }
-                    onLeftClick?.invoke()
-                } },
-                object : GoSystray.VoidCallback { override fun invoke() { /* right click unhandled for now */ } },
-                object : GoSystray.MenuItemCallback { override fun invoke(menuId: Int) { actionById[menuId]?.invoke() } }
-            )
+            // Register callbacks (keep strong references to avoid GC)
+            cbReady = object : GoSystray.VoidCallback { override fun invoke() {
+                infoln { "LinuxGoTrayManager: systray ready" }
+                readyLatch.countDown()
+            } }
+            cbExit = object : GoSystray.VoidCallback { override fun invoke() {
+                infoln { "LinuxGoTrayManager: systray exit" }
+                try { exitLatch?.countDown() } catch (_: Throwable) {}
+            } }
+            cbOnClick = object : GoSystray.VoidCallback { override fun invoke() {
+                // Try to fetch the last click xy from native Go layer and store it for positioning
+                try {
+                    val xRef = com.sun.jna.ptr.IntByReference()
+                    val yRef = com.sun.jna.ptr.IntByReference()
+                    go.Systray_GetLastClickXY(xRef, yRef)
+                    val x = xRef.value
+                    val y = yRef.value
+                    // Infer corner and persist for Linux positioning
+                    val screen = try { Toolkit.getDefaultToolkit().screenSize } catch (_: Throwable) { java.awt.Dimension(0,0) }
+                    val pos = com.kdroid.composetray.utils.convertPositionToCorner(x, y, screen.width, screen.height)
+                    TrayClickTracker.setClickPosition(x, y, pos)
+                } catch (_: Throwable) {
+                    // ignore, still invoke user callback
+                }
+                onLeftClick?.invoke()
+            } }
+            cbOnRClick = object : GoSystray.VoidCallback { override fun invoke() { /* right click unhandled for now */ } }
+            cbOnMenuItem = object : GoSystray.MenuItemCallback { override fun invoke(menuId: Int) { actionById[menuId]?.invoke() } }
+
+            go.Systray_InitCallbacks(cbReady, cbExit, cbOnClick, cbOnRClick, cbOnMenuItem)
 
             // Prepare external loop and start it in a daemon thread
             go.Systray_PrepareExternalLoop()
@@ -243,6 +249,12 @@ internal class LinuxGoTrayManager(
         exitLatch = null
         idByTitle.clear()
         actionById.clear()
+        // Clear strong references to callbacks to allow GC after clean stop
+        cbReady = null
+        cbExit = null
+        cbOnClick = null
+        cbOnRClick = null
+        cbOnMenuItem = null
         try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
         shutdownHook = null
         if (permitHeld.compareAndSet(true, false)) {
