@@ -206,6 +206,12 @@ func quit() {
 
 var usni = &UnimplementedStatusNotifierItem{}
 
+var (
+	lastClickMu sync.Mutex
+	lastClickX int32
+	lastClickY int32
+)
+
 type UnimplementedStatusNotifierItem struct {
 	contextMenu       func(x int32, y int32)
 	activate          func(x int32, y int32)
@@ -220,6 +226,10 @@ func (*UnimplementedStatusNotifierItem) iface() string {
 }
 
 func (m *UnimplementedStatusNotifierItem) ContextMenu(x int32, y int32) (err *dbus.Error) {
+	// remember last right-click coordinates too (for context menu)
+	lastClickMu.Lock()
+	lastClickX, lastClickY = x, y
+	lastClickMu.Unlock()
 	if m.contextMenu != nil {
 		m.contextMenu(x, y)
 	} else {
@@ -229,6 +239,11 @@ func (m *UnimplementedStatusNotifierItem) ContextMenu(x int32, y int32) (err *db
 }
 
 func (m *UnimplementedStatusNotifierItem) Activate(x int32, y int32) (err *dbus.Error) {
+	// remember last click coordinates
+	lastClickMu.Lock()
+	lastClickX, lastClickY = x, y
+	lastClickMu.Unlock()
+
 	if m.dActivateTime == 0 {
 		m.dActivateTime = time.Now().UnixMilli()
 	} else {
@@ -252,6 +267,10 @@ func (m *UnimplementedStatusNotifierItem) Activate(x int32, y int32) (err *dbus.
 }
 
 func (m *UnimplementedStatusNotifierItem) SecondaryActivate(x int32, y int32) (err *dbus.Error) {
+	// remember last click coordinates for secondary activation as well
+	lastClickMu.Lock()
+	lastClickX, lastClickY = x, y
+	lastClickMu.Unlock()
 	if m.secondaryActivate != nil {
 		m.secondaryActivate(x, y)
 	} else {
@@ -272,6 +291,14 @@ func (m *UnimplementedStatusNotifierItem) Scroll(delta int32, orientation string
 func setOnClick(fn func(menu IMenu)) { usni.activate = func(int32, int32) { fn(nil) } }
 func setOnDClick(fn func(menu IMenu)) { usni.dActivate = func(int32, int32) { fn(nil) } }
 func setOnRClick(dClick func(IMenu))  {}
+
+// GetLastClickXY returns the last click coordinates captured from Activate/ContextMenu/SecondaryActivate.
+func GetLastClickXY() (int32, int32) {
+	lastClickMu.Lock()
+	x, y := lastClickX, lastClickY
+	lastClickMu.Unlock()
+	return x, y
+}
 
 func nativeStart() {
 	if systrayReady != nil {

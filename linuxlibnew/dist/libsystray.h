@@ -114,6 +114,7 @@ extern void Systray_MenuItem_Hide(unsigned int id);
 extern void Systray_MenuItem_Check(unsigned int id);
 extern void Systray_MenuItem_Uncheck(unsigned int id);
 extern void Systray_SetMenuItemIcon(char* iconBytes, int length, unsigned int id);
+extern void Systray_GetLastClickXY(int* outX, int* outY);
 
 #ifdef __cplusplus
 }

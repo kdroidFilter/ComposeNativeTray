@@ -3,6 +3,7 @@ package com.kdroid.composetray.lib.linux
 import com.sun.jna.Callback
 import com.sun.jna.Library
 import com.sun.jna.Native
+import com.sun.jna.ptr.IntByReference
 import java.io.File
 
 /**
@@ -60,6 +61,9 @@ internal interface GoSystray : Library {
     // Callback types -------------------------------------------------------------
     interface VoidCallback : Callback { fun invoke() }
     interface MenuItemCallback : Callback { fun invoke(menuId: Int) }
+    
+    // Helpers to fetch last click xy
+    fun Systray_GetLastClickXY(outX: IntByReference, outY: IntByReference)
 
     // Lifecycle / loop -----------------------------------------------------------
     fun Systray_InitCallbacks(ready: VoidCallback?, exit: VoidCallback?, onClick: VoidCallback?, onRClick: VoidCallback?, onMenuItem: MenuItemCallback?)

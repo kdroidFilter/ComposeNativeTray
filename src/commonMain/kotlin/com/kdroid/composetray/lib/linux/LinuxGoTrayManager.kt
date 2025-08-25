@@ -4,6 +4,9 @@ import com.kdroid.composetray.utils.debugln
 import com.kdroid.composetray.utils.errorln
 import com.kdroid.composetray.utils.infoln
 import com.kdroid.composetray.utils.warnln
+import com.kdroid.composetray.utils.TrayClickTracker
+import com.kdroid.composetray.utils.getTrayPosition
+import java.awt.Toolkit
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -144,7 +147,23 @@ internal class LinuxGoTrayManager(
                     infoln { "LinuxGoTrayManager: systray exit" }
                     try { exitLatch?.countDown() } catch (_: Throwable) {}
                 } },
-                object : GoSystray.VoidCallback { override fun invoke() { onLeftClick?.invoke() } },
+                object : GoSystray.VoidCallback { override fun invoke() {
+                    // Try to fetch the last click xy from native Go layer and store it for positioning
+                    try {
+                        val xRef = com.sun.jna.ptr.IntByReference()
+                        val yRef = com.sun.jna.ptr.IntByReference()
+                        go.Systray_GetLastClickXY(xRef, yRef)
+                        val x = xRef.value
+                        val y = yRef.value
+                        // Infer corner and persist for Linux positioning
+                        val screen = try { Toolkit.getDefaultToolkit().screenSize } catch (_: Throwable) { java.awt.Dimension(0,0) }
+                        val pos = com.kdroid.composetray.utils.convertPositionToCorner(x, y, screen.width, screen.height)
+                        TrayClickTracker.setClickPosition(x, y, pos)
+                    } catch (_: Throwable) {
+                        // ignore, still invoke user callback
+                    }
+                    onLeftClick?.invoke()
+                } },
                 object : GoSystray.VoidCallback { override fun invoke() { /* right click unhandled for now */ } },
                 object : GoSystray.MenuItemCallback { override fun invoke(menuId: Int) { actionById[menuId]?.invoke() } }
             )

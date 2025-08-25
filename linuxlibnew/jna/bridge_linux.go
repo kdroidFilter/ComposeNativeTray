@@ -275,3 +275,14 @@ func Systray_SetMenuItemIcon(iconBytes *C.char, length C.int, id C.uint) {
 	b := C.GoBytes(unsafe.Pointer(iconBytes), length)
 	_ = systraypkg.SetMenuItemIconByID(uint32(id), b)
 }
+
+//export Systray_GetLastClickXY
+func Systray_GetLastClickXY(outX *C.int, outY *C.int) {
+    if outX == nil || outY == nil {
+        return
+    }
+    // No running check required; last coordinates may be queried anytime during runtime.
+    x, y := systraypkg.GetLastClickXY()
+    *outX = C.int(x)
+    *outY = C.int(y)
+}
