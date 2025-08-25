@@ -192,9 +192,8 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	}
 
 	applyItemToLayout(item, layout)
-	if exists {
-		refresh()
-	}
+	// Always refresh after applying layout so KDE receives LayoutUpdated even for newly created items
+	refresh()
 	// Whenever we have (or add) menu items, ensure the SNI Menu prop points to the real menu path (GNOME exits no-menu state)
 	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
