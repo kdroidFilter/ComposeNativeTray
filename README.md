@@ -537,8 +537,7 @@ Use TrayApp when you want a compact companion window (like a quick settings or m
 - menu: optional tray context menu (see Tray menu DSL).
 - content: the composable content of the popup window.
 
-### Examples
-Minimal with ImageVector:
+### Example
 
 ```kotlin
 @OptIn(ExperimentalTrayAppApi::class)
@@ -557,47 +556,6 @@ application {
         // Popup content
         MaterialTheme { /* ... */ }
     }
-}
-```
-
-Using a Painter:
-
-```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
-application {
-    TrayApp(
-        icon = painterResource(Res.drawable.icon),
-        tooltip = "My App"
-    ) {
-        /* popup */
-    }
-}
-```
-
-Platform-specific icons:
-
-```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
-application {
-    TrayApp(
-        windowsIcon = painterResource(Res.drawable.icon),
-        macLinuxIcon = Icons.Default.Book,
-        tint = null, // or provide a tint if desired
-        tooltip = "My App"
-    ) { /* popup */ }
-}
-```
-
-Custom composable icon with fade:
-
-```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
-application {
-    TrayApp(
-        iconContent = { Icon(Icons.Default.Book, contentDescription = null) },
-        fadeDurationMs = 200,
-        tooltip = "My App"
-    ) { /* popup */ }
 }
 ```
 
