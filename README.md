@@ -60,8 +60,6 @@
   - [Theme Behavior](#theme-behavior)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
     - [Overview](#overview)
-    - [Overloads](#overloads)
-    - [Parameters](#parameters)
     - [Examples](#examples)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
