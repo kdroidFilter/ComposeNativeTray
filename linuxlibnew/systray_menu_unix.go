@@ -195,6 +195,8 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	if exists {
 		refresh()
 	}
+	// Whenever we have (or add) menu items, ensure the SNI Menu prop points to the real menu path (GNOME exits no-menu state)
+	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
 
 func addSeparator(id uint32) {
@@ -209,6 +211,8 @@ func addSeparator(id uint32) {
 	}
 	instance.menu.V2 = append(instance.menu.V2, dbus.MakeVariant(layout))
 	refresh()
+	// Ensure SNI Menu points to the real menu when we add items (GNOME exits no-menu state)
+	setMenuPropTo(dbus.ObjectPath(menuPath))
 }
 
 func applyItemToLayout(in *MenuItem, out *menuLayout) {
@@ -302,4 +306,10 @@ func resetMenu() {
 	instance.menu = &menuLayout{}
 	instance.menuVersion++
 	refresh()
+	// GNOME-only: advertise "/" when there's no menu; for others keep pointing to the real menu path
+	if noMenuPathForEnvironment() == dbus.ObjectPath("/") {
+		setMenuPropTo(dbus.ObjectPath("/"))
+	} else {
+		setMenuPropTo(dbus.ObjectPath(menuPath))
+	}
 }
