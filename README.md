@@ -63,10 +63,6 @@
     - [Overloads](#overloads)
     - [Parameters](#parameters)
     - [Examples](#examples)
-- [Linux packaging and Qt dependencies](#linux-packaging-and-qt-dependencies)
-  - [Developer setup on Ubuntu/Debian](#developer-setup-on-ubuntudebian)
-  - [Linking your app to Qt runtime packages](#linking-your-app-to-qt-runtime-packages)
-  - [Using Conveyor](#using-conveyor)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
 - [👨‍💻 Author](#-author)
@@ -614,66 +610,6 @@ application {
 ```
 
 See full demo: demo/src/jvmMain/kotlin/com/kdroid/composetray/demo/TrayAppDemo.kt
-
-## Linux packaging and Qt dependencies
-
-This library uses **Qt** on Linux. When you package your app for Linux, you must declare the required Qt runtime packages so the OS will install them if necessary.
-
-> **Heads-up:** In most cases, the only package that will be newly downloaded is **`libdbusmenu-qt5-2`** (≈300 KB).
-> Qt itself is widely used by many desktop applications and often comes preinstalled with the desktop environment, so users typically already have the necessary Qt runtime packages.
-
----
-
-### Developer setup on Ubuntu/Debian
-
-If you are developing or running locally on Ubuntu/Debian, ensure the runtime package is installed:
-
-```sh
-sudo apt-get install -y libdbusmenu-qt5-2
-```
-
----
-
-### Linking your app to Qt runtime packages
-
-If you use **jpackage** (Compose Multiplatform native distributions), you can use the dedicated Gradle plugin to declare the required dependencies automatically in the generated `.deb` control file:
-
-* Plugin: [GradleComposeDesktopLinuxDeps](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps)
-* Apply it in your Gradle build (Kotlin DSL):
-
-```kotlin
-plugins {
-    // ... your existing plugins
-    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.2"
-}
-```
-
-Then configure it as follows:
-
-```kotlin
-linuxDebConfig {
-    addComposeNativeTrayDeps()
-}
-```
-
-For more information about distro compatibility and advanced options, please see the [plugin README](https://github.com/kdroidFilter/GradleComposeDesktopLinuxDeps).
-
-
-### Using Conveyor
-
-If you package with Conveyor, declare the dependencies in your `conveyor.conf`:
-
-```hocon
-app.linux.debian.control {
-  Depends: [
-    "libqt5core5t64 | libqt5core5a",
-    "libqt5gui5t64  | libqt5gui5",
-    "libqt5widgets5t64 | libqt5widgets5",
-    "libdbusmenu-qt5-2"
-  ]
-}
-```
-
 
 ## 📄 License
 
