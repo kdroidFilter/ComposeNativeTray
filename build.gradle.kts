@@ -1,4 +1,5 @@
 import org.jetbrains.dokka.gradle.DokkaTask
+import java.util.Locale
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -63,7 +64,7 @@ val buildMac: TaskProvider<Exec> = tasks.register<Exec>("buildNativeMac") {
 }
 
 val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
-    onlyIf { System.getProperty("os.name").toLowerCase().contains("linux") }
+    onlyIf { System.getProperty("os.name").lowercase(Locale.getDefault()).contains("linux") }
     workingDir(rootDir.resolve("linuxlib"))
     commandLine("./build.sh")
 }
