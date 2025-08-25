@@ -14,7 +14,7 @@ import java.io.File
  * -Dcomposetray.native.lib=/abs/path/to/libsystray_jna.so
  * -Dcomposetray.native.lib.path=/abs/dir/containing/lib
  */
-internal interface GoSystray : Library {
+internal interface LinuxLibTray : Library {
     companion object {
         private fun tryLoadDirect(path: String?): Boolean {
             if (path.isNullOrBlank()) return false
@@ -39,7 +39,7 @@ internal interface GoSystray : Library {
             true
         } catch (_: Throwable) { false }
 
-        val INSTANCE: GoSystray = run {
+        val INSTANCE: LinuxLibTray = run {
             // Try explicit overrides first
             val explicit = System.getProperty("composetray.native.lib")
             val explicitDir = System.getProperty("composetray.native.lib.path")
@@ -51,9 +51,9 @@ internal interface GoSystray : Library {
             // Create proxy via JNA (it won't reload if already loaded)
             // Prefer systray_jna, fallback to systray
             try {
-                Native.load("systray_jna", GoSystray::class.java) as GoSystray
+                Native.load("systray_jna", LinuxLibTray::class.java) as LinuxLibTray
             } catch (_: UnsatisfiedLinkError) {
-                Native.load("systray", GoSystray::class.java) as GoSystray
+                Native.load("systray", LinuxLibTray::class.java) as LinuxLibTray
             }
         }
     }

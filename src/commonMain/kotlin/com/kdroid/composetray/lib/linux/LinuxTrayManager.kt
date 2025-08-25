@@ -1,17 +1,14 @@
 package com.kdroid.composetray.lib.linux
 
-import com.kdroid.composetray.utils.debugln
 import com.kdroid.composetray.utils.errorln
 import com.kdroid.composetray.utils.infoln
 import com.kdroid.composetray.utils.warnln
 import com.kdroid.composetray.utils.TrayClickTracker
-import com.kdroid.composetray.utils.getTrayPosition
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import java.awt.Toolkit
 import java.io.File
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -23,18 +20,18 @@ import kotlin.concurrent.withLock
  * Intentionally mirrors the public surface used by LinuxSNITrayInitializer and LinuxTrayMenuBuilderImpl,
  * while delegating to GoSystray under the hood.
  */
-internal class LinuxGoTrayManager(
+internal class LinuxTrayManager(
     private val instanceId: String,
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
 ) {
     // Keep strong references to JNA callbacks to prevent GC from dropping them (which would stop events)
-    private var cbReady: GoSystray.VoidCallback? = null
-    private var cbExit: GoSystray.VoidCallback? = null
-    private var cbOnClick: GoSystray.VoidCallback? = null
-    private var cbOnRClick: GoSystray.VoidCallback? = null
-    private var cbOnMenuItem: GoSystray.MenuItemCallback? = null
+    private var cbReady: LinuxLibTray.VoidCallback? = null
+    private var cbExit: LinuxLibTray.VoidCallback? = null
+    private var cbOnClick: LinuxLibTray.VoidCallback? = null
+    private var cbOnRClick: LinuxLibTray.VoidCallback? = null
+    private var cbOnMenuItem: LinuxLibTray.MenuItemCallback? = null
     companion object {
         // Ensures only one systray runtime is active at a time; allows release from any thread
         private val lifecyclePermit = java.util.concurrent.Semaphore(1, true)
@@ -47,17 +44,17 @@ internal class LinuxGoTrayManager(
         val isChecked: Boolean = false,
         val iconPath: String? = null,
         val onClick: (() -> Unit)? = null,
-        val subMenuItems: List<LinuxGoTrayManager.MenuItem> = emptyList()
+        val subMenuItems: List<LinuxTrayManager.MenuItem> = emptyList()
     )
 
-    private val go = GoSystray.INSTANCE
+    private val go = LinuxLibTray.INSTANCE
 
     private val lock = ReentrantLock()
     private val running = AtomicBoolean(false)
     private val permitHeld = AtomicBoolean(false)
 
     // Menu state built by builder
-    private val menuItems: MutableList<LinuxGoTrayManager.MenuItem> = mutableListOf()
+    private val menuItems: MutableList<LinuxTrayManager.MenuItem> = mutableListOf()
 
     // Mapping from menu item title to Go-assigned IDs (best-effort; titles should be unique)
     private val idByTitle: MutableMap<String, Int> = mutableMapOf()
@@ -71,7 +68,7 @@ internal class LinuxGoTrayManager(
     private var loopThread: Thread? = null
     private var exitLatch: CountDownLatch? = null
 
-    fun addMenuItem(menuItem: LinuxGoTrayManager.MenuItem) {
+    fun addMenuItem(menuItem: LinuxTrayManager.MenuItem) {
         lock.withLock { menuItems.add(menuItem) }
     }
 
@@ -99,7 +96,7 @@ internal class LinuxGoTrayManager(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
-        newMenuItems: List<LinuxGoTrayManager.MenuItem>?
+        newMenuItems: List<LinuxTrayManager.MenuItem>?
     ) {
         val iconChanged: Boolean
         val tooltipChanged: Boolean
@@ -149,15 +146,15 @@ internal class LinuxGoTrayManager(
             exitLatch = CountDownLatch(1)
 
             // Register callbacks (keep strong references to avoid GC)
-            cbReady = object : GoSystray.VoidCallback { override fun invoke() {
+            cbReady = object : LinuxLibTray.VoidCallback { override fun invoke() {
                 infoln { "LinuxGoTrayManager: systray ready" }
                 readyLatch.countDown()
             } }
-            cbExit = object : GoSystray.VoidCallback { override fun invoke() {
+            cbExit = object : LinuxLibTray.VoidCallback { override fun invoke() {
                 infoln { "LinuxGoTrayManager: systray exit" }
                 try { exitLatch?.countDown() } catch (_: Throwable) {}
             } }
-            cbOnClick = object : GoSystray.VoidCallback { override fun invoke() {
+            cbOnClick = object : LinuxLibTray.VoidCallback { override fun invoke() {
                 // Try to fetch the last click xy from native Go layer and store it for positioning
                 try {
                     val xRef = com.sun.jna.ptr.IntByReference()
@@ -174,8 +171,8 @@ internal class LinuxGoTrayManager(
                 }
                 onLeftClick?.invoke()
             } }
-            cbOnRClick = object : GoSystray.VoidCallback { override fun invoke() { /* right click unhandled for now */ } }
-            cbOnMenuItem = object : GoSystray.MenuItemCallback { override fun invoke(menuId: Int) { actionById[menuId]?.invoke() } }
+            cbOnRClick = object : LinuxLibTray.VoidCallback { override fun invoke() { /* right click unhandled for now */ } }
+            cbOnMenuItem = object : LinuxLibTray.MenuItemCallback { override fun invoke(menuId: Int) { actionById[menuId]?.invoke() } }
 
             go.Systray_InitCallbacks(cbReady, cbExit, cbOnClick, cbOnRClick, cbOnMenuItem)
 
@@ -276,11 +273,11 @@ internal class LinuxGoTrayManager(
         actionById.clear()
         runCatching { go.Systray_ResetMenu() }
         val items = lock.withLock { menuItems.toList() }
-        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(LinuxGoTrayManager.MenuItem("-")) else items
+        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(LinuxTrayManager.MenuItem("-")) else items
         effectiveItems.forEach { addMenuItemRecursive(null, it) }
     }
 
-    private fun addMenuItemRecursive(parentId: Int?, item: LinuxGoTrayManager.MenuItem) {
+    private fun addMenuItemRecursive(parentId: Int?, item: LinuxTrayManager.MenuItem) {
         try {
             if (item.text == "-") {
                 if (parentId == null) {

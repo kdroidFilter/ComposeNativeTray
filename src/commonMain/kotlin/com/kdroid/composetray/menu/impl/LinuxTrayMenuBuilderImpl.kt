@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
-import com.kdroid.composetray.lib.linux.LinuxGoTrayManager
+import com.kdroid.composetray.lib.linux.LinuxTrayManager
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
@@ -20,17 +20,17 @@ internal class LinuxTrayMenuBuilderImpl(
     private val iconPath: String,
     private val tooltip: String = "",
     private val onLeftClick: (() -> Unit)?,
-    private val trayManager: LinuxGoTrayManager? = null
+    private val trayManager: LinuxTrayManager? = null
 ) : TrayMenuBuilder {
-    private val menuItems = mutableListOf<LinuxGoTrayManager.MenuItem>()
+    private val menuItems = mutableListOf<LinuxTrayManager.MenuItem>()
     private val lock = ReentrantLock()
 
     // Maintain persistent references to prevent GC
-    private val persistentMenuItems = mutableListOf<LinuxGoTrayManager.MenuItem>()
+    private val persistentMenuItems = mutableListOf<LinuxTrayManager.MenuItem>()
 
     override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
         lock.withLock {
-            val menuItem = LinuxGoTrayManager.MenuItem(
+            val menuItem = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 onClick = onClick
@@ -51,7 +51,7 @@ internal class LinuxTrayMenuBuilderImpl(
             // Render the composable icon to a PNG file
             val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
 
-            val menuItem = LinuxGoTrayManager.MenuItem(
+            val menuItem = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 iconPath = iconPath,
@@ -121,7 +121,7 @@ internal class LinuxTrayMenuBuilderImpl(
             // instead of capturing the initial state
             val initialChecked = checked
 
-            val menuItem = LinuxGoTrayManager.MenuItem(
+            val menuItem = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 isCheckable = true,
@@ -161,7 +161,7 @@ internal class LinuxTrayMenuBuilderImpl(
 
             val initialChecked = checked
 
-            val menuItem = LinuxGoTrayManager.MenuItem(
+            val menuItem = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 isCheckable = true,
@@ -233,7 +233,7 @@ internal class LinuxTrayMenuBuilderImpl(
     }
 
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
-        val subMenuItems = mutableListOf<LinuxGoTrayManager.MenuItem>()
+        val subMenuItems = mutableListOf<LinuxTrayManager.MenuItem>()
         if (submenuContent != null) {
             val subMenuImpl = LinuxTrayMenuBuilderImpl(
                 iconPath,
@@ -244,7 +244,7 @@ internal class LinuxTrayMenuBuilderImpl(
             subMenuItems.addAll(subMenuImpl.menuItems)
         }
         lock.withLock {
-            val subMenu = LinuxGoTrayManager.MenuItem(
+            val subMenu = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 subMenuItems = subMenuItems
@@ -261,7 +261,7 @@ internal class LinuxTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?
     ) {
-        val subMenuItems = mutableListOf<LinuxGoTrayManager.MenuItem>()
+        val subMenuItems = mutableListOf<LinuxTrayManager.MenuItem>()
         if (submenuContent != null) {
             val subMenuImpl = LinuxTrayMenuBuilderImpl(
                 iconPath,
@@ -276,7 +276,7 @@ internal class LinuxTrayMenuBuilderImpl(
             // Render the composable icon to a PNG file
             val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
 
-            val subMenu = LinuxGoTrayManager.MenuItem(
+            val subMenu = LinuxTrayManager.MenuItem(
                 text = label,
                 isEnabled = isEnabled,
                 iconPath = iconPath,  // Maintenant supporté !
@@ -335,7 +335,7 @@ internal class LinuxTrayMenuBuilderImpl(
 
     override fun Divider() {
         lock.withLock {
-            val divider = LinuxGoTrayManager.MenuItem(text = "-")
+            val divider = LinuxTrayManager.MenuItem(text = "-")
             menuItems.add(divider)
             persistentMenuItems.add(divider) // Store reference
         }
@@ -348,5 +348,5 @@ internal class LinuxTrayMenuBuilderImpl(
         }
     }
 
-    fun build(): List<LinuxGoTrayManager.MenuItem> = lock.withLock { menuItems.toList() }
+    fun build(): List<LinuxTrayManager.MenuItem> = lock.withLock { menuItems.toList() }
 }
