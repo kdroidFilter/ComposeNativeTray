@@ -22,7 +22,7 @@ import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
-import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
+import com.kdroid.composetray.utils.composeNativeTrayLoggingLevel
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
@@ -35,7 +35,7 @@ import kotlin.concurrent.fixedRateTimer
 fun main() = application {
     // Enable logging for debugging
     allowComposeNativeTrayLogging = true
-    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
+    composeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     val logTag = "DynamicIconsDemo"
     

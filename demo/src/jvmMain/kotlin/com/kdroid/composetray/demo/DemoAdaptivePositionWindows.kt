@@ -1,4 +1,5 @@
 package com.kdroid.composetray.demo
+
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
@@ -18,7 +19,7 @@ import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
-import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
+import com.kdroid.composetray.utils.composeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.getTrayPosition
 import com.kdroid.composetray.utils.getTrayWindowPosition
 import composenativetray.demo.generated.resources.Res
@@ -27,7 +28,7 @@ import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
     allowComposeNativeTrayLogging = false
-    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
+    composeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
     val logTag = "NativeTray"
     
     println("$logTag: TrayPosition: ${getTrayPosition()}")

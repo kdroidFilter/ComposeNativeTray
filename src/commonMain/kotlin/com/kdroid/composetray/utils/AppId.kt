@@ -12,13 +12,14 @@ package com.kdroid.composetray.utils
  * 4) Fallback to "ComposeNativeTrayApp"
  */
 object AppIdProvider {
+    private const val FALLBACK_ID = "ComposeNativeTrayApp"
     private val cached by lazy { computeAppId() }
 
     fun appId(): String = cached
 
     private fun computeAppId(): String {
         val sunCmd = System.getProperty("sun.java.command")?.trim().orEmpty()
-        println("AppIdProvider: sunCmd: $sunCmd")
+        debugln { "[AppIdProvider] sunCmd: $sunCmd" }
 
         if (sunCmd.isNotEmpty()) {
             val firstToken = sunCmd.split(" ", limit = 2).firstOrNull().orEmpty()
@@ -26,12 +27,12 @@ object AppIdProvider {
         }
 
         // Fallback
-        return "ComposeNativeTrayApp"
+        return FALLBACK_ID
     }
 
     private fun sanitize(raw: String): String {
         // Replace non-alphanumeric/._- with underscore; trim length if excessively long
         val cleaned = raw.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        return cleaned.take(128).ifEmpty { "ComposeNativeTrayApp" }
+        return cleaned.take(128).ifEmpty { FALLBACK_ID }
     }
 }

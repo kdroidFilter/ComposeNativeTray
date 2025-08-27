@@ -65,7 +65,7 @@ internal class NativeTray {
                 else -> {}
             }
         } catch (th: Throwable) {
-            errorln { "NativeTray: Error updating tray: $th" }
+            errorln { "[NativeTray] Error updating tray: $th" }
         }
     }
 
@@ -101,19 +101,19 @@ internal class NativeTray {
             try {
                 when (os) {
                     LINUX -> {
-                        debugln { "NativeTray: Initializing Linux tray with icon path: $iconPath" }
+                        debugln { "[NativeTray] Initializing Linux tray with icon path: $iconPath" }
                         LinuxTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
                     WINDOWS -> {
-                        debugln { "NativeTray: Initializing Windows tray with icon path: $windowsIconPath" }
+                        debugln { "[NativeTray] Initializing Windows tray with icon path: $windowsIconPath" }
                         WindowsTrayInitializer.initialize(instanceId, windowsIconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
 
                     MACOS -> {
-                        debugln { "NativeTray: Initializing macOS tray with icon path: $iconPath" }
+                        debugln { "[NativeTray] Initializing macOS tray with icon path: $iconPath" }
                         MacTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
                         trayInitialized = true
                     }
@@ -121,21 +121,21 @@ internal class NativeTray {
                     else -> {}
                 }
             } catch (th: Throwable) {
-                errorln { "NativeTray: Error initializing tray: $th" }
+                errorln { "[NativeTray] Error initializing tray: $th" }
             }
 
             val awtTrayRequired = os == UNKNOWN || !trayInitialized
             if (awtTrayRequired) {
                 if (AwtTrayInitializer.isSupported()) {
                     try {
-                        debugln { "NativeTray: Initializing AWT tray with icon path: $iconPath" }
+                        debugln { "[NativeTray] Initializing AWT tray with icon path: $iconPath" }
                         AwtTrayInitializer.initialize(iconPath, tooltip, primaryAction, menuContent)
                         awtTrayUsed.set(true)
                     } catch (th: Throwable) {
-                        errorln { "NativeTray: Error initializing AWT tray: $th" }
+                        errorln { "[NativeTray] Error initializing AWT tray: $th" }
                     }
                 } else {
-                    debugln { "NativeTray: AWT tray is not supported" }
+                    debugln { "[NativeTray] AWT tray is not supported" }
                 }
             }
         }
@@ -153,13 +153,13 @@ internal class NativeTray {
     ) {
         // Render the composable to PNG file for general use
         val pngIconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
-        debugln { "NativeTray: Generated PNG icon path: $pngIconPath" }
+        debugln { "[NativeTray] Generated PNG icon path: $pngIconPath" }
 
         // For Windows, we need an ICO file
         val windowsIconPath = if (getOperatingSystem() == WINDOWS) {
             // Create a temporary ICO file
             ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent).also {
-                debugln { "NativeTray: Generated Windows ICO path: $it" }
+                debugln { "[NativeTray] Generated Windows ICO path: $it" }
             }
         } else {
             pngIconPath
@@ -213,7 +213,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            debugln { "NativeTray: onDispose" }
+            debugln { "[NativeTray] onDispose" }
             tray.dispose()
         }
     }
@@ -261,7 +261,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            debugln { "NativeTray: onDispose" }
+            debugln { "[NativeTray] onDispose" }
             tray.dispose()
         }
     }
@@ -327,7 +327,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            debugln { "NativeTray: onDispose" }
+            debugln { "[NativeTray] onDispose" }
             tray.dispose()
         }
     }
@@ -385,7 +385,7 @@ fun ApplicationScope.Tray(
     // Dispose only when Tray is removed from composition
     DisposableEffect(Unit) {
         onDispose {
-            debugln { "NativeTray: onDispose" }
+            debugln { "[NativeTray] onDispose" }
             tray.dispose()
         }
     }
