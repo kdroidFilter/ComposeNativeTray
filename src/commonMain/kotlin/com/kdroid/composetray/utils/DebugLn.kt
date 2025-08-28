@@ -1,18 +1,34 @@
 package com.kdroid.composetray.utils
 
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel.Companion.DEBUG
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel.Companion.ERROR
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel.Companion.INFO
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel.Companion.VERBOSE
+import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel.Companion.WARN
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 var allowComposeNativeTrayLogging: Boolean = false
-var composeNativeTrayloggingLevel: ComposeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.VERBOSE
 
-class ComposeNativeTrayLoggingLevel(val priority: Int) {
+@Deprecated("migrate to composeNativeTrayLoggingLevel", ReplaceWith("composeNativeTrayLoggingLevel"))
+var composeNativeTrayloggingLevel by ::composeNativeTrayLoggingLevel
+
+var composeNativeTrayLoggingLevel: ComposeNativeTrayLoggingLevel = VERBOSE
+
+class ComposeNativeTrayLoggingLevel private constructor(
+    private val priority: Int,
+) : Comparable<ComposeNativeTrayLoggingLevel> {
+
+    override fun compareTo(other: ComposeNativeTrayLoggingLevel): Int {
+        return priority.compareTo(other.priority)
+    }
+
     companion object {
-        val VERBOSE = ComposeNativeTrayLoggingLevel(0)
-        val DEBUG = ComposeNativeTrayLoggingLevel(1)
-        val INFO = ComposeNativeTrayLoggingLevel(2)
-        val WARN = ComposeNativeTrayLoggingLevel(3)
-        val ERROR = ComposeNativeTrayLoggingLevel(4)
+        @JvmField val VERBOSE = ComposeNativeTrayLoggingLevel(0)
+        @JvmField val DEBUG = ComposeNativeTrayLoggingLevel(1)
+        @JvmField val INFO = ComposeNativeTrayLoggingLevel(2)
+        @JvmField val WARN = ComposeNativeTrayLoggingLevel(3)
+        @JvmField val ERROR = ComposeNativeTrayLoggingLevel(4)
     }
 }
 
@@ -30,31 +46,31 @@ private fun getCurrentTimestamp(): String {
 }
 
 internal fun debugln(message: () -> String) {
-    if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.DEBUG.priority) {
+    if (allowComposeNativeTrayLogging && composeNativeTrayLoggingLevel <= DEBUG) {
         println("[${getCurrentTimestamp()}] ${message()}")
     }
 }
 
 internal fun verboseln(message: () -> String) {
-    if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.VERBOSE.priority) {
+    if (allowComposeNativeTrayLogging && composeNativeTrayLoggingLevel <= VERBOSE) {
         println("[${getCurrentTimestamp()}] ${message()}", COLOR_LIGHT_GRAY)
     }
 }
 
 internal fun infoln(message: () -> String) {
-    if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.INFO.priority) {
+    if (allowComposeNativeTrayLogging && composeNativeTrayLoggingLevel <= INFO) {
         println("[${getCurrentTimestamp()}] ${message()}", COLOR_AQUA)
     }
 }
 
 internal fun warnln(message: () -> String) {
-    if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.WARN.priority) {
+    if (allowComposeNativeTrayLogging && composeNativeTrayLoggingLevel <= WARN) {
         println("[${getCurrentTimestamp()}] ${message()}", COLOR_ORANGE)
     }
 }
 
 internal fun errorln(message: () -> String) {
-    if (allowComposeNativeTrayLogging && composeNativeTrayloggingLevel.priority <= ComposeNativeTrayLoggingLevel.ERROR.priority) {
+    if (allowComposeNativeTrayLogging && composeNativeTrayLoggingLevel <= ERROR) {
         println("[${getCurrentTimestamp()}] ${message()}", COLOR_RED)
     }
 }
