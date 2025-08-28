@@ -115,7 +115,7 @@ internal class LinuxTrayManager(
 
         if (iconChanged) setIconFromFileSafe(iconPath)
         if (tooltipChanged) runCatching { go.Systray_SetTooltip(tooltip) }
-            .onFailure { e -> warnln { "LinuxGoTrayManager: Failed to set tooltip: ${e.message}" } }
+            .onFailure { e -> warnln { "[LinuxGoTrayManager] Failed to set tooltip: ${e.message}" } }
 
         if (newMenuItems != null) rebuildMenu()
     }
@@ -126,7 +126,7 @@ internal class LinuxTrayManager(
             lifecyclePermit.acquire()
             permitHeld.set(true)
         } catch (t: Throwable) {
-            warnln { "LinuxGoTrayManager: Failed to acquire lifecycle permit: ${t.message}" }
+            warnln { "[LinuxGoTrayManager] Failed to acquire lifecycle permit: ${t.message}" }
             return
         }
 
@@ -147,11 +147,11 @@ internal class LinuxTrayManager(
 
             // Register callbacks (keep strong references to avoid GC)
             cbReady = object : LinuxLibTray.VoidCallback { override fun invoke() {
-                infoln { "LinuxGoTrayManager: systray ready" }
+                infoln { "[LinuxGoTrayManager] systray ready" }
                 readyLatch.countDown()
             } }
             cbExit = object : LinuxLibTray.VoidCallback { override fun invoke() {
-                infoln { "LinuxGoTrayManager: systray exit" }
+                infoln { "[LinuxGoTrayManager] systray exit" }
                 try { exitLatch?.countDown() } catch (_: Throwable) {}
             } }
             cbOnClick = object : LinuxLibTray.VoidCallback { override fun invoke() {
@@ -179,7 +179,7 @@ internal class LinuxTrayManager(
             // Prepare external loop and start it in a daemon thread
             go.Systray_PrepareExternalLoop()
             loopThread = Thread({
-                try { go.Systray_NativeStart() } catch (t: Throwable) { errorln { "LinuxGoTrayManager: loop error: $t" } }
+                try { go.Systray_NativeStart() } catch (t: Throwable) { errorln { "[LinuxGoTrayManager] loop error: $t" } }
             }, "LinuxGoTray-Loop").apply {
                 isDaemon = true
                 start()
@@ -194,7 +194,7 @@ internal class LinuxTrayManager(
             rebuildMenu()
             started = true
         } catch (t: Throwable) {
-            errorln { "LinuxGoTrayManager: startTray failed: $t" }
+            errorln { "[LinuxGoTrayManager] startTray failed: $t" }
         } finally {
             if (!started) {
                 // cleanup partial start and release permit
@@ -236,7 +236,7 @@ internal class LinuxTrayManager(
             loopThread?.join(500)
             if (loopThread?.isAlive == true) {
                 // We can't interrupt native waits; just log and move on
-                warnln { "LinuxGoTrayManager: loop thread still alive after join timeout" }
+                warnln { "[LinuxGoTrayManager] loop thread still alive after join timeout" }
             }
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -262,13 +262,13 @@ internal class LinuxTrayManager(
                 val bytes = file.readBytes()
                 go.Systray_SetIcon(bytes, bytes.size)
             } else {
-                warnln { "LinuxGoTrayManager: Icon file not found: $path" }
+                warnln { "[LinuxGoTrayManager] Icon file not found: $path" }
             }
-        }.onFailure { e -> warnln { "LinuxGoTrayManager: Failed to set icon from $path: ${e.message}" } }
+        }.onFailure { e -> warnln { "[LinuxGoTrayManager] Failed to set icon from $path: ${e.message}" } }
     }
 
     private fun rebuildMenu() {
-        infoln { "LinuxGoTrayManager: Rebuilding menu" }
+        infoln { "[LinuxGoTrayManager] Rebuilding menu" }
         idByTitle.clear()
         actionById.clear()
         runCatching { go.Systray_ResetMenu() }
@@ -312,7 +312,7 @@ internal class LinuxTrayManager(
                 runCatching {
                     val bytes = File(iconPath).takeIf { it.isFile }?.readBytes()
                     if (bytes != null) go.Systray_SetMenuItemIcon(bytes, bytes.size, id)
-                }.onFailure { e -> warnln { "LinuxGoTrayManager: Failed to set menu item icon: ${e.message}" } }
+                }.onFailure { e -> warnln { "[LinuxGoTrayManager] Failed to set menu item icon: ${e.message}" } }
             }
 
             // Submenu
@@ -320,7 +320,7 @@ internal class LinuxTrayManager(
                 item.subMenuItems.forEach { sub -> addMenuItemRecursive(id, sub) }
             }
         } catch (t: Throwable) {
-            errorln { "LinuxGoTrayManager: Error adding menu item '${item.text}': $t" }
+            errorln { "[LinuxGoTrayManager] Error adding menu item '${item.text}': $t" }
         }
     }
 }

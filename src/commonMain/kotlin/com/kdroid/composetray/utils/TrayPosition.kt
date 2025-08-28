@@ -4,7 +4,6 @@ import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.kdroid.composetray.lib.mac.MacTrayLoader
-import com.kdroid.composetray.lib.mac.MacTrayManager
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import com.sun.jna.ptr.IntByReference
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
@@ -13,6 +12,7 @@ import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.Toolkit
 import java.io.File
+import java.io.FileInputStream
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
@@ -89,12 +89,7 @@ private fun trayPropertiesFile(): File {
     val appId = AppIdProvider.appId()
     val tmpBase = System.getProperty("java.io.tmpdir") ?: "."
     val tmpDir = File(File(tmpBase, "ComposeNativeTray"), appId)
-
-    val userHome = System.getProperty("user.home")
-    val macCacheDir = if (userHome != null) {
-        val base = File(File(File(userHome, "Library"), "Caches"), "ComposeNativeTray")
-        File(base, appId)
-    } else null
+    val macCacheDir = macCacheDir()?.resolve(appId)
 
     val candidates = listOfNotNull(tmpDir, macCacheDir)
 
@@ -121,17 +116,20 @@ private fun oldTmpPropertiesFile(): File {
 
 // macOS user cache directory location for properties (for read/write fallback)
 private fun macCachePropertiesFile(): File? {
-    val userHome = System.getProperty("user.home") ?: return null
     val appId = AppIdProvider.appId()
-    val base = File(File(File(userHome, "Library"), "Caches"), "ComposeNativeTray")
-    val dir = File(base, appId)
+    val dir = macCacheDir()?.resolve(appId) ?: return null
     return File(dir, PROPERTIES_FILE)
+}
+
+private fun macCacheDir(): File? {
+    val userHome = System.getProperty("user.home") ?: return null
+    return File(userHome).resolve("Library").resolve("Caches").resolve("ComposeNativeTray")
 }
 
 private fun loadPropertiesFrom(file: File): Properties? {
     if (!file.exists()) return null
     return runCatching {
-        Properties().apply { file.inputStream().use { load(it) } }
+        Properties().apply { file.inputStream().use(::load) }
     }.getOrNull()
 }
 
@@ -247,7 +245,7 @@ fun getTrayPosition(): TrayPosition {
                     }
                 }
             }
-            
+
             // If no position is found, use desktop environment-specific defaults
             return when (detectLinuxDesktopEnvironment()) {
                 LinuxDesktopEnvironment.GNOME -> TrayPosition.TOP_RIGHT
@@ -436,7 +434,7 @@ fun getNotificationAreaXYForWindows(): Pair<Int, Int> {
     }
 
     debugln {
-        "Notification area : ($x, $y) " +
+        "[TrayPosition] Notification area: ($x, $y) " +
                 if (precise) "[exact]" else "[fallback]"
     }
     return x to y
@@ -476,24 +474,26 @@ internal fun getStatusItemXYForMac(): Pair<Int, Int> {
  * to ensure future loads don't pick stale values during debugging.
  */
 fun debugDeleteTrayPropertiesFiles() {
-    val files = buildList {
-        add(trayPropertiesFile())
-        add(legacyPropertiesFile())
-        add(oldTmpPropertiesFile())
-        macCachePropertiesFile()?.let { add(it) }
-    }.distinctBy { it.absolutePath }
+    val files = setOfNotNull(
+        trayPropertiesFile(),
+        legacyPropertiesFile(),
+        oldTmpPropertiesFile(),
+        macCachePropertiesFile()
+    )
 
-    var deletedAny = false
-    for (f in files) {
-        if (f.exists()) {
-            val deleted = runCatching { f.delete() }.getOrDefault(false)
-            if (deleted) deletedAny = true
+    val deleted = files
+        .filter(File::exists)
+        .mapNotNull {
+            val deleted = runCatching { it.delete() }.getOrDefault(false)
+            it.absolutePath.takeIf { deleted }
         }
-    }
 
     debugln {
-        val targets = files.joinToString { it.absolutePath }
-        if (deletedAny) "[debug] Deleted tray properties file(s): $targets" else "[debug] No tray properties file found to delete: $targets"
+        if (deleted.isNotEmpty()) {
+            "[debug] Deleted tray properties file(s): ${deleted.joinToString()}"
+        } else {
+            "[debug] No tray properties file found to delete: ${files.joinToString { it.absolutePath }}"
+        }
     }
 }
 

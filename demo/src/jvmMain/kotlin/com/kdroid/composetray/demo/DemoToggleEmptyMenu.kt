@@ -13,7 +13,7 @@ import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
-import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
+import com.kdroid.composetray.utils.composeNativeTrayLoggingLevel
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import composenativetray.demo.generated.resources.icon2
@@ -30,7 +30,7 @@ import org.jetbrains.compose.resources.painterResource
 fun main() = application {
     // Enable logging to help diagnose behavior on Linux
     allowComposeNativeTrayLogging = false
-    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
+    composeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     var showMenuItem by remember { mutableStateOf(false) }
     val icon = painterResource(Res.drawable.icon)

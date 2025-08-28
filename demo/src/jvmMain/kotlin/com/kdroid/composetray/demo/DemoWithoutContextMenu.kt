@@ -17,14 +17,14 @@ import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
-import com.kdroid.composetray.utils.composeNativeTrayloggingLevel
+import com.kdroid.composetray.utils.composeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.getTrayPosition
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 
 fun main() = application {
     allowComposeNativeTrayLogging = true
-    composeNativeTrayloggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
+    composeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
 
     val logTag = "NativeTray"
     
