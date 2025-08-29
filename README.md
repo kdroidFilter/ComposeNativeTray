@@ -49,6 +49,7 @@
   - [🖱️ Primary Action](#️-primary-action)
   - [📋 Building the Menu](#-building-the-menu)
   - [Icons with painterResource](#icons-with-painterresource)
+  - [New: Icons with DrawableResource](#new-icons-with-drawableresource-in-menu-items)
 - [🔧 Advanced Features](#-advanced-features)
   - [🔄 Fully Reactive System Menu](#-fully-reactive-system-menu)
   - [🔒 Single Instance Management](#-single-instance-management)
@@ -123,10 +124,26 @@ application {
 ```
 
 > **💡 Recommendation**: It is highly recommended to check out the demo examples in the project's `demo` directory. These examples showcase various implementation patterns and features that will help you better understand how to use the library effectively.
+>
+> Notable demos:
+> - DemoWithDrawableResources.kt — shows using DrawableResource directly for Tray and menu icons
+> - PainterResourceWorkaroundDemo.kt — demonstrates the painterResource variable workaround
+> - DemoWithoutContextMenu.kt — minimalist tray with primary action only
 
 ## 📚 Usage Guide
 
 ### 🎨 Creating the System Tray Icon
+
+#### New: Using a DrawableResource directly
+```kotlin
+Tray(
+  icon = Res.drawable.myIcon,  // org.jetbrains.compose.resources.DrawableResource
+  tooltip = "My Application"
+) { /* menu */ }
+```
+
+> Requires compose.components.resources in your project. In this library it's already included; in your app add:
+> implementation(compose.components.resources)
 
 #### Option 1: Using an ImageVector
 ```kotlin
@@ -265,6 +282,29 @@ Tray(/* configuration */) {
 ```
 
 ### Icons with painterResource
+
+### New: Icons with DrawableResource in menu items
+You can now pass DrawableResource directly to menu builders:
+
+```kotlin
+Tray(icon = Res.drawable.app_icon, tooltip = "App") {
+  SubMenu(label = "With icons", icon = Res.drawable.gear) {
+    Item(label = "Action 1", icon = Res.drawable.star) { /* ... */ }
+    Item(label = "Action 2", icon = Res.drawable.star) { /* ... */ }
+  }
+
+  Divider()
+
+  CheckableItem(
+    label = "Enabled",
+    icon = Res.drawable.check,
+    checked = true,
+    onCheckedChange = { /* ... */ }
+  )
+}
+```
+
+See demo/DemoWithDrawableResources.kt for a complete example.
 When using `painterResource` with menu items, declare it in the composable context:
 
 ```kotlin
