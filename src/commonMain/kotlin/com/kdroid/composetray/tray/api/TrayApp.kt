@@ -218,6 +218,51 @@ fun ApplicationScope.TrayApp(
     )
 }
 
+@ExperimentalTrayAppApi
+@Composable
+fun ApplicationScope.TrayApp(
+    windowsIcon: DrawableResource,
+    macLinuxIcon: ImageVector,
+    tint: Color? = null,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    windowSize: DpSize = DpSize(300.dp, 200.dp),
+    visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    menu: (TrayMenuBuilder.() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val os = getOperatingSystem()
+    if (os == WINDOWS) {
+        val painter = painterResource(windowsIcon)
+        TrayApp(
+            icon = painter,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            windowSize = windowSize,
+            visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
+            menu = menu,
+            content = content,
+        )
+    } else {
+        TrayApp(
+            icon = macLinuxIcon,
+            tint = tint,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            windowSize = windowSize,
+            visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
+            menu = menu,
+            content = content,
+        )
+    }
+}
+
 /**
  * TrayApp overload: accepts a composable iconContent with fade in/out animation.
  */

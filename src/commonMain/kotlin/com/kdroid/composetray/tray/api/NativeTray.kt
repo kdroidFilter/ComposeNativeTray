@@ -462,3 +462,38 @@ fun ApplicationScope.Tray(
         menuContent = menuContent
     )
 }
+
+@Composable
+fun ApplicationScope.Tray(
+    windowsIcon: DrawableResource,
+    macLinuxIcon: ImageVector,
+    tint: Color? = null,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val os = getOperatingSystem()
+
+    if (os == WINDOWS) {
+        // Convert DrawableResource to Painter for Windows and delegate
+        val painter = painterResource(windowsIcon)
+        Tray(
+            icon = painter,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            primaryAction = primaryAction,
+            menuContent = menuContent
+        )
+    } else {
+        // Use ImageVector for macOS and Linux
+        Tray(
+            icon = macLinuxIcon,
+            tint = tint,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            primaryAction = primaryAction,
+            menuContent = menuContent
+        )
+    }
+}
