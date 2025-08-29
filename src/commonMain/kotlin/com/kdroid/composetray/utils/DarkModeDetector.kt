@@ -8,6 +8,7 @@ import com.kdroid.composetray.lib.mac.MacOSMenuBarThemeDetector
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem.*
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
+import io.github.kdroidfilter.platformtools.darkmodedetector.linux.rememberKdeDarkModeState
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.util.function.Consumer
@@ -19,7 +20,10 @@ fun isMenuBarInDarkMode(): Boolean {
         WINDOWS -> isSystemInDarkMode()
         LINUX -> when (detectLinuxDesktopEnvironment()) {
             LinuxDesktopEnvironment.GNOME -> true
-            LinuxDesktopEnvironment.KDE -> isSystemInDarkMode()
+            LinuxDesktopEnvironment.KDE -> {
+                val state = rememberKdeDarkModeState()
+                return state?.panelTheme ?: true
+            }
             LinuxDesktopEnvironment.XFCE -> true
             LinuxDesktopEnvironment.CINNAMON -> true
             LinuxDesktopEnvironment.MATE -> true

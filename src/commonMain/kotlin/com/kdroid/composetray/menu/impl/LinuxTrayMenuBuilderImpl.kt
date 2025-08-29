@@ -8,11 +8,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.lib.linux.LinuxTrayManager
+import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
-import com.kdroid.composetray.utils.isMenuBarInDarkMode
+import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import java.util.concurrent.locks.ReentrantLock
@@ -75,7 +75,7 @@ internal class LinuxTrayMenuBuilderImpl(
 
         // Create composable content for the icon
         val iconContent: @Composable () -> Unit = {
-            val isDark = isMenuBarInDarkMode()
+            val isDark = isSystemInDarkMode()
 
             Image(
                 imageVector = icon,
@@ -214,7 +214,7 @@ internal class LinuxTrayMenuBuilderImpl(
 
         // Create composable content for the icon
         val iconContent: @Composable () -> Unit = {
-            val isDark = isMenuBarInDarkMode()
+            val isDark = isSystemInDarkMode()
 
             Image(
                 imageVector = icon,
@@ -335,7 +335,7 @@ internal class LinuxTrayMenuBuilderImpl(
 
         // Create composable content for the icon
         val iconContent: @Composable () -> Unit = {
-            val isDark = isMenuBarInDarkMode()
+            val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
