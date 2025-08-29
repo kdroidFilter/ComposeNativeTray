@@ -39,6 +39,7 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.ui)
+            implementation(compose.components.resources)
             implementation(libs.jna)
             implementation(libs.jna.platform)
             implementation(libs.kotlinx.coroutines.core)

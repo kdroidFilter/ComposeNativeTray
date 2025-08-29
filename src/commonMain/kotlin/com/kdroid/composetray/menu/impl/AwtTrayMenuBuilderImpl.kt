@@ -6,6 +6,8 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.IconRenderProperties
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import java.awt.MenuItem
 import java.awt.PopupMenu
 import java.awt.SystemTray
@@ -55,6 +57,17 @@ internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private 
     ) {
         // Minimal implementation to make it compile
         // Actual icon integration will be handled by the issue creator
+        Item(label, isEnabled, onClick)
+    }
+
+    override fun Item(
+        label: String,
+        icon: DrawableResource,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        onClick: () -> Unit
+    ) {
+        // Minimal implementation to make it compile
         Item(label, isEnabled, onClick)
     }
 
@@ -118,6 +131,18 @@ internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private 
         CheckableItem(label, checked, onCheckedChange, isEnabled)
     }
 
+    override fun CheckableItem(
+        label: String,
+        icon: DrawableResource,
+        iconRenderProperties: IconRenderProperties,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
+        // Minimal implementation to make it compile
+        CheckableItem(label, checked, onCheckedChange, isEnabled)
+    }
+
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
         val subMenu = PopupMenu(label)
         subMenu.isEnabled = isEnabled
@@ -159,6 +184,17 @@ internal class AwtTrayMenuBuilderImpl(private val popupMenu: PopupMenu, private 
     ) {
         // Minimal implementation to make it compile
         // Actual icon integration will be handled by the issue creator
+        SubMenu(label, isEnabled, submenuContent)
+    }
+
+    override fun SubMenu(
+        label: String,
+        icon: DrawableResource,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        // Minimal implementation to make it compile
         SubMenu(label, isEnabled, submenuContent)
     }
 
