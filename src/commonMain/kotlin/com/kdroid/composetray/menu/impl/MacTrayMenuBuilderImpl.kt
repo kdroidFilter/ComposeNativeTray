@@ -13,7 +13,7 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
-import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
+// import removed: isSystemInDarkMode is not suitable for macOS menu bar theme
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import java.util.concurrent.locks.ReentrantLock
@@ -82,7 +82,7 @@ internal class MacTrayMenuBuilderImpl(
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
-            val isDark = isSystemInDarkMode()
+            val isDark = isMenuBarInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
@@ -210,7 +210,7 @@ internal class MacTrayMenuBuilderImpl(
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
-            val isDark = isSystemInDarkMode()
+            val isDark = isMenuBarInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
@@ -296,7 +296,7 @@ internal class MacTrayMenuBuilderImpl(
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
-            val isDark = isSystemInDarkMode()
+            val isDark = isMenuBarInDarkMode()
             Image(
                 imageVector = icon,
                 contentDescription = null,
