@@ -9,6 +9,7 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.IconRenderProperties
 import org.jetbrains.compose.resources.DrawableResource
 import java.security.MessageDigest
+import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
 
 /**
  * Utility class for calculating a hash of menu content to detect changes
@@ -23,6 +24,10 @@ object MenuContentHash {
     fun calculateMenuHash(menuContent: (TrayMenuBuilder.() -> Unit)?): String {
         if (menuContent == null) return "empty"
 
+        // Include system/menu bar dark mode in the hash seed so a theme switch triggers recomposition
+        val isDark = isMenuBarInDarkMode()
+        val isSystemDark = isSystemInDarkMode()
+
         // Create a capturing menu builder that records all operations
         val capturingBuilder = CapturingMenuBuilder()
 
@@ -30,8 +35,8 @@ object MenuContentHash {
         // This will automatically recompose when any @Composable state used inside changes
         menuContent.invoke(capturingBuilder)
 
-        // Generate hash from captured operations
-        return capturingBuilder.generateHash()
+        // Generate hash from captured operations + theme state to reflect dark mode changes
+        return capturingBuilder.generateHash(seed = isDark.hashCode() + isSystemDark.hashCode())
     }
 
     /**
@@ -52,7 +57,8 @@ object MenuContentHash {
             isEnabled: Boolean,
             onClick: () -> Unit
         ) {
-            operations.add("ItemWithComposableIcon:$label:$isEnabled")
+            val identity = System.identityHashCode(iconContent)
+            operations.add("ItemWithComposableIcon:$label:$isEnabled:$identity")
         }
         
         override fun Item(
@@ -103,7 +109,8 @@ object MenuContentHash {
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean
         ) {
-            operations.add("CheckableItemWithComposableIcon:$label:$checked:$isEnabled")
+            val identity = System.identityHashCode(iconContent)
+            operations.add("CheckableItemWithComposableIcon:$label:$checked:$isEnabled:$identity")
         }
         
         override fun CheckableItem(
@@ -160,7 +167,8 @@ object MenuContentHash {
             isEnabled: Boolean,
             submenuContent: (TrayMenuBuilder.() -> Unit)?
         ) {
-            operations.add("SubMenuWithComposableIcon:$label:$isEnabled")
+            val identity = System.identityHashCode(iconContent)
+            operations.add("SubMenuWithComposableIcon:$label:$isEnabled:$identity")
             if (submenuContent != null) {
                 operations.add("SubMenuStart")
                 submenuContent.invoke(this)
@@ -222,8 +230,8 @@ object MenuContentHash {
             // Not needed for capturing
         }
 
-        fun generateHash(): String {
-            val content = operations.joinToString("|")
+        fun generateHash(seed: Int = 0): String {
+            val content = operations.joinToString("|") + "|theme=" + seed
             val md = MessageDigest.getInstance("SHA-256")
             val digest = md.digest(content.toByteArray())
             return digest.fold("") { str, it -> str + "%02x".format(it) }.take(16) // Use only first 16 chars for performance
