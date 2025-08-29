@@ -13,6 +13,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
@@ -183,6 +185,37 @@ fun ApplicationScope.TrayApp(
             content = content,
         )
     }
+}
+
+/**
+ * TrayApp overload: accepts a DrawableResource directly.
+ */
+@ExperimentalTrayAppApi
+@Composable
+fun ApplicationScope.TrayApp(
+    icon: DrawableResource,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    windowSize: DpSize = DpSize(300.dp, 200.dp),
+    visibleOnStart: Boolean = false,
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> =  tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    menu: (TrayMenuBuilder.() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    // Convert DrawableResource to Painter and delegate to Painter overload
+    val painter = painterResource(icon)
+    TrayApp(
+        icon = painter,
+        iconRenderProperties = iconRenderProperties,
+        tooltip = tooltip,
+        windowSize = windowSize,
+        visibleOnStart = visibleOnStart,
+        fadeDurationMs = fadeDurationMs,
+        animationSpec = animationSpec,
+        menu = menu,
+        content = content,
+    )
 }
 
 /**
