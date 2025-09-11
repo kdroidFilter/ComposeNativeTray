@@ -6,6 +6,16 @@ import com.sun.jna.win32.StdCallLibrary
 
 @Structure.FieldOrder("icon_filepath", "tooltip", "cb", "menu")
 internal class WindowsNativeTray : Structure() {
+    companion object {
+        init {
+            // Ensure UTF-8 encoding for JNA string marshaling before any structure write
+            val key = "jna.encoding"
+            if (System.getProperty(key).isNullOrBlank()) {
+                System.setProperty(key, "UTF-8")
+            }
+        }
+    }
+
     @JvmField
     var icon_filepath: String? = null
 

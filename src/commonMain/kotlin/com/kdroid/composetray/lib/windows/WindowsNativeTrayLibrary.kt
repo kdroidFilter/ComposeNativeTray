@@ -9,6 +9,13 @@ import com.sun.jna.win32.StdCallLibrary
 // This object registers the native library and exposes external (native) methods.
 internal object WindowsNativeTrayLibrary : StdCallLibrary {
     init {
+        // Ensure JNA marshals Java/Kotlin strings as UTF-8. This must be set
+        // before the first interaction with JNA/native code, otherwise JNA will
+        // default to the system ANSI code page on Windows and corrupt Unicode.
+        val key = "jna.encoding"
+        if (System.getProperty(key).isNullOrBlank()) {
+            System.setProperty(key, "UTF-8")
+        }
         // Register the native library "tray" for direct calls
         Native.register("tray")
     }
