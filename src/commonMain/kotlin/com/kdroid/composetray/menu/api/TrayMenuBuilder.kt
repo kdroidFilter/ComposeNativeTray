@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.utils.IconRenderProperties
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * Interface for building tray menus in a platform-independent manner.
@@ -70,6 +72,18 @@ interface TrayMenuBuilder {
    fun Item(
       label: String,
       icon: Painter,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      onClick: () -> Unit = {}
+   )
+
+   /**
+    * Adds an item to the tray menu with a DrawableResource icon.
+    * This allows calling code like: Item(label, icon = Res.drawable.icon, ...)
+    */
+   fun Item(
+      label: String,
+      icon: DrawableResource,
       iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
       isEnabled: Boolean = true,
       onClick: () -> Unit = {}
@@ -151,6 +165,19 @@ interface TrayMenuBuilder {
    )
 
    /**
+    * Adds a checkable item to the tray menu with a DrawableResource icon.
+    * This allows calling code like: CheckableItem(label, icon = Res.drawable.icon, checked = ..., ...)
+    */
+   fun CheckableItem(
+      label: String,
+      icon: DrawableResource,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      checked: Boolean,
+      onCheckedChange: (Boolean) -> Unit,
+      isEnabled: Boolean = true
+   )
+
+   /**
     * Adds a checkable item to the tray menu with the legacy API.
     * @deprecated Use the new API with separate checked and onCheckedChange parameters for better Compose idiomaticity
     */
@@ -225,6 +252,18 @@ interface TrayMenuBuilder {
    fun SubMenu(
       label: String,
       icon: Painter,
+      iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
+      isEnabled: Boolean = true,
+      submenuContent: (TrayMenuBuilder.() -> Unit)?
+   )
+
+   /**
+    * Adds a submenu to the tray menu with a DrawableResource icon.
+    * This allows calling code like: SubMenu(label, icon = Res.drawable.icon) { ... }
+    */
+   fun SubMenu(
+      label: String,
+      icon: DrawableResource,
       iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
       isEnabled: Boolean = true,
       submenuContent: (TrayMenuBuilder.() -> Unit)?

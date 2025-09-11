@@ -14,6 +14,8 @@ import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -113,6 +115,24 @@ internal class MacTrayMenuBuilderImpl(
         }
 
         // Delegate to the composable version
+        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+    }
+
+    // Item with DrawableResource icon
+    override fun Item(
+        label: String,
+        icon: DrawableResource,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        onClick: () -> Unit
+    ) {
+        val iconContent: @Composable () -> Unit = {
+            Image(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
     }
 
@@ -227,6 +247,25 @@ internal class MacTrayMenuBuilderImpl(
         CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
     }
 
+    // CheckableItem with DrawableResource icon
+    override fun CheckableItem(
+        label: String,
+        icon: DrawableResource,
+        iconRenderProperties: IconRenderProperties,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        isEnabled: Boolean
+    ) {
+        val iconContent: @Composable () -> Unit = {
+            Image(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+    }
+
     // SubMenu without icon (existing method)
     override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
         createSubMenu(label, null, isEnabled, submenuContent)
@@ -290,6 +329,24 @@ internal class MacTrayMenuBuilderImpl(
         }
 
         // Delegate to the composable version
+        SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
+    }
+
+    // SubMenu with DrawableResource icon
+    override fun SubMenu(
+        label: String,
+        icon: DrawableResource,
+        iconRenderProperties: IconRenderProperties,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?
+    ) {
+        val iconContent: @Composable () -> Unit = {
+            Image(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 

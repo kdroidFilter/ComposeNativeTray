@@ -10,6 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.window.ApplicationScope
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.AwtTrayInitializer
@@ -421,6 +423,63 @@ fun ApplicationScope.Tray(
         // Use Painter for Windows
         Tray(
             icon = windowsIcon,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            primaryAction = primaryAction,
+            menuContent = menuContent
+        )
+    } else {
+        // Use ImageVector for macOS and Linux
+        Tray(
+            icon = macLinuxIcon,
+            tint = tint,
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            primaryAction = primaryAction,
+            menuContent = menuContent
+        )
+    }
+}
+/**
+ * Configures and displays a system tray icon using a DrawableResource directly.
+ * This allows calling code like: Tray(icon = Res.drawable.icon, ...)
+ */
+@Composable
+fun ApplicationScope.Tray(
+    icon: DrawableResource,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    // Convert DrawableResource to Painter and delegate to the Painter overload
+    val painter = painterResource(icon)
+    Tray(
+        icon = painter,
+        iconRenderProperties = iconRenderProperties,
+        tooltip = tooltip,
+        primaryAction = primaryAction,
+        menuContent = menuContent
+    )
+}
+
+@Composable
+fun ApplicationScope.Tray(
+    windowsIcon: DrawableResource,
+    macLinuxIcon: ImageVector,
+    tint: Color? = null,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    primaryAction: (() -> Unit)? = null,
+    menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+) {
+    val os = getOperatingSystem()
+
+    if (os == WINDOWS) {
+        // Convert DrawableResource to Painter for Windows and delegate
+        val painter = painterResource(windowsIcon)
+        Tray(
+            icon = painter,
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,

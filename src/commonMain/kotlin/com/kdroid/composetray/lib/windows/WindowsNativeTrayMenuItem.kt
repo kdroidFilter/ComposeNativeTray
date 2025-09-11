@@ -5,6 +5,16 @@ import com.sun.jna.Structure
 
 @Structure.FieldOrder("text", "icon_path", "disabled", "checked", "cb", "submenu")
 internal open class WindowsNativeTrayMenuItem : Structure() {
+    companion object {
+        init {
+            // Ensure UTF-8 encoding for JNA string marshaling as early as possible
+            val key = "jna.encoding"
+            if (System.getProperty(key).isNullOrBlank()) {
+                System.setProperty(key, "UTF-8")
+            }
+        }
+    }
+
     @JvmField
     var text: String? = null
 

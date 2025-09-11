@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.IconRenderProperties
+import org.jetbrains.compose.resources.DrawableResource
 import java.security.MessageDigest
 
 /**
@@ -75,6 +76,16 @@ object MenuContentHash {
             operations.add("ItemWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
         }
 
+        override fun Item(
+            label: String,
+            icon: DrawableResource,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            onClick: () -> Unit
+        ) {
+            operations.add("ItemWithDrawableIcon:$label:$isEnabled:${icon.hashCode()}")
+        }
+
         override fun CheckableItem(
             label: String,
             checked: Boolean,
@@ -116,6 +127,17 @@ object MenuContentHash {
             isEnabled: Boolean
         ) {
             operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
+        }
+
+        override fun CheckableItem(
+            label: String,
+            icon: DrawableResource,
+            iconRenderProperties: IconRenderProperties,
+            checked: Boolean,
+            onCheckedChange: (Boolean) -> Unit,
+            isEnabled: Boolean
+        ) {
+            operations.add("CheckableItemWithDrawableIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
         }
 
         override fun SubMenu(
@@ -170,6 +192,21 @@ object MenuContentHash {
             submenuContent: (TrayMenuBuilder.() -> Unit)?
         ) {
             operations.add("SubMenuWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
+            if (submenuContent != null) {
+                operations.add("SubMenuStart")
+                submenuContent.invoke(this)
+                operations.add("SubMenuEnd")
+            }
+        }
+
+        override fun SubMenu(
+            label: String,
+            icon: DrawableResource,
+            iconRenderProperties: IconRenderProperties,
+            isEnabled: Boolean,
+            submenuContent: (TrayMenuBuilder.() -> Unit)?
+        ) {
+            operations.add("SubMenuWithDrawableIcon:$label:$isEnabled:${icon.hashCode()}")
             if (submenuContent != null) {
                 operations.add("SubMenuStart")
                 submenuContent.invoke(this)

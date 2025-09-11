@@ -160,27 +160,20 @@ internal class WindowsTrayManager(
         var consecutiveErrors = 0
         var initialPosCaptured = false
         var initialPosAttempts = 0
+        var positionErrorCount = 0
+        val maxPositionErrors = 3  // Stop trying after 3 errors to avoid spamming logs
 
         while (running.get()) {
             try {
                 // Try to capture initial precise tray icon position (per instance)
-                if (!initialPosCaptured && initialPosAttempts < 60) {
+                if (!initialPosCaptured && initialPosAttempts < 60 && positionErrorCount < maxPositionErrors) {
                     initialPosAttempts++
-                    try {
-                        val xRef = IntByReference()
-                        val yRef = IntByReference()
-                        val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
-                        if (precise) {
-                            val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
-                            val corner = com.kdroid.composetray.utils.convertPositionToCorner(xRef.value, yRef.value, screen.width, screen.height)
-                            TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
-                            initialPosCaptured = true
-                            log("Captured initial tray icon position: ${xRef.value}, ${yRef.value}")
-                        }
-                    } catch (e: Exception) {
-                        // ignore and retry later
+                    if (safeGetTrayPosition(instanceId)) {
+                        initialPosCaptured = true
+                        log("Captured initial tray icon position")
                     }
                 }
+
                 // Check for pending updates
                 processUpdateQueue()
 
@@ -237,6 +230,36 @@ internal class WindowsTrayManager(
         log("Message loop ended")
     }
 
+    /**
+     * Safely attempts to get the tray position with error handling
+     * @return true if position was successfully obtained, false otherwise
+     */
+    private fun safeGetTrayPosition(instanceId: String): Boolean {
+        return try {
+            val xRef = IntByReference()
+            val yRef = IntByReference()
+            val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
+            if (precise) {
+                val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
+                val corner = com.kdroid.composetray.utils.convertPositionToCorner(
+                    xRef.value, yRef.value, screen.width, screen.height
+                )
+                TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
+                true
+            } else {
+                false
+            }
+        } catch (e: Error) {
+            // Handle invalid memory access error
+            log("Failed to get tray icon position (memory access error): ${e.message}")
+            false
+        } catch (e: Exception) {
+            // Handle other exceptions
+            log("Failed to get tray icon position: ${e.message}")
+            false
+        }
+    }
+
     private fun processUpdateQueue() {
         val update = synchronized(updateQueueLock) {
             if (updateQueue.isNotEmpty()) {
@@ -276,8 +299,16 @@ internal class WindowsTrayManager(
 
         // Update the native tray
         log("Calling tray_update()")
-        WindowsNativeTrayLibrary.tray_update(newTray)
-        log("tray_update() completed")
+        try {
+            WindowsNativeTrayLibrary.tray_update(newTray)
+            log("tray_update() completed")
+        } catch (e: Error) {
+            log("Failed to update tray (memory access error): ${e.message}")
+            e.printStackTrace()
+        } catch (e: Exception) {
+            log("Failed to update tray: ${e.message}")
+            e.printStackTrace()
+        }
 
         // Update the reference
         tray.set(newTray)
@@ -291,14 +322,7 @@ internal class WindowsTrayManager(
                     log("Left click callback invoked")
                     try {
                         // Capture precise tray position on the tray thread (per-instance)
-                        val xRef = IntByReference()
-                        val yRef = IntByReference()
-                        val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
-                        if (precise) {
-                            val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
-                            val corner = com.kdroid.composetray.utils.convertPositionToCorner(xRef.value, yRef.value, screen.width, screen.height)
-                            TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
-                        }
+                        safeGetTrayPosition(instanceId)
 
                         // Execute callback in IO scope (like macOS)
                         mainScope?.launch {
@@ -360,14 +384,7 @@ internal class WindowsTrayManager(
                     log("Menu item clicked: ${menuItem.text}")
                     try {
                         // Capture precise tray position on the tray thread (per-instance)
-                        val xRef = IntByReference()
-                        val yRef = IntByReference()
-                        val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
-                        if (precise) {
-                            val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
-                            val corner = com.kdroid.composetray.utils.convertPositionToCorner(xRef.value, yRef.value, screen.width, screen.height)
-                            TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
-                        }
+                        safeGetTrayPosition(instanceId)
 
                         if (running.get()) {
                             // Execute callback in IO scope (like macOS)
@@ -418,6 +435,9 @@ internal class WindowsTrayManager(
             try {
                 log("Calling tray_exit()")
                 WindowsNativeTrayLibrary.tray_exit()
+            } catch (e: Error) {
+                log("Error in tray_exit() (memory access): ${e.message}")
+                e.printStackTrace()
             } catch (e: Exception) {
                 log("Error in tray_exit(): ${e.message}")
                 e.printStackTrace()
