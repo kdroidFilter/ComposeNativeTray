@@ -2,8 +2,14 @@ package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.use
 import kotlinx.coroutines.Dispatchers
-import org.jetbrains.skia.*
+import org.jetbrains.skia.Bitmap
+import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.FilterMipmap
+import org.jetbrains.skia.FilterMode
+import org.jetbrains.skia.Image
+import org.jetbrains.skia.MipmapMode
 import java.io.File
 import java.util.zip.CRC32
 
@@ -12,156 +18,35 @@ import java.util.zip.CRC32
  */
 object ComposableIconUtils {
 
-    private var currentRenderApi: RenderApi = RenderApi.AUTO
-
-    enum class RenderApi {
-        AUTO,
-        DIRECTX12,
-        OPENGL,
-        SOFTWARE
-    }
-
-    init {
-        // Start with automatic detection, will fallback if needed
-        configureRenderingApi(RenderApi.AUTO)
-    }
-
-    /**
-     * Configure Skiko rendering API with fallback mechanism
-     */
-    private fun configureRenderingApi(api: RenderApi) {
-        try {
-            when (api) {
-                RenderApi.AUTO -> {
-                    // Let Skiko choose automatically (usually tries DirectX12 first on Windows)
-                    System.clearProperty("skiko.renderApi")
-                    debugln { "[ComposableIconUtils] Using automatic rendering API selection" }
-                }
-                RenderApi.DIRECTX12 -> {
-                    System.setProperty("skiko.renderApi", "DIRECT3D")
-                    debugln { "[ComposableIconUtils] Configured DirectX12 rendering" }
-                }
-                RenderApi.OPENGL -> {
-                    System.setProperty("skiko.renderApi", "OPENGL")
-                    System.setProperty("skiko.rendering.api", "OPENGL")
-                    debugln { "[ComposableIconUtils] Configured OpenGL rendering" }
-                }
-                RenderApi.SOFTWARE -> {
-                    System.setProperty("skiko.renderApi", "SOFTWARE")
-                    System.setProperty("skiko.softwareRendering", "true")
-                    System.setProperty("skiko.rendering.api", "SOFTWARE")
-                    System.setProperty("skiko.rendering.useGpu", "false")
-                    System.setProperty("skiko.directx.disabled", "true")
-                    debugln { "[ComposableIconUtils] Configured software rendering" }
-                }
-            }
-            currentRenderApi = api
-        } catch (e: Exception) {
-            errorln { "[ComposableIconUtils] Failed to configure rendering API: ${e.message}" }
-        }
-    }
-
-    /**
-     * Try the next rendering API in the fallback chain
-     */
-    private fun tryNextRenderApi(): Boolean {
-        return when (currentRenderApi) {
-            RenderApi.AUTO, RenderApi.DIRECTX12 -> {
-                debugln { "[ComposableIconUtils] Falling back from $currentRenderApi to OpenGL" }
-                configureRenderingApi(RenderApi.OPENGL)
-                true
-            }
-            RenderApi.OPENGL -> {
-                debugln { "[ComposableIconUtils] Falling back from OpenGL to Software rendering" }
-                configureRenderingApi(RenderApi.SOFTWARE)
-                true
-            }
-            RenderApi.SOFTWARE -> {
-                errorln { "[ComposableIconUtils] Already using software rendering, no more fallbacks available" }
-                false
-            }
-        }
-    }
-
     /**
      * Renders a Composable to a PNG file and returns the path to the file.
      *
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return Path to the generated PNG file
-     * @throws Exception if rendering fails after all fallback attempts
+     * @throws Exception if rendering fails completely
      */
     fun renderComposableToPngFile(
         iconRenderProperties: IconRenderProperties,
         content: @Composable () -> Unit
     ): String {
         val tempFile = createTempFile(suffix = ".png")
-        val pngData = renderComposableToPngBytesWithFallback(iconRenderProperties, content)
+        val pngData = renderComposableToPngBytes(iconRenderProperties, content)
         tempFile.writeBytes(pngData)
         return tempFile.absolutePath
     }
 
     /**
-     * Renders a Composable to PNG bytes with automatic fallback between rendering APIs
-     */
-    private fun renderComposableToPngBytesWithFallback(
-        iconRenderProperties: IconRenderProperties,
-        content: @Composable () -> Unit
-    ): ByteArray {
-        var attempts = 0
-        val maxAttempts = 3 // Try DirectX/Auto, then OpenGL, then Software
-        var lastException: Exception? = null
-
-        while (attempts < maxAttempts) {
-            try {
-                debugln { "[ComposableIconUtils] Render attempt ${attempts + 1} with $currentRenderApi" }
-                return renderComposableToPngBytes(iconRenderProperties, content)
-            } catch (e: Exception) {
-                lastException = e
-                val errorMessage = e.message ?: ""
-                val errorClassName = e.javaClass.simpleName
-
-                errorln { "[ComposableIconUtils] $errorClassName with ${currentRenderApi}: $errorMessage" }
-
-                // Check if the error is related to DirectX, OpenGL, or rendering in general
-                val isDirectXError = errorMessage.contains("DirectX12", ignoreCase = true) ||
-                        errorMessage.contains("D3D12", ignoreCase = true) ||
-                        errorMessage.contains("Direct3D", ignoreCase = true) ||
-                        errorMessage.contains("choose DirectX12 adapter", ignoreCase = true) ||
-                        errorClassName.contains("RenderException", ignoreCase = true)
-
-                val isOpenGLError = errorMessage.contains("OpenGL", ignoreCase = true) ||
-                        errorMessage.contains("GL", ignoreCase = true)
-
-                val isRenderingError = errorClassName.contains("Render", ignoreCase = true) ||
-                        errorMessage.contains("render", ignoreCase = true)
-
-                // If it's a rendering-related error, try the next API
-                if (isDirectXError || isOpenGLError || isRenderingError) {
-                    if (tryNextRenderApi()) {
-                        attempts++
-                        continue // Try again with the next API
-                    }
-                }
-
-                // If we can't identify the error or no more fallbacks, throw the exception
-                break
-            }
-        }
-
-        // If all attempts failed, throw the last exception
-        throw lastException ?: Exception("Failed to render composable after $attempts attempts")
-    }
-
-    /**
      * Renders a Composable to a PNG image and returns the result as a byte array.
+     * This function creates an [ImageComposeScene] based on the provided [IconRenderProperties],
+     * renders the Composable content, and encodes the output into PNG format.
+     * If scaling is required based on the [IconRenderProperties], the rendered content is scaled before encoding.
      *
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return A byte array containing the rendered PNG image data.
      * @throws Exception if rendering fails
      */
-    @Throws(Exception::class)
     fun renderComposableToPngBytes(
         iconRenderProperties: IconRenderProperties,
         content: @Composable () -> Unit
@@ -172,18 +57,32 @@ object ComposableIconUtils {
         var scaledImage: Image? = null
 
         try {
-            // Create the scene - this is where DirectX/OpenGL errors typically occur
-            scene = ImageComposeScene(
-                width = iconRenderProperties.sceneWidth,
-                height = iconRenderProperties.sceneHeight,
-                density = iconRenderProperties.sceneDensity,
-                coroutineContext = Dispatchers.Unconfined
-            ) {
-                content()
-            }
+            // Try to create and render the scene
+            try {
+                scene = ImageComposeScene(
+                    width = iconRenderProperties.sceneWidth,
+                    height = iconRenderProperties.sceneHeight,
+                    density = iconRenderProperties.sceneDensity,
+                    coroutineContext = Dispatchers.Unconfined
+                ) {
+                    content()
+                }
 
-            // Render the scene - this may also trigger rendering API errors
-            renderedIcon = scene.render()
+                renderedIcon = scene.render()
+            } catch (e: Exception) {
+                // Log the error but don't modify any system properties
+                val errorMessage = e.message ?: "Unknown error"
+                errorln { "[ComposableIconUtils] Failed to render scene: $errorMessage" }
+
+                // Check if it's a DirectX error on Windows
+                if (errorMessage.contains("DirectX12", ignoreCase = true) ||
+                    errorMessage.contains("Failed to choose DirectX12 adapter", ignoreCase = true)) {
+                    errorln { "[ComposableIconUtils] DirectX12 not available on this system. Scene rendering failed." }
+                }
+
+                // Re-throw the exception - let the caller handle it
+                throw e
+            }
 
             val iconData = if (iconRenderProperties.requiresScaling) {
                 scaledBitmap = Bitmap().apply {
@@ -205,9 +104,6 @@ object ComposableIconUtils {
             }
 
             return iconData.bytes
-        } catch (e: Exception) {
-            // Re-throw to be handled by the fallback wrapper
-            throw e
         } finally {
             // Ensure proper cleanup
             try {
@@ -227,7 +123,7 @@ object ComposableIconUtils {
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return Path to the generated ICO file
-     * @throws Exception if rendering fails after all fallback attempts
+     * @throws Exception if rendering fails
      */
     fun renderComposableToIcoFile(
         iconRenderProperties: IconRenderProperties,
@@ -247,14 +143,14 @@ object ComposableIconUtils {
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return Byte array containing the ICO data
-     * @throws Exception if rendering fails after all fallback attempts
+     * @throws Exception if rendering fails
      */
     fun renderComposableToIcoBytes(
         iconRenderProperties: IconRenderProperties,
         content: @Composable () -> Unit
     ): ByteArray {
-        // First render to PNG format (with fallback support)
-        val pngBytes = renderComposableToPngBytesWithFallback(iconRenderProperties, content)
+        // First render to PNG format (which is supported)
+        val pngBytes = renderComposableToPngBytes(iconRenderProperties, content)
 
         // Create a simple ICO format wrapper around the PNG data
         // ICO header (6 bytes) + ICO directory entry (16 bytes) + PNG data
@@ -301,20 +197,6 @@ object ComposableIconUtils {
     }
 
     /**
-     * Resets the rendering API to try again from the beginning of the fallback chain.
-     * Useful when creating new instances or after configuration changes.
-     */
-    fun resetRenderingApi() {
-        debugln { "[ComposableIconUtils] Resetting rendering API to AUTO" }
-        configureRenderingApi(RenderApi.AUTO)
-    }
-
-    /**
-     * Gets the current rendering API being used
-     */
-    fun getCurrentRenderApi(): String = currentRenderApi.name
-
-    /**
      * Creates a temporary file that will be deleted when the JVM exits.
      */
     private fun createTempFile(prefix: String = "tray_icon_", suffix: String): File {
@@ -337,8 +219,8 @@ object ComposableIconUtils {
         content: @Composable () -> Unit
     ): Long {
         return try {
-            // Render the composable to PNG bytes (with fallback support)
-            val pngBytes = renderComposableToPngBytesWithFallback(iconRenderProperties, content)
+            // Render the composable to PNG bytes
+            val pngBytes = renderComposableToPngBytes(iconRenderProperties, content)
 
             // Calculate CRC32 hash of the PNG bytes
             val crc = CRC32()
