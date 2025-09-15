@@ -2,14 +2,8 @@ package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ImageComposeScene
-import androidx.compose.ui.use
 import kotlinx.coroutines.Dispatchers
-import org.jetbrains.skia.Bitmap
-import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.FilterMipmap
-import org.jetbrains.skia.FilterMode
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.MipmapMode
+import org.jetbrains.skia.*
 import java.io.File
 import java.util.zip.CRC32
 
