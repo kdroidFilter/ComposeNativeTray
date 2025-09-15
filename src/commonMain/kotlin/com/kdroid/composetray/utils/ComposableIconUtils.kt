@@ -2,14 +2,8 @@ package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ImageComposeScene
-import androidx.compose.ui.use
 import kotlinx.coroutines.Dispatchers
-import org.jetbrains.skia.Bitmap
-import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.FilterMipmap
-import org.jetbrains.skia.FilterMode
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.MipmapMode
+import org.jetbrains.skia.*
 import java.io.File
 import java.util.zip.CRC32
 
@@ -24,6 +18,7 @@ object ComposableIconUtils {
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return Path to the generated PNG file
+     * @throws Exception if rendering fails completely
      */
     fun renderComposableToPngFile(
         iconRenderProperties: IconRenderProperties,
@@ -37,7 +32,6 @@ object ComposableIconUtils {
 
     /**
      * Renders a Composable to a PNG image and returns the result as a byte array.
-     *
      * This function creates an [ImageComposeScene] based on the provided [IconRenderProperties],
      * renders the Composable content, and encodes the output into PNG format.
      * If scaling is required based on the [IconRenderProperties], the rendered content is scaled before encoding.
@@ -45,41 +39,76 @@ object ComposableIconUtils {
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return A byte array containing the rendered PNG image data.
+     * @throws Exception if rendering fails
      */
     fun renderComposableToPngBytes(
         iconRenderProperties: IconRenderProperties,
         content: @Composable () -> Unit
     ): ByteArray {
-        val scene = ImageComposeScene(
-            width = iconRenderProperties.sceneWidth,
-            height = iconRenderProperties.sceneHeight,
-            density = iconRenderProperties.sceneDensity,
-            coroutineContext = Dispatchers.Unconfined
-        ) {
-            content()
-        }
+        var scene: ImageComposeScene? = null
+        var renderedIcon: Image? = null
+        var scaledBitmap: Bitmap? = null
+        var scaledImage: Image? = null
 
-        val renderedIcon = scene.use { it.render() }
-
-        val iconData = if (iconRenderProperties.requiresScaling) {
-            val scaledIcon = Bitmap().apply {
-                allocN32Pixels(iconRenderProperties.targetWidth, iconRenderProperties.targetHeight)
-            }
-            renderedIcon.use {
-                it.scalePixels(scaledIcon.peekPixels()!!, FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR), true)
-            }
-            scaledIcon.use { bitmap ->
-                Image.makeFromBitmap(bitmap).use { image ->
-                    image.encodeToData(EncodedImageFormat.PNG)!!
+        try {
+            // Try to create and render the scene
+            try {
+                scene = ImageComposeScene(
+                    width = iconRenderProperties.sceneWidth,
+                    height = iconRenderProperties.sceneHeight,
+                    density = iconRenderProperties.sceneDensity,
+                    coroutineContext = Dispatchers.Unconfined
+                ) {
+                    content()
                 }
+
+                renderedIcon = scene.render()
+            } catch (e: Exception) {
+                // Log the error but don't modify any system properties
+                val errorMessage = e.message ?: "Unknown error"
+                errorln { "[ComposableIconUtils] Failed to render scene: $errorMessage" }
+
+                // Check if it's a DirectX error on Windows
+                if (errorMessage.contains("DirectX12", ignoreCase = true) ||
+                    errorMessage.contains("Failed to choose DirectX12 adapter", ignoreCase = true)) {
+                    errorln { "[ComposableIconUtils] DirectX12 not available on this system. Scene rendering failed." }
+                }
+
+                // Re-throw the exception - let the caller handle it
+                throw e
             }
-        } else {
-            renderedIcon.use { image ->
-                image.encodeToData(EncodedImageFormat.PNG)!!
+
+            val iconData = if (iconRenderProperties.requiresScaling) {
+                scaledBitmap = Bitmap().apply {
+                    allocN32Pixels(iconRenderProperties.targetWidth, iconRenderProperties.targetHeight)
+                }
+
+                renderedIcon.scalePixels(
+                    scaledBitmap.peekPixels()!!,
+                    FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+                    true
+                )
+
+                scaledImage = Image.makeFromBitmap(scaledBitmap)
+                scaledImage.encodeToData(EncodedImageFormat.PNG)
+                    ?: throw Exception("Failed to encode scaled image to PNG")
+            } else {
+                renderedIcon.encodeToData(EncodedImageFormat.PNG)
+                    ?: throw Exception("Failed to encode image to PNG")
+            }
+
+            return iconData.bytes
+        } finally {
+            // Ensure proper cleanup
+            try {
+                scaledImage?.close()
+                scaledBitmap?.close()
+                renderedIcon?.close()
+                scene?.close()
+            } catch (e: Exception) {
+                debugln { "[ComposableIconUtils] Error during cleanup: ${e.message}" }
             }
         }
-
-        return iconData.bytes
     }
 
     /**
@@ -87,7 +116,8 @@ object ComposableIconUtils {
      *
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
-     * @return Path to the generated PNG file
+     * @return Path to the generated ICO file
+     * @throws Exception if rendering fails
      */
     fun renderComposableToIcoFile(
         iconRenderProperties: IconRenderProperties,
@@ -107,6 +137,7 @@ object ComposableIconUtils {
      * @param iconRenderProperties Properties for rendering the icon
      * @param content The Composable content to render
      * @return Byte array containing the ICO data
+     * @throws Exception if rendering fails
      */
     fun renderComposableToIcoBytes(
         iconRenderProperties: IconRenderProperties,
@@ -181,12 +212,18 @@ object ComposableIconUtils {
         iconRenderProperties: IconRenderProperties,
         content: @Composable () -> Unit
     ): Long {
-        // Render the composable to PNG bytes
-        val pngBytes = renderComposableToPngBytes(iconRenderProperties, content)
+        return try {
+            // Render the composable to PNG bytes
+            val pngBytes = renderComposableToPngBytes(iconRenderProperties, content)
 
-        // Calculate CRC32 hash of the PNG bytes
-        val crc = CRC32()
-        crc.update(pngBytes)
-        return crc.value
+            // Calculate CRC32 hash of the PNG bytes
+            val crc = CRC32()
+            crc.update(pngBytes)
+            crc.value
+        } catch (e: Exception) {
+            errorln { "[ComposableIconUtils] Failed to calculate content hash: ${e.message}" }
+            // Return a time-based hash as fallback
+            System.currentTimeMillis()
+        }
     }
 }
