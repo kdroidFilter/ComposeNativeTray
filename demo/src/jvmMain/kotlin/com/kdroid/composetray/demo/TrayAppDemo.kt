@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,9 +17,9 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.ExperimentalTrayAppApi
-import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.tray.api.TrayApp
 import com.kdroid.composetray.utils.WindowRaise
+import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
 import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
@@ -30,6 +29,7 @@ import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalTrayAppApi::class)
 fun main() {
+    allowComposeNativeTrayLogging = true
     setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
