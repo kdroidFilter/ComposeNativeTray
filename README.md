@@ -27,8 +27,8 @@
 - Improves the appearance of the tray on Linux, which previously resembled Windows 95.
 - Adds support for checkable items, dividers, and submenus, including nested submenus.
 - Supports primary action for Windows, macOS, and Linux.
-  - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
-  - On Linux, on GNOME the primary action is triggered by a double left-click on the tray icon, while on the majority of other environments, primarily KDE Plasma, it is triggered by a single left-click, similar to Windows and macOS.
+    - On Windows and macOS, the primary action is triggered by a left-click on the tray icon.
+    - On Linux, on GNOME the primary action is triggered by a double left-click on the tray icon, while on the majority of other environments, primarily KDE Plasma, it is triggered by a single left-click, similar to Windows and macOS.
 - **Single Instance Management**: Ensures that only one instance of the application can run at a time and allows restoring focus to the running instance when another instance is attempted.
 - **Tray Position Detection**: Allows determining the position of the system tray, which helps in positioning related windows appropriately.
 - **Compose Recomposition Support**: The tray supports Compose recomposition, making it possible to dynamically show or hide the tray icon, for example:
@@ -45,24 +45,25 @@
 - [⚡ Installation](#-installation)
 - [🚀 Quick Start](#-quick-start)
 - [📚 Usage Guide](#-usage-guide)
-  - [🎨 Creating the System Tray Icon](#-creating-the-system-tray-icon)
-  - [🖱️ Primary Action](#️-primary-action)
-  - [📋 Building the Menu](#-building-the-menu)
-  - [Icons with painterResource](#icons-with-painterresource)
-  - [New: Icons with DrawableResource](#new-icons-with-drawableresource-in-menu-items)
+    - [🎨 Creating the System Tray Icon](#-creating-the-system-tray-icon)
+    - [🖱️ Primary Action](#️-primary-action)
+    - [📋 Building the Menu](#-building-the-menu)
+    - [Icons with painterResource](#icons-with-painterresource)
+    - [New: Icons with DrawableResource](#new-icons-with-drawableresource-in-menu-items)
 - [🔧 Advanced Features](#-advanced-features)
-  - [🔄 Fully Reactive System Menu](#-fully-reactive-system-menu)
-  - [🔒 Single Instance Management](#-single-instance-management)
-  - [📍 Position Detection](#-position-detection)
-  - [🌓 Dark Mode Detection](#-dark-mode-detection)
-  - [🎨 Icon Rendering Customization](#-icon-rendering-customization)
+    - [🔄 Fully Reactive System Menu](#-fully-reactive-system-menu)
+    - [🔑 Single Instance Management](#-single-instance-management)
+    - [📍 Position Detection](#-position-detection)
+    - [🌓 Dark Mode Detection](#-dark-mode-detection)
+    - [🎨 Icon Rendering Customization](#-icon-rendering-customization)
 - [⚠️ Platform-Specific Notes](#️-platform-specific-notes)
-  - [Icon Limitations](#icon-limitations)
-  - [Theme Behavior](#theme-behavior)
+    - [Icon Limitations](#icon-limitations)
+    - [Theme Behavior](#theme-behavior)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
     - [Overview](#overview)
-    - [Parameters](#parameters)
-    - [Examples](#examples)
+    - [Basic Usage](#basic-usage)
+    - [TrayAppState API](#trayappstate-api)
+    - [Advanced Examples](#advanced-examples)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
 - [👨‍💻 Author](#-author)
@@ -126,9 +127,9 @@ application {
 > **💡 Recommendation**: It is highly recommended to check out the demo examples in the project's `demo` directory. These examples showcase various implementation patterns and features that will help you better understand how to use the library effectively.
 >
 > Notable demos:
-> - DemoWithDrawableResources.kt — shows using DrawableResource directly for Tray and menu icons
-> - PainterResourceWorkaroundDemo.kt — demonstrates the painterResource variable workaround
-> - DemoWithoutContextMenu.kt — minimalist tray with primary action only
+> - DemoWithDrawableResources.kt – shows using DrawableResource directly for Tray and menu icons
+> - PainterResourceWorkaroundDemo.kt – demonstrates the painterResource variable workaround
+> - DemoWithoutContextMenu.kt – minimalist tray with primary action only
 
 ## 📚 Usage Guide
 
@@ -403,7 +404,7 @@ application {
 
 All menu properties (icon, labels, states, item visibility) are reactive and update automatically when application states change, without requiring manual recreation of the menu.
 
-### 🔒 Single Instance Management
+### 🔑 Single Instance Management
 
 Prevent multiple instances of your application:
 
@@ -565,27 +566,23 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
 ### Overview
 TrayApp is a high-level API that creates a system tray icon and an undecorated popup window that toggles when the tray icon is clicked. The popup auto-hides when it loses focus or when you click outside it (macOS/Linux watchers supported) and can fade in/out.
 
-Use TrayApp when you want a compact companion window (like a quick settings or mini dashboard) anchored to the system tray, in addition to or instead of your main window — ideal for building apps in the style of JetBrains Toolbox.
+Use TrayApp when you want a compact companion window (like a quick settings or mini dashboard) anchored to the system tray, in addition to or instead of your main window – ideal for building apps in the style of JetBrains Toolbox.
 
-### Parameters
-- icon / windowsIcon / macLinuxIcon / iconContent: the tray icon source.
-- tint: optional tint (macOS/Linux ImageVector convenience).
-- tooltip: text shown on hover.
-- windowSize: popup size (default 300x200dp).
-- visibleOnStart: if true, shows the popup shortly after startup with OS-specific handling. On Linux, this is not recommended because there is no system API to retrieve the tray position; the library records the position from the first user click, so on the first launch the popup position will be approximate. After that, the position is saved and persists even after a cold boot.
-- menu: optional tray context menu (see Tray menu DSL).
-- content: the composable content of the popup window.
-
-### Example
+### Basic Usage
 
 ```kotlin
 @OptIn(ExperimentalTrayAppApi::class)
 application {
+    // Create TrayAppState to control the popup
+    val trayAppState = rememberTrayAppState(
+        initialWindowSize = DpSize(300.dp, 500.dp),
+        initiallyVisible = true  // Show on startup
+    )
+    
     TrayApp(
+        state = trayAppState,  // Required: pass the state
         icon = Icons.Default.Book,
         tooltip = "My App",
-        windowSize = DpSize(300.dp, 500.dp),
-        visibleOnStart = true,
         menu = {
             Item("Open") { /* ... */ }
             Divider()
@@ -593,13 +590,173 @@ application {
         }
     ) {
         // Popup content
-        MaterialTheme { /* ... */ }
+        MaterialTheme { 
+            Text("Quick Settings Panel")
+        }
     }
 }
 ```
 
-See full demo: demo/src/jvmMain/kotlin/com/kdroid/composetray/demo/TrayAppDemo.kt
+### TrayAppState API
 
+TrayAppState provides comprehensive control over the popup window:
+
+#### Creating State
+```kotlin
+val trayAppState = rememberTrayAppState(
+    initialWindowSize = DpSize(300.dp, 400.dp),
+    initiallyVisible = false  // Hidden by default
+)
+```
+
+#### Controlling Visibility
+```kotlin
+// Show the popup
+trayAppState.show()
+
+// Hide the popup
+trayAppState.hide()
+
+// Toggle visibility
+trayAppState.toggle()
+```
+
+#### Observing State
+```kotlin
+// Observe visibility as State
+val isVisible by trayAppState.isVisible.collectAsState()
+
+// Observe window size
+val windowSize by trayAppState.windowSize.collectAsState()
+
+// Callback for visibility changes
+LaunchedEffect(trayAppState) {
+    trayAppState.onVisibilityChanged { visible ->
+        println("Popup is now ${if (visible) "visible" else "hidden"}")
+    }
+}
+```
+
+#### Dynamic Window Resizing
+```kotlin
+// Change size programmatically
+trayAppState.setWindowSize(400.dp, 600.dp)
+
+// Or using DpSize
+trayAppState.setWindowSize(DpSize(350.dp, 500.dp))
+```
+
+### Advanced Examples
+
+#### Example 1: Control from Main Window
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    val trayAppState = rememberTrayAppState()
+    var isMainWindowVisible by remember { mutableStateOf(true) }
+    
+    // Tray with popup
+    TrayApp(
+        state = trayAppState,
+        icon = Icons.Default.Settings,
+        tooltip = "Quick Settings"
+    ) {
+        // Popup content
+        Column {
+            Text("Quick Settings")
+            Button(onClick = { 
+                isMainWindowVisible = true
+                trayAppState.hide()
+            }) {
+                Text("Open Main Window")
+            }
+        }
+    }
+    
+    // Main window can control the popup
+    if (isMainWindowVisible) {
+        Window(onCloseRequest = { isMainWindowVisible = false }) {
+            Column {
+                Button(onClick = { trayAppState.show() }) {
+                    Text("Show Quick Settings")
+                }
+                
+                Button(onClick = { 
+                    trayAppState.setWindowSize(250.dp, 350.dp) 
+                }) {
+                    Text("Make Popup Smaller")
+                }
+            }
+        }
+    }
+}
+```
+
+#### Example 2: Reactive UI Based on State
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+TrayApp(
+    state = trayAppState,
+    icon = Icons.Default.Dashboard,
+    tooltip = "Dashboard",
+    menu = {
+        val isVisible by trayAppState.isVisible.collectAsState()
+        
+        Item(
+            label = if (isVisible) "Hide Dashboard" else "Show Dashboard",
+            icon = if (isVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
+        ) {
+            trayAppState.toggle()
+        }
+        
+        SubMenu("Window Size") {
+            Item("Small (250x350)") { 
+                trayAppState.setWindowSize(250.dp, 350.dp) 
+            }
+            Item("Medium (350x500)") { 
+                trayAppState.setWindowSize(350.dp, 500.dp) 
+            }
+            Item("Large (450x600)") { 
+                trayAppState.setWindowSize(450.dp, 600.dp) 
+            }
+        }
+    }
+) {
+    // Popup content
+    val windowSize by trayAppState.windowSize.collectAsState()
+    Text("Window size: ${windowSize.width} x ${windowSize.height}")
+}
+```
+
+#### Example 3: Integration with Application State
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    val trayAppState = rememberTrayAppState()
+    val appViewModel = remember { AppViewModel() }
+    
+    // React to app events
+    LaunchedEffect(appViewModel.hasNotification) {
+        if (appViewModel.hasNotification) {
+            trayAppState.show()  // Show popup when notification arrives
+        }
+    }
+    
+    TrayApp(
+        state = trayAppState,
+        icon = Icons.Default.Notifications,
+        tooltip = "Notifications"
+    ) {
+        NotificationPanel(
+            notifications = appViewModel.notifications,
+            onClear = { 
+                appViewModel.clearNotifications()
+                trayAppState.hide()
+            }
+        )
+    }
+}
+```
 ## 📄 License
 
 This library is licensed under the MIT License. The Linux module uses Apache 2.0
