@@ -259,10 +259,11 @@ fun ApplicationScope.TrayApp(
  *
  * Key features:
  * - Creates a system tray icon with customizable appearance
- * - Manages a popup window that preserves state when hidden
+ * - Manages a popup window that preserves ALL states (including remember values)
  * - Handles platform-specific behaviors (Windows, macOS, Linux)
  * - Provides smooth fade animations
  * - Manages focus and outside-click behaviors
+ * - Uses a hybrid approach: window stays mounted but is moved off-screen when hidden
  */
 @ExperimentalTrayAppApi
 @Composable
@@ -282,6 +283,9 @@ fun ApplicationScope.TrayApp(
 
     // Internal state for managing window display with animation
     var shouldShowWindow by remember { mutableStateOf(false) }
+
+    // Track if window has been created at least once
+    var windowCreated by remember { mutableStateOf(false) }
 
     // System information
     val isDark = isMenuBarInDarkMode()
@@ -389,6 +393,7 @@ fun ApplicationScope.TrayApp(
         if (isVisible) {
             // Show window immediately
             shouldShowWindow = true
+            windowCreated = true
             lastShownAt = System.currentTimeMillis()
         } else {
             // Hide window after fade animation completes
@@ -436,6 +441,7 @@ fun ApplicationScope.TrayApp(
             }
 
             shouldShowWindow = true
+            windowCreated = true
             lastShownAt = System.currentTimeMillis()
         }
     }
@@ -459,95 +465,112 @@ fun ApplicationScope.TrayApp(
         focusable = false,
     ) { }
 
-    // Main popup window - ALWAYS in composition to preserve state
-    // The window is always composed but visibility is controlled
-    val widthPx = windowSize.width.value.toInt()
-    val heightPx = windowSize.height.value.toInt()
-    val windowPosition = getTrayWindowPositionForInstance(tray.instanceKey(), widthPx, heightPx)
-
-    DialogWindow(
-        onCloseRequest = { requestHide() },
-        title = "",
-        undecorated = true,
-        resizable = false,
-        focusable = true,
-        alwaysOnTop = true,
-        transparent = true,
-        visible = shouldShowWindow,  // Control visibility without unmounting
-        state = rememberDialogState(position = windowPosition, size = windowSize)
-    ) {
-        // One-time setup for window behaviors and listeners
-        DisposableEffect(Unit) {
-            // Set window name for monitoring
-            try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
-
-            // Focus listener for auto-hide on focus loss
-            val focusListener = object : WindowFocusListener {
-                override fun windowGainedFocus(e: WindowEvent?) = Unit
-                override fun windowLostFocus(e: WindowEvent?) {
-                    lastFocusLostAt = System.currentTimeMillis()
-                    // Windows: Ignore focus loss during startup period
-                    if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
-                        return
-                    }
-                    requestHide()
-                }
-            }
-
-            // macOS-specific outside click detection
-            val macWatcher = if (getOperatingSystem() == MACOS) {
-                MacOutsideClickWatcher(
-                    windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHide() } }
-                ).also { it.start() }
-            } else null
-
-            // Linux-specific outside click detection
-            val linuxWatcher = if (getOperatingSystem() == OperatingSystem.LINUX) {
-                LinuxOutsideClickWatcher(
-                    windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHide() } }
-                ).also { it.start() }
-            } else null
-
-            window.addWindowFocusListener(focusListener)
-
-            // Cleanup on disposal
-            onDispose {
-                window.removeWindowFocusListener(focusListener)
-                macWatcher?.stop()
-                linuxWatcher?.stop()
-            }
+    // Main popup window - always mounted once created to preserve states
+    // Uses hybrid approach: moves off-screen instead of unmounting
+    if (windowCreated) {
+        // Calculate position: off-screen when hidden, correct position when visible
+        val widthPx = windowSize.width.value.toInt()
+        val heightPx = windowSize.height.value.toInt()
+        val windowPosition = if (shouldShowWindow) {
+            // Visible: use correct position near tray icon
+            getTrayWindowPositionForInstance(tray.instanceKey(), widthPx, heightPx)
+        } else {
+            // Hidden: move far off-screen to avoid taskbar appearance
+            WindowPosition(-10000.dp, -10000.dp)
         }
 
-        // Handle visibility state changes
-        LaunchedEffect(shouldShowWindow) {
-            if (shouldShowWindow) {
-                // Window is becoming visible
-                runCatching { WindowVisibilityMonitor.recompute() }
-                invokeLater {
-                    try {
-                        // Bring window to front and request focus
-                        window.toFront()
-                        window.requestFocus()
-                        window.requestFocusInWindow()
-                    } catch (_: Throwable) {
-                    }
-                }
-            } else {
-                // Window is becoming hidden
-                runCatching { WindowVisibilityMonitor.recompute() }
-            }
-        }
-
-        // Content wrapper with fade animation
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(alpha)  // Apply fade animation
+        DialogWindow(
+            onCloseRequest = { requestHide() },
+            title = "",
+            undecorated = true,
+            resizable = false,
+            focusable = shouldShowWindow,  // Only focusable when visible
+            alwaysOnTop = shouldShowWindow,  // Only on top when visible
+            transparent = true,
+            visible = true,  // Always visible to the system
+            state = rememberDialogState(position = windowPosition, size = windowSize)
         ) {
-            // User content - always mounted to preserve state
-            content()
+            DisposableEffect(Unit) {
+                // Set window name for monitoring
+                try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
+
+                // Focus listener for auto-hide on focus loss
+                val focusListener = object : WindowFocusListener {
+                    override fun windowGainedFocus(e: WindowEvent?) = Unit
+                    override fun windowLostFocus(e: WindowEvent?) {
+                        lastFocusLostAt = System.currentTimeMillis()
+                        // Windows: Ignore focus loss during startup period
+                        if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
+                            return
+                        }
+                        if (shouldShowWindow) {  // Only hide if currently visible
+                            requestHide()
+                        }
+                    }
+                }
+
+                // Platform-specific outside click detection
+                val macWatcher = if (getOperatingSystem() == MACOS) {
+                    MacOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = {
+                            if (shouldShowWindow) {  // Only hide if currently visible
+                                invokeLater { requestHide() }
+                            }
+                        }
+                    ).also { it.start() }
+                } else null
+
+                val linuxWatcher = if (getOperatingSystem() == OperatingSystem.LINUX) {
+                    LinuxOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = {
+                            if (shouldShowWindow) {  // Only hide if currently visible
+                                invokeLater { requestHide() }
+                            }
+                        }
+                    ).also { it.start() }
+                } else null
+
+                window.addWindowFocusListener(focusListener)
+
+                // Cleanup on disposal
+                onDispose {
+                    window.removeWindowFocusListener(focusListener)
+                    macWatcher?.stop()
+                    linuxWatcher?.stop()
+                }
+            }
+
+            // React to visibility changes
+            LaunchedEffect(shouldShowWindow) {
+                if (shouldShowWindow) {
+                    // Window is becoming visible
+                    runCatching { WindowVisibilityMonitor.recompute() }
+                    invokeLater {
+                        try {
+                            // Bring window to front and request focus
+                            window.toFront()
+                            window.requestFocus()
+                            window.requestFocusInWindow()
+                        } catch (_: Throwable) {
+                        }
+                    }
+                } else {
+                    // Window is becoming hidden
+                    runCatching { WindowVisibilityMonitor.recompute() }
+                }
+            }
+
+            // Content wrapper with fade animation
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(alpha)  // Apply fade animation
+            ) {
+                // Content is always mounted, preserving all states
+                content()
+            }
         }
     }
 }
