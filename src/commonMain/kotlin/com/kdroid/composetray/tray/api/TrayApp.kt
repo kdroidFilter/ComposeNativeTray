@@ -488,7 +488,7 @@ fun ApplicationScope.TrayApp(
                 // instant pour que les coordonnées du clic soient mises à jour
                 // avant de tenter de positionner la fenêtre.
                 if (os == MACOS) {
-                    delay(30) // 30ms est suffisant et imperceptible.
+                    delay(200)
                 }
                 // =========================================================
 
