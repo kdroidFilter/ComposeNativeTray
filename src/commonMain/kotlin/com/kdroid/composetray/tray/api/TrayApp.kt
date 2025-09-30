@@ -287,6 +287,9 @@ fun ApplicationScope.TrayApp(
     // Track if window has been created at least once
     var windowCreated by remember { mutableStateOf(false) }
 
+    // Initial position for the dialog state, calculated for initial visible
+    var initialPosition by remember { mutableStateOf(WindowPosition(-10000.dp, -10000.dp)) }
+
     // System information
     val isDark = isMenuBarInDarkMode()
     val os = getOperatingSystem()
@@ -393,7 +396,9 @@ fun ApplicationScope.TrayApp(
         if (isVisible) {
             // Show window immediately
             shouldShowWindow = true
-            windowCreated = true
+            if (!windowCreated) {
+                windowCreated = true
+            }
             lastShownAt = System.currentTimeMillis()
         } else {
             // Hide window after fade animation completes
@@ -440,6 +445,15 @@ fun ApplicationScope.TrayApp(
                 autoHideEnabledAt = System.currentTimeMillis() + 1000
             }
 
+            // Calculate initial position after delays
+            val widthPx = windowSize.width.value.toInt()
+            val heightPx = windowSize.height.value.toInt()
+            initialPosition = getTrayWindowPositionForInstance(
+                tray.instanceKey(),
+                widthPx,
+                heightPx
+            ) as WindowPosition.Absolute
+
             shouldShowWindow = true
             windowCreated = true
             lastShownAt = System.currentTimeMillis()
@@ -468,9 +482,9 @@ fun ApplicationScope.TrayApp(
     // Main popup window - always mounted once created to preserve states
     // Uses hybrid approach: moves off-screen instead of unmounting
     if (windowCreated) {
-        // Start off-screen
+        // Use the pre-calculated initial position
         val dialogState = rememberDialogState(
-            position = WindowPosition(-10000.dp, -10000.dp),
+            position = initialPosition,
             size = windowSize
         )
 
