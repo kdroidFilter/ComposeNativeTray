@@ -468,6 +468,7 @@ fun ApplicationScope.TrayApp(
     ) { }
 
     // === Main popup window (ALWAYS MOUNTED) ===
+// === Main popup window (ALWAYS MOUNTED) ===
     DialogWindow(
         onCloseRequest = { requestHide() },
         title = "",
@@ -476,12 +477,21 @@ fun ApplicationScope.TrayApp(
         focusable = true,
         alwaysOnTop = true,
         transparent = true,
-        visible = shouldShowWindow, // <- Toujours contrôlé par notre variable sécurisée
+        visible = shouldShowWindow,
         state = dialogState,
     ) {
-        // Assure le positionnement correct au moment précis où on décide de montrer la fenêtre
+        // Ensure proper initial position exactly WHEN we decide to show the window
         LaunchedEffect(shouldShowWindow, currentWindowSize) {
             if (shouldShowWindow) {
+                // ================== CORRECTION POUR MACOS ==================
+                // Sur macOS, il y a une condition de concurrence. On doit attendre un
+                // instant pour que les coordonnées du clic soient mises à jour
+                // avant de tenter de positionner la fenêtre.
+                if (os == MACOS) {
+                    delay(30) // 30ms est suffisant et imperceptible.
+                }
+                // =========================================================
+
                 val widthPx = currentWindowSize.width.value.toInt()
                 val heightPx = currentWindowSize.height.value.toInt()
                 dialogState.position = getTrayWindowPositionForInstance(
@@ -490,16 +500,18 @@ fun ApplicationScope.TrayApp(
             }
         }
 
-        // Le reste de votre code est correct...
+        // Attach/Detach platform listeners only while window is actually visible
         DisposableEffect(shouldShowWindow) {
             if (!shouldShowWindow) {
                 onDispose { }
                 return@DisposableEffect onDispose { }
             }
 
+            // Mark this as the tray popup (macOS visibility monitor)
             try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
             runCatching { WindowVisibilityMonitor.recompute() }
 
+            // Bring to front on open
             invokeLater {
                 try {
                     window.toFront()
@@ -513,6 +525,7 @@ fun ApplicationScope.TrayApp(
                 override fun windowLostFocus(e: WindowEvent?) {
                     lastFocusLostAt = System.currentTimeMillis()
                     if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
+                        // Ignore focus loss during startup grace period on Windows
                         return
                     }
                     requestHide()
@@ -543,6 +556,7 @@ fun ApplicationScope.TrayApp(
             }
         }
 
+        // Content wrapper with fade animation (state is preserved across show/hide)
         Box(
             modifier = Modifier
                 .fillMaxSize()
