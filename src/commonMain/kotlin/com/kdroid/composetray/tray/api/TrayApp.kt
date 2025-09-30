@@ -391,14 +391,10 @@ fun ApplicationScope.TrayApp(
     }
 
     // FIX: Consolidated visibility handling with position calculation BEFORE showing the window.
-    // Added macOS-specific delay before polling, as per your feedback.
     LaunchedEffect(isVisible) {
         if (isVisible) {
             if (!shouldShowWindow) {
-                // macOS-specific delay to allow tray icon to settle
-                if (os == MACOS) {
-                    delay(300)
-                }
+                delay(150)
 
                 val widthPx = currentWindowSize.width.value.toInt()
                 val heightPx = currentWindowSize.height.value.toInt()
@@ -408,7 +404,7 @@ fun ApplicationScope.TrayApp(
                     position = getTrayWindowPositionForInstance(
                         tray.instanceKey(), widthPx, heightPx
                     )
-                    delay(50)
+                    delay(150)
                 }
                 // If still default after timeout, proceed anyway to avoid invisible window
                 dialogState.position = position
@@ -481,7 +477,10 @@ fun ApplicationScope.TrayApp(
             }
 
             // Mark this as the tray popup (macOS visibility monitor)
-            try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
+            try {
+                window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME
+            } catch (_: Throwable) {
+            }
             runCatching { WindowVisibilityMonitor.recompute() }
 
             // Bring to front on open
@@ -490,7 +489,8 @@ fun ApplicationScope.TrayApp(
                     window.toFront()
                     window.requestFocus()
                     window.requestFocusInWindow()
-                } catch (_: Throwable) {}
+                } catch (_: Throwable) {
+                }
             }
 
             val focusListener = object : WindowFocusListener {
