@@ -391,10 +391,15 @@ fun ApplicationScope.TrayApp(
     }
 
     // FIX: Consolidated visibility handling with position calculation BEFORE showing the window.
-    // Added polling loop to wait for a valid (non-default) position.
+    // Added macOS-specific delay before polling, as per your feedback.
     LaunchedEffect(isVisible) {
         if (isVisible) {
             if (!shouldShowWindow) {
+                // macOS-specific delay to allow tray icon to settle
+                if (os == MACOS) {
+                    delay(300)
+                }
+
                 val widthPx = currentWindowSize.width.value.toInt()
                 val heightPx = currentWindowSize.height.value.toInt()
                 var position: WindowPosition = WindowPosition.PlatformDefault
