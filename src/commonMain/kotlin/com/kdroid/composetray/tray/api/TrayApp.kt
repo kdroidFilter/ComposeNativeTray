@@ -432,9 +432,10 @@ fun ApplicationScope.TrayApp(
     LaunchedEffect(Unit) {
         // Ne s'exécute qu'une seule fois.
         if (trayAppState.isVisible.value) { // Vérifie si l'état initial est visible.
-            // Si oui, on exécute la logique de pré-affichage (attente, etc.)
+
+            // Étape 1 : Attendre que la position de l'icône soit stable et disponible.
             if (os == MACOS) {
-                delay(100)
+                delay(100) // Donne le temps à l'icône de s'installer dans la barre de menus.
             }
             if (os == WINDOWS) {
                 val deadline = System.currentTimeMillis() + 2000
@@ -445,7 +446,17 @@ fun ApplicationScope.TrayApp(
                 autoHideEnabledAt = System.currentTimeMillis() + 1000
             }
 
-            // Une fois l'attente terminée, on peut afficher la fenêtre en toute sécurité.
+            // Étape 2 : Calculer la position finale AVANT de montrer la fenêtre.
+            val widthPx = currentWindowSize.width.value.toInt()
+            val heightPx = currentWindowSize.height.value.toInt()
+            val initialPosition = getTrayWindowPositionForInstance(
+                tray.instanceKey(), widthPx, heightPx
+            )
+
+            // Étape 3 : Appliquer cette position à l'état du dialogue.
+            dialogState.position = initialPosition
+
+            // Étape 4 : SEULEMENT MAINTENANT, rendre la fenêtre visible.
             shouldShowWindow = true
             lastShownAt = System.currentTimeMillis()
         }
