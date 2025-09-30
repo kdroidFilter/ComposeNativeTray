@@ -39,7 +39,6 @@ import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 
-
 /**
  * TrayApp: High-level API that creates a system tray icon and an undecorated popup window
  * that toggles visibility on tray icon click and auto-hides when it loses focus.
@@ -89,7 +88,6 @@ fun ApplicationScope.TrayApp(
         menu = menu,
     )
 }
-
 
 /**
  * TrayApp overload: accepts a Painter as tray icon.
@@ -299,8 +297,6 @@ fun ApplicationScope.TrayApp(
     val isVisible by trayAppState.isVisible.collectAsState()
     val currentWindowSize by trayAppState.windowSize.collectAsState()
 
-    // CHANGEMENT 1: `shouldShowWindow` doit TOUJOURS commencer à `false`
-    // pour que nous puissions contrôler précisément le moment de sa première apparition.
     var shouldShowWindow by remember { mutableStateOf(false) }
 
     // Update window size in state if provided through parameter (for backward compatibility)
@@ -394,17 +390,33 @@ fun ApplicationScope.TrayApp(
         }
     }
 
-    // CHANGEMENT 2: Cet effet gère les changements de visibilité APRÈS l'initialisation.
+    // FIX: Consolidated visibility handling with position calculation BEFORE showing the window.
+    // Added polling loop to wait for a valid (non-default) position.
     LaunchedEffect(isVisible) {
         if (isVisible) {
-            // Ne pas gérer la visibilité initiale ici, elle est gérée par `LaunchedEffect(Unit)`.
-            // Cet `if` se déclenchera pour les changements de false -> true.
-            if (!shouldShowWindow) { // Seulement si la fenêtre n'est pas déjà affichée
+            if (!shouldShowWindow) {
+                val widthPx = currentWindowSize.width.value.toInt()
+                val heightPx = currentWindowSize.height.value.toInt()
+                var position: WindowPosition = WindowPosition.PlatformDefault
+                val deadline = System.currentTimeMillis() + 3000 // Max 3s wait to avoid hanging
+                while (position is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
+                    position = getTrayWindowPositionForInstance(
+                        tray.instanceKey(), widthPx, heightPx
+                    )
+                    delay(50)
+                }
+                // If still default after timeout, proceed anyway to avoid invisible window
+                dialogState.position = position
+
+                if (os == WINDOWS) {
+                    autoHideEnabledAt = System.currentTimeMillis() + 1000
+                }
+
+                // Now safe to show—no glitch.
                 shouldShowWindow = true
                 lastShownAt = System.currentTimeMillis()
             }
         } else {
-            // Gère la disparition (true -> false)
             delay(fadeDurationMs.toLong())
             shouldShowWindow = false
             lastHiddenAt = System.currentTimeMillis()
@@ -428,40 +440,6 @@ fun ApplicationScope.TrayApp(
         }
     }
 
-    // CHANGEMENT 3: Cet effet gère UNIQUEMENT l'état de visibilité au démarrage.
-    LaunchedEffect(Unit) {
-        // Ne s'exécute qu'une seule fois.
-        if (trayAppState.isVisible.value) { // Vérifie si l'état initial est visible.
-
-            // Étape 1 : Attendre que la position de l'icône soit stable et disponible.
-            if (os == MACOS) {
-                delay(100) // Donne le temps à l'icône de s'installer dans la barre de menus.
-            }
-            if (os == WINDOWS) {
-                val deadline = System.currentTimeMillis() + 2000
-                val key = tray.instanceKey()
-                while (TrayClickTracker.getLastClickPosition(key) == null && System.currentTimeMillis() < deadline) {
-                    delay(50)
-                }
-                autoHideEnabledAt = System.currentTimeMillis() + 1000
-            }
-
-            // Étape 2 : Calculer la position finale AVANT de montrer la fenêtre.
-            val widthPx = currentWindowSize.width.value.toInt()
-            val heightPx = currentWindowSize.height.value.toInt()
-            val initialPosition = getTrayWindowPositionForInstance(
-                tray.instanceKey(), widthPx, heightPx
-            )
-
-            // Étape 3 : Appliquer cette position à l'état du dialogue.
-            dialogState.position = initialPosition
-
-            // Étape 4 : SEULEMENT MAINTENANT, rendre la fenêtre visible.
-            shouldShowWindow = true
-            lastShownAt = System.currentTimeMillis()
-        }
-    }
-
     DisposableEffect(Unit) { onDispose { tray.dispose() } }
 
     // Invisible helper window (Compose requirement on some platforms)
@@ -479,7 +457,6 @@ fun ApplicationScope.TrayApp(
     ) { }
 
     // === Main popup window (ALWAYS MOUNTED) ===
-// === Main popup window (ALWAYS MOUNTED) ===
     DialogWindow(
         onCloseRequest = { requestHide() },
         title = "",
@@ -491,26 +468,6 @@ fun ApplicationScope.TrayApp(
         visible = shouldShowWindow,
         state = dialogState,
     ) {
-        // Ensure proper initial position exactly WHEN we decide to show the window
-        LaunchedEffect(shouldShowWindow, currentWindowSize) {
-            if (shouldShowWindow) {
-                // ================== CORRECTION POUR MACOS ==================
-                // Sur macOS, il y a une condition de concurrence. On doit attendre un
-                // instant pour que les coordonnées du clic soient mises à jour
-                // avant de tenter de positionner la fenêtre.
-                if (os == MACOS) {
-                    delay(200)
-                }
-                // =========================================================
-
-                val widthPx = currentWindowSize.width.value.toInt()
-                val heightPx = currentWindowSize.height.value.toInt()
-                dialogState.position = getTrayWindowPositionForInstance(
-                    tray.instanceKey(), widthPx, heightPx
-                )
-            }
-        }
-
         // Attach/Detach platform listeners only while window is actually visible
         DisposableEffect(shouldShowWindow) {
             if (!shouldShowWindow) {
