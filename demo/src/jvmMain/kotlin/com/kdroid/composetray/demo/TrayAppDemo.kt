@@ -55,8 +55,9 @@ fun main() {
         }
 
         TrayApp(
-            state = trayAppState,
             icon = Icons.Default.Window,
+            state = trayAppState,
+            visibleOnStart = true,
             tooltip = "TrayAppDemo",
             menu = {
                 Item(
