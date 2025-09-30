@@ -287,6 +287,9 @@ fun ApplicationScope.TrayApp(
     // Track if window has been created at least once
     var windowCreated by remember { mutableStateOf(false) }
 
+    // Initial position for the dialog state, calculated for initial visible
+    var initialPosition by remember { mutableStateOf(WindowPosition(-10000.dp, -10000.dp)) }
+
     // System information
     val isDark = isMenuBarInDarkMode()
     val os = getOperatingSystem()
@@ -393,7 +396,9 @@ fun ApplicationScope.TrayApp(
         if (isVisible) {
             // Show window immediately
             shouldShowWindow = true
-            windowCreated = true
+            if (!windowCreated) {
+                windowCreated = true
+            }
             lastShownAt = System.currentTimeMillis()
         } else {
             // Hide window after fade animation completes
@@ -440,6 +445,15 @@ fun ApplicationScope.TrayApp(
                 autoHideEnabledAt = System.currentTimeMillis() + 1000
             }
 
+            // Calculate initial position after delays
+            val widthPx = windowSize.width.value.toInt()
+            val heightPx = windowSize.height.value.toInt()
+            initialPosition = getTrayWindowPositionForInstance(
+                tray.instanceKey(),
+                widthPx,
+                heightPx
+            ) as WindowPosition.Absolute
+
             shouldShowWindow = true
             windowCreated = true
             lastShownAt = System.currentTimeMillis()
@@ -468,16 +482,11 @@ fun ApplicationScope.TrayApp(
     // Main popup window - always mounted once created to preserve states
     // Uses hybrid approach: moves off-screen instead of unmounting
     if (windowCreated) {
-        // Calculate position: off-screen when hidden, correct position when visible
-        val widthPx = windowSize.width.value.toInt()
-        val heightPx = windowSize.height.value.toInt()
-        val windowPosition = if (shouldShowWindow) {
-            // Visible: use correct position near tray icon
-            getTrayWindowPositionForInstance(tray.instanceKey(), widthPx, heightPx)
-        } else {
-            // Hidden: move far off-screen to avoid taskbar appearance
-            WindowPosition(-10000.dp, -10000.dp)
-        }
+        // Use the pre-calculated initial position
+        val dialogState = rememberDialogState(
+            position = initialPosition,
+            size = windowSize
+        )
 
         DialogWindow(
             onCloseRequest = { requestHide() },
@@ -488,7 +497,7 @@ fun ApplicationScope.TrayApp(
             alwaysOnTop = shouldShowWindow,  // Only on top when visible
             transparent = true,
             visible = true,  // Always visible to the system
-            state = rememberDialogState(position = windowPosition, size = windowSize)
+            state = dialogState
         ) {
             DisposableEffect(Unit) {
                 // Set window name for monitoring
@@ -542,9 +551,26 @@ fun ApplicationScope.TrayApp(
                 }
             }
 
-            // React to visibility changes
-            LaunchedEffect(shouldShowWindow) {
+            // React to visibility changes and reposition window
+            // IMPORTANT: Position is recalculated each time window shows because:
+            // - The tray icon might have moved (user moved taskbar, changed resolution, etc.)
+            // - Window size might have changed
+            LaunchedEffect(shouldShowWindow, windowSize) {
                 if (shouldShowWindow) {
+                    // Recalculate position when showing (tray icon might have moved)
+                    // or when window size changes
+                    val widthPx = windowSize.width.value.toInt()
+                    val heightPx = windowSize.height.value.toInt()
+                    val newPosition = getTrayWindowPositionForInstance(
+                        tray.instanceKey(),
+                        widthPx,
+                        heightPx
+                    )
+                    dialogState.position = newPosition
+
+                    // Update size if changed
+                    dialogState.size = windowSize
+
                     // Window is becoming visible
                     runCatching { WindowVisibilityMonitor.recompute() }
                     invokeLater {
@@ -557,6 +583,9 @@ fun ApplicationScope.TrayApp(
                         }
                     }
                 } else {
+                    // Move window off-screen when hiding
+                    dialogState.position = WindowPosition(-10000.dp, -10000.dp)
+
                     // Window is becoming hidden
                     runCatching { WindowVisibilityMonitor.recompute() }
                 }
