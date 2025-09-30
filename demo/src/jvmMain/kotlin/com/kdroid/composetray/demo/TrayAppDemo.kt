@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
@@ -35,7 +36,6 @@ fun main() {
     setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
-        var textFieldValue by remember { mutableStateOf("") }
         val coroutineScope = rememberCoroutineScope()
 
         // Create TrayAppState with initial settings
@@ -105,6 +105,7 @@ fun main() {
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
                     ) {
                         Text("Tray Companion App", color = MaterialTheme.colorScheme.onBackground)
+                        var textFieldValue by remember { mutableStateOf("") }
 
                         TextField(
                             value = textFieldValue,
