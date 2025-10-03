@@ -646,6 +646,48 @@ trayAppState.setWindowSize(400.dp, 600.dp)
 trayAppState.setWindowSize(DpSize(350.dp, 500.dp))
 ```
 
+## 🧩 New: Tray Window Dismiss Modes
+
+By default, the `TrayApp` popup window closes automatically when it loses focus or when the user clicks outside of it.
+With the new `TrayWindowDismissMode` API, you can choose between:
+
+* **AUTO** (default): The popup closes automatically when focus is lost or when clicking outside.
+* **MANUAL**: The popup remains visible until you explicitly call `trayAppState.hide()`.
+
+### Example
+
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    val trayAppState = rememberTrayAppState(
+        initialWindowSize = DpSize(300.dp, 400.dp),
+        initiallyVisible = false,
+        initialDismissMode = TrayWindowDismissMode.MANUAL  // 👈 Manual mode
+    )
+
+    TrayApp(
+        state = trayAppState,
+        icon = Icons.Default.Settings,
+        tooltip = "Quick Settings"
+    ) {
+        Column {
+            Text("This popup will NOT auto-close")
+            Button(onClick = { trayAppState.hide() }) {
+                Text("Close manually")
+            }
+        }
+    }
+}
+```
+
+### Switching at runtime
+
+```kotlin
+LaunchedEffect(Unit) {
+    trayAppState.setDismissMode(TrayWindowDismissMode.AUTO)
+}
+```
+
 ### Advanced Examples
 
 #### Example 1: Control from Main Window

@@ -290,12 +290,15 @@ fun ApplicationScope.TrayApp(
     // Create or use provided state
     val trayAppState = state ?: rememberTrayAppState(
         initialWindowSize = windowSize ?: DpSize(300.dp, 200.dp),
-        initiallyVisible = visibleOnStart
+        initiallyVisible = visibleOnStart,
+        // Default remains AUTO to keep backward compatibility
+        initialDismissMode = TrayWindowDismissMode.AUTO
     )
 
     // Collect state flows
     val isVisible by trayAppState.isVisible.collectAsState()
     val currentWindowSize by trayAppState.windowSize.collectAsState()
+    val dismissMode by trayAppState.dismissMode.collectAsState()
 
     var shouldShowWindow by remember { mutableStateOf(false) }
 
@@ -351,8 +354,9 @@ fun ApplicationScope.TrayApp(
         dialogState.size = currentWindowSize
     }
 
-    // Helper to request hide with a minimum visible duration guard
-    val requestHide: () -> Unit = {
+    // Helper to request hide with a minimum visible duration guard.
+    // NOTE: This is used for explicit hide (tray click toggle or programmatic hide).
+    val requestHideExplicit: () -> Unit = {
         val now = System.currentTimeMillis()
         val sinceShow = now - lastShownAt
         if (sinceShow >= minVisibleDurationMs) {
@@ -375,8 +379,8 @@ fun ApplicationScope.TrayApp(
             lastPrimaryActionAt = now
 
             if (isVisible) {
-                // Simplified hide logic for primary action
-                requestHide()
+                // Explicit hide (works both in AUTO and MANUAL)
+                requestHideExplicit()
             } else {
                 if (now - lastHiddenAt >= minHiddenDurationMs) {
                     if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
@@ -390,7 +394,7 @@ fun ApplicationScope.TrayApp(
         }
     }
 
-    // FIX: Consolidated visibility handling with position calculation BEFORE showing the window.
+    // Consolidated visibility handling with position calculation BEFORE showing the window.
     LaunchedEffect(isVisible) {
         if (isVisible) {
             if (!shouldShowWindow) {
@@ -406,7 +410,6 @@ fun ApplicationScope.TrayApp(
                     )
                     delay(150)
                 }
-                // If still default after timeout, proceed anyway to avoid invisible window
                 dialogState.position = position
 
                 if (os == WINDOWS) {
@@ -445,7 +448,7 @@ fun ApplicationScope.TrayApp(
 
     // Invisible helper window (Compose requirement on some platforms)
     DialogWindow(
-        onCloseRequest = { },
+        onCloseRequest = { /* noop */ },
         visible = false,
         state = rememberDialogState(
             size = DpSize(1.dp, 1.dp),
@@ -459,7 +462,8 @@ fun ApplicationScope.TrayApp(
 
     // === Main popup window (ALWAYS MOUNTED) ===
     DialogWindow(
-        onCloseRequest = { requestHide() },
+        // Closing the popup via OS/ESC is considered explicit user intent → allowed in MANUAL
+        onCloseRequest = { requestHideExplicit() },
         title = "",
         undecorated = true,
         resizable = false,
@@ -469,8 +473,9 @@ fun ApplicationScope.TrayApp(
         visible = shouldShowWindow,
         state = dialogState,
     ) {
-        // Attach/Detach platform listeners only while window is actually visible
-        DisposableEffect(shouldShowWindow) {
+        // Attach/Detach platform listeners only while window is visible OR when mode changes.
+        // Including dismissMode in the key ensures watchers reconfigure when switching AUTO <-> MANUAL.
+        DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) {
                 onDispose { }
                 return@DisposableEffect onDispose { }
@@ -479,43 +484,43 @@ fun ApplicationScope.TrayApp(
             // Mark this as the tray popup (macOS visibility monitor)
             try {
                 window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME
-            } catch (_: Throwable) {
-            }
+            } catch (_: Throwable) { }
             runCatching { WindowVisibilityMonitor.recompute() }
 
             // Bring to front on open
             invokeLater {
-                try {
+                runCatching {
                     window.toFront()
                     window.requestFocus()
                     window.requestFocusInWindow()
-                } catch (_: Throwable) {
                 }
             }
 
+            // Focus listener: auto-hide only if AUTO mode
             val focusListener = object : WindowFocusListener {
                 override fun windowGainedFocus(e: WindowEvent?) = Unit
                 override fun windowLostFocus(e: WindowEvent?) {
                     lastFocusLostAt = System.currentTimeMillis()
-                    if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
-                        // Ignore focus loss during startup grace period on Windows
-                        return
+                    if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) return
+                    if (dismissMode == TrayWindowDismissMode.AUTO) {
+                        // Auto dismiss on focus loss
+                        requestHideExplicit()
                     }
-                    requestHide()
                 }
             }
 
-            val macWatcher = if (getOperatingSystem() == MACOS) {
+            // Outside click watchers: start them only in AUTO mode
+            val macWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == MACOS) {
                 MacOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHide() } }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }
                 ).also { it.start() }
             } else null
 
-            val linuxWatcher = if (getOperatingSystem() == OperatingSystem.LINUX) {
+            val linuxWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == OperatingSystem.LINUX) {
                 LinuxOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHide() } }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }
                 ).also { it.start() }
             } else null
 
