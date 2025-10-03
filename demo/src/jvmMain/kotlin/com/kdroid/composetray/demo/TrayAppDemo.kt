@@ -19,6 +19,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.ExperimentalTrayAppApi
 import com.kdroid.composetray.tray.api.TrayApp
+import com.kdroid.composetray.tray.api.TrayWindowDismissMode
 import com.kdroid.composetray.tray.api.rememberTrayAppState
 import com.kdroid.composetray.utils.WindowRaise
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
@@ -41,7 +42,8 @@ fun main() {
         // Create TrayAppState with initial settings
         val trayAppState = rememberTrayAppState(
             initialWindowSize = DpSize(300.dp, 500.dp),
-            initiallyVisible = true
+            initiallyVisible = true,
+            initialDismissMode = TrayWindowDismissMode.MANUAL
         )
 
         // Observe visibility changes
