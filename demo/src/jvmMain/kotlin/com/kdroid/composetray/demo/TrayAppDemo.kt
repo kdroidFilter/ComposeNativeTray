@@ -7,8 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Window
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +19,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.kdroid.composetray.tray.api.ExperimentalTrayAppApi
 import com.kdroid.composetray.tray.api.TrayApp
+import com.kdroid.composetray.tray.api.TrayWindowDismissMode
 import com.kdroid.composetray.tray.api.rememberTrayAppState
 import com.kdroid.composetray.utils.WindowRaise
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
@@ -41,11 +42,14 @@ fun main() {
         // Create TrayAppState with initial settings
         val trayAppState = rememberTrayAppState(
             initialWindowSize = DpSize(300.dp, 500.dp),
-            initiallyVisible = true
+            initiallyVisible = true,
+            dismissMode = TrayWindowDismissMode.AUTO // Start with AUTO mode
         )
 
-        // Observe visibility changes
+        // Observe state changes
         val isTrayPopupVisible by trayAppState.isVisible.collectAsState()
+        val currentDismissMode by trayAppState.dismissMode.collectAsState()
+        val windowSize by trayAppState.windowSize.collectAsState()
 
         // Set up visibility change callback
         LaunchedEffect(trayAppState) {
@@ -57,22 +61,40 @@ fun main() {
         TrayApp(
             icon = Icons.Default.Window,
             state = trayAppState,
-            visibleOnStart = true,
             tooltip = "TrayAppDemo",
+            fadeDurationMs = 200,
             menu = {
                 Item(
-                    if (isWindowVisible) "Hide the app" else "Open the App",
+                    if (isWindowVisible) "Hide Main Window" else "Show Main Window",
                     onClick = {
                         isWindowVisible = !isWindowVisible
                     }
                 )
                 Divider()
                 Item(
-                    if (isTrayPopupVisible) "Hide popup" else "Show popup",
+                    if (isTrayPopupVisible) "Hide Popup" else "Show Popup",
                     onClick = {
                         trayAppState.toggle()
                     }
                 )
+                Divider()
+                Item(
+                    "Dismiss Mode: $currentDismissMode",
+                    isEnabled = false
+                )
+                Item(
+                    "Switch to ${if (currentDismissMode == TrayWindowDismissMode.AUTO) "MANUAL" else "AUTO"} mode",
+                    onClick = {
+                        val newMode = if (currentDismissMode == TrayWindowDismissMode.AUTO) {
+                            TrayWindowDismissMode.MANUAL
+                        } else {
+                            TrayWindowDismissMode.AUTO
+                        }
+                        trayAppState.setDismissMode(newMode)
+                        println("Switched dismiss mode to: $newMode")
+                    }
+                )
+                Divider()
                 Item(
                     "Resize popup to 400x600",
                     onClick = {
@@ -103,40 +125,118 @@ fun main() {
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("Tray Companion App", color = MaterialTheme.colorScheme.onBackground)
-                        var textFieldValue by remember { mutableStateOf("") }
+                        Text(
+                            "Tray Popup Window",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Show current dismiss mode
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "Dismiss Mode: ${currentDismissMode.name}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    when (currentDismissMode) {
+                                        TrayWindowDismissMode.AUTO -> "Window closes on focus loss or outside click"
+                                        TrayWindowDismissMode.MANUAL -> "Window stays open until manually closed"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Text field to test focus behavior
+                        var textFieldValue by remember { mutableStateOf("") }
                         TextField(
                             value = textFieldValue,
                             onValueChange = { textFieldValue = it },
-                            placeholder = { Text("Enter some text") },
+                            label = { Text("Test focus behavior") },
+                            placeholder = { Text("Type here...") },
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Window size info
                         Text(
-                            "Status: ${if (isTrayPopupVisible) "Visible" else "Hidden"}",
+                            "Window Size: ${windowSize.width.value.toInt()} × ${windowSize.height.value.toInt()} dp",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onBackground
                         )
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Control buttons
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = { trayAppState.hide() },
-                                enabled = isTrayPopupVisible
+                                onClick = {
+                                    val newMode = if (currentDismissMode == TrayWindowDismissMode.AUTO) {
+                                        TrayWindowDismissMode.MANUAL
+                                    } else {
+                                        TrayWindowDismissMode.AUTO
+                                    }
+                                    trayAppState.setDismissMode(newMode)
+                                },
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text("Hide")
+                                Text(
+                                    "Switch to ${
+                                        if (currentDismissMode == TrayWindowDismissMode.AUTO) "MANUAL" else "AUTO"
+                                    }",
+                                    maxLines = 1
+                                )
                             }
+                        }
 
+                        if (currentDismissMode == TrayWindowDismissMode.MANUAL) {
                             Button(
-                                onClick = { trayAppState.show() },
-                                enabled = !isTrayPopupVisible
+                                onClick = { trayAppState.hide() },
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Show")
+                                Text("Close Window (Manual Mode)")
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Info text
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = if (currentDismissMode == TrayWindowDismissMode.AUTO) {
+                                    "💡 Click outside or switch focus to close"
+                                } else {
+                                    "💡 Click tray icon or use button to close"
+                                },
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
                         }
                     }
                 }
@@ -149,7 +249,7 @@ fun main() {
             Window(
                 state = state,
                 onCloseRequest = { isWindowVisible = false },
-                title = "Main App",
+                title = "Main Application",
                 icon = painterResource(Res.drawable.icon),
             ) {
                 window.setWindowsAdaptiveTitleBar()
@@ -166,7 +266,7 @@ fun main() {
                     ) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 "Main Application Window",
@@ -174,8 +274,45 @@ fun main() {
                                 color = MaterialTheme.colorScheme.onBackground
                             )
 
+                            Card(
+                                modifier = Modifier.fillMaxWidth(0.8f),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isTrayPopupVisible)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        "Tray Popup Status",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        if (isTrayPopupVisible) "VISIBLE" else "HIDDEN",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = if (isTrayPopupVisible)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "Mode: ${currentDismissMode.name}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(modifier = Modifier.fillMaxWidth(0.5f))
+
                             Text(
-                                "Tray popup is: ${if (isTrayPopupVisible) "Visible" else "Hidden"}",
+                                "Visibility Controls",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
 
@@ -183,37 +320,53 @@ fun main() {
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Button(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            trayAppState.show()
-                                        }
-                                    }
+                                    onClick = { trayAppState.show() },
+                                    enabled = !isTrayPopupVisible
                                 ) {
-                                    Text("Show Tray Popup")
+                                    Text("Show")
                                 }
 
                                 Button(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            trayAppState.hide()
-                                        }
-                                    }
+                                    onClick = { trayAppState.hide() },
+                                    enabled = isTrayPopupVisible
                                 ) {
-                                    Text("Hide Tray Popup")
+                                    Text("Hide")
                                 }
 
                                 Button(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            trayAppState.toggle()
-                                        }
-                                    }
+                                    onClick = { trayAppState.toggle() }
                                 ) {
-                                    Text("Toggle Tray Popup")
+                                    Text("Toggle")
                                 }
                             }
 
-                            Divider(modifier = Modifier.padding(vertical = 8.dp))
+                            HorizontalDivider(modifier = Modifier.fillMaxWidth(0.5f))
+
+                            Text(
+                                "Dismiss Mode Controls",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { trayAppState.setDismissMode(TrayWindowDismissMode.AUTO) },
+                                    enabled = currentDismissMode != TrayWindowDismissMode.AUTO
+                                ) {
+                                    Text("AUTO Mode")
+                                }
+
+                                OutlinedButton(
+                                    onClick = { trayAppState.setDismissMode(TrayWindowDismissMode.MANUAL) },
+                                    enabled = currentDismissMode != TrayWindowDismissMode.MANUAL
+                                ) {
+                                    Text("MANUAL Mode")
+                                }
+                            }
+
+                            HorizontalDivider(modifier = Modifier.fillMaxWidth(0.5f))
 
                             Text(
                                 "Window Size Controls",
@@ -224,34 +377,27 @@ fun main() {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
-                                    onClick = {
-                                        trayAppState.setWindowSize(250.dp, 400.dp)
-                                    }
+                                FilledTonalButton(
+                                    onClick = { trayAppState.setWindowSize(250.dp, 400.dp) }
                                 ) {
                                     Text("Small")
                                 }
 
-                                Button(
-                                    onClick = {
-                                        trayAppState.setWindowSize(350.dp, 500.dp)
-                                    }
+                                FilledTonalButton(
+                                    onClick = { trayAppState.setWindowSize(350.dp, 500.dp) }
                                 ) {
                                     Text("Medium")
                                 }
 
-                                Button(
-                                    onClick = {
-                                        trayAppState.setWindowSize(450.dp, 600.dp)
-                                    }
+                                FilledTonalButton(
+                                    onClick = { trayAppState.setWindowSize(450.dp, 600.dp) }
                                 ) {
                                     Text("Large")
                                 }
                             }
 
-                            val windowSize by trayAppState.windowSize.collectAsState()
                             Text(
-                                "Current popup size: ${windowSize.width.value.toInt()} x ${windowSize.height.value.toInt()} dp",
+                                "Current popup size: ${windowSize.width.value.toInt()} × ${windowSize.height.value.toInt()} dp",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onBackground
                             )

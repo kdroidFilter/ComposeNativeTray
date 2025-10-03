@@ -11,10 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
@@ -27,26 +26,18 @@ import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.*
 import io.github.kdroidfilter.platformtools.OperatingSystem
-import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
-import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
 import io.github.kdroidfilter.platformtools.getOperatingSystem
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 
 /**
- * TrayApp: High-level API that creates a system tray icon and an undecorated popup window
- * that toggles visibility on tray icon click and auto-hides when it loses focus.
- *
- * IMPORTANT: This version keeps the window **mounted** at all times to preserve
- * composable state. We toggle actual visibility with the `visible` parameter and
- * fade the content with alpha. The composition is never destroyed, so internal
- * `remember`/`rememberSaveable` state of your `content()` is kept.
+ * Creates a system tray icon with a popup window.
+ * The window's visibility is controlled by the tray icon and the dismiss mode.
  */
 @ExperimentalTrayAppApi
 @Composable
@@ -55,58 +46,48 @@ fun ApplicationScope.TrayApp(
     tint: Color? = null,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
-    state: TrayAppState? = null,
-    windowSize: DpSize? = null, // Deprecated, use state.windowSize
-    visibleOnStart: Boolean = false, // Deprecated, use state with initiallyVisible
+    state: TrayAppState = rememberTrayAppState(),
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    // Build the icon as composable content and delegate to the iconContent-based TrayApp
     val iconContent: @Composable () -> Unit = {
         val isDark = isMenuBarInDarkMode()
         Image(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            colorFilter = tint?.let { androidx.compose.ui.graphics.ColorFilter.tint(it) }
-                ?: if (isDark) androidx.compose.ui.graphics.ColorFilter.tint(Color.White)
-                else androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
+            colorFilter = tint?.let { ColorFilter.tint(it) }
+                ?: if (isDark) ColorFilter.tint(Color.White)
+                else ColorFilter.tint(Color.Black)
         )
     }
-    TrayApp(
+
+    TrayAppInternal(
         iconContent = iconContent,
         iconRenderProperties = iconRenderProperties,
         tooltip = tooltip,
         state = state,
-        windowSize = windowSize,
-        visibleOnStart = visibleOnStart,
         fadeDurationMs = fadeDurationMs,
         animationSpec = animationSpec,
-        content = content,
         menu = menu,
+        content = content,
     )
 }
 
-/**
- * TrayApp overload: accepts a Painter as tray icon.
- */
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
     icon: Painter,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
-    state: TrayAppState? = null,
-    windowSize: DpSize? = null, // Deprecated, use state.windowSize
-    visibleOnStart: Boolean = false, // Deprecated, use state with initiallyVisible
+    state: TrayAppState = rememberTrayAppState(),
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    // Build the icon as composable content and delegate to the iconContent-based TrayApp
     val iconContent: @Composable () -> Unit = {
         Image(
             painter = icon,
@@ -114,25 +95,44 @@ fun ApplicationScope.TrayApp(
             modifier = Modifier.fillMaxSize()
         )
     }
-    TrayApp(
+
+    TrayAppInternal(
         iconContent = iconContent,
         iconRenderProperties = iconRenderProperties,
         tooltip = tooltip,
         state = state,
-        windowSize = windowSize,
-        visibleOnStart = visibleOnStart,
         fadeDurationMs = fadeDurationMs,
         animationSpec = animationSpec,
-        content = content,
         menu = menu,
+        content = content,
     )
 }
 
-/**
- * TrayApp overload: accepts platform-specific icon types similar to Tray:
- * - Windows: Painter
- * - macOS/Linux: ImageVector (with optional tint)
- */
+@ExperimentalTrayAppApi
+@Composable
+fun ApplicationScope.TrayApp(
+    icon: DrawableResource,
+    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    tooltip: String,
+    state: TrayAppState = rememberTrayAppState(),
+    fadeDurationMs: Int = 200,
+    animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    menu: (TrayMenuBuilder.() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val painter = painterResource(icon)
+    TrayApp(
+        icon = painter,
+        iconRenderProperties = iconRenderProperties,
+        tooltip = tooltip,
+        state = state,
+        fadeDurationMs = fadeDurationMs,
+        animationSpec = animationSpec,
+        menu = menu,
+        content = content,
+    )
+}
+
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -141,78 +141,35 @@ fun ApplicationScope.TrayApp(
     tint: Color? = null,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
-    state: TrayAppState? = null,
-    windowSize: DpSize? = null, // Deprecated, use state.windowSize
-    visibleOnStart: Boolean = false, // Deprecated, use state with initiallyVisible
+    state: TrayAppState = rememberTrayAppState(),
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    val os = getOperatingSystem()
-    if (os == WINDOWS) {
-        // Delegate to Painter overload for Windows
-        TrayApp(
+    when (getOperatingSystem()) {
+        OperatingSystem.WINDOWS -> TrayApp(
             icon = windowsIcon,
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             state = state,
-            windowSize = windowSize,
-            visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
-    } else {
-        // Delegate to ImageVector overload for macOS/Linux
-        TrayApp(
+        else -> TrayApp(
             icon = macLinuxIcon,
             tint = tint,
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             state = state,
-            windowSize = windowSize,
-            visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
     }
-}
-
-/**
- * TrayApp overload: accepts a DrawableResource directly.
- */
-@ExperimentalTrayAppApi
-@Composable
-fun ApplicationScope.TrayApp(
-    icon: DrawableResource,
-    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
-    tooltip: String,
-    state: TrayAppState? = null,
-    windowSize: DpSize? = null, // Deprecated, use state.windowSize
-    visibleOnStart: Boolean = false, // Deprecated, use state with initiallyVisible
-    fadeDurationMs: Int = 200,
-    animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
-    menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    // Convert DrawableResource to Painter and delegate to Painter overload
-    val painter = painterResource(icon)
-    TrayApp(
-        icon = painter,
-        iconRenderProperties = iconRenderProperties,
-        tooltip = tooltip,
-        state = state,
-        windowSize = windowSize,
-        visibleOnStart = visibleOnStart,
-        fadeDurationMs = fadeDurationMs,
-        animationSpec = animationSpec,
-        menu = menu,
-        content = content,
-    )
 }
 
 @ExperimentalTrayAppApi
@@ -223,38 +180,29 @@ fun ApplicationScope.TrayApp(
     tint: Color? = null,
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
-    state: TrayAppState? = null,
-    windowSize: DpSize? = null, // Deprecated, use state.windowSize
-    visibleOnStart: Boolean = false, // Deprecated, use state with initiallyVisible
+    state: TrayAppState = rememberTrayAppState(),
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    val os = getOperatingSystem()
-    if (os == WINDOWS) {
-        val painter = painterResource(windowsIcon)
-        TrayApp(
-            icon = painter,
+    when (getOperatingSystem()) {
+        OperatingSystem.WINDOWS -> TrayApp(
+            icon = windowsIcon,
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             state = state,
-            windowSize = windowSize,
-            visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
             menu = menu,
             content = content,
         )
-    } else {
-        TrayApp(
+        else -> TrayApp(
             icon = macLinuxIcon,
             tint = tint,
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             state = state,
-            windowSize = windowSize,
-            visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
             menu = menu,
@@ -264,86 +212,62 @@ fun ApplicationScope.TrayApp(
 }
 
 /**
- * TrayApp overload that uses a composable icon and **keeps the popup window mounted**.
- *
- * Key changes vs your previous version:
- * - The DialogWindow is **always part of the composition**.
- * - We toggle visibility with `visible = shouldShowWindow` and animate alpha.
- * - We update `dialogState.position` on each show so the first frame renders at the
- *   right spot (no jump-to-corner on first show).
- * - Focus/outside-click watchers are attached only while visible.
+ * Internal implementation of TrayApp with composable icon content.
+ * Keeps the window mounted to preserve state.
  */
 @ExperimentalTrayAppApi
 @Composable
-fun ApplicationScope.TrayApp(
+private fun ApplicationScope.TrayAppInternal(
     iconContent: @Composable () -> Unit,
-    iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
+    iconRenderProperties: IconRenderProperties,
     tooltip: String,
-    state: TrayAppState? = null,
-    windowSize: DpSize? = null, // Deprecated, use state.windowSize
-    visibleOnStart: Boolean = false, // Deprecated, use state with initiallyVisible
-    fadeDurationMs: Int = 200,
-    animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
-    menu: (TrayMenuBuilder.() -> Unit)? = null,
+    state: TrayAppState,
+    fadeDurationMs: Int,
+    animationSpec: AnimationSpec<Float>,
+    menu: (TrayMenuBuilder.() -> Unit)?,
     content: @Composable () -> Unit,
 ) {
-    // Create or use provided state
-    val trayAppState = state ?: rememberTrayAppState(
-        initialWindowSize = windowSize ?: DpSize(300.dp, 200.dp),
-        initiallyVisible = visibleOnStart
-    )
-
-    // Collect state flows
-    val isVisible by trayAppState.isVisible.collectAsState()
-    val currentWindowSize by trayAppState.windowSize.collectAsState()
+    val isVisible by state.isVisible.collectAsState()
+    val currentWindowSize by state.windowSize.collectAsState()
+    val dismissMode by state.dismissMode.collectAsState()
 
     var shouldShowWindow by remember { mutableStateOf(false) }
-
-    // Update window size in state if provided through parameter (for backward compatibility)
-    LaunchedEffect(windowSize) {
-        windowSize?.let { trayAppState.setWindowSize(it) }
-    }
-
-    val isDark = isMenuBarInDarkMode()
     val os = getOperatingSystem()
+    val isDark = isMenuBarInDarkMode()
 
-    // Debounce + stability
-    var lastPrimaryActionAt by remember { mutableStateOf(0L) }
-    val toggleDebounceMs = 280L
-
-    var lastShownAt by remember { mutableStateOf(0L) }
-    var lastHiddenAt by remember { mutableStateOf(0L) }
-    val minVisibleDurationMs = 350L
-    val minHiddenDurationMs = 250L
-
-    // Opacity animation
+    // Animation
     val alpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
         animationSpec = animationSpec,
         label = "window_fade"
     )
 
+    // Icon rendering
     val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) +
             isDark.hashCode()
-
     val menuHash = MenuContentHash.calculateMenuHash(menu)
 
     val pngIconPath = remember(contentHash) {
         ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
     }
+
     val windowsIconPath = remember(contentHash) {
-        if (os == WINDOWS)
+        if (os == OperatingSystem.WINDOWS) {
             ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent)
-        else pngIconPath
+        } else {
+            pngIconPath
+        }
     }
 
+    // Native tray
     val tray = remember { NativeTray() }
 
-    // Windows-specific guards
-    var lastFocusLostAt by remember { mutableStateOf(0L) }
-    var autoHideEnabledAt by remember { mutableStateOf(0L) }
+    // Primary action: toggle visibility
+    val primaryAction: () -> Unit = {
+        state.toggle()
+    }
 
-    // Keep a persistent dialog state (mounted once)
+    // Dialog state (persistent)
     val dialogState = rememberDialogState(size = currentWindowSize)
 
     // Update dialog state when window size changes
@@ -351,99 +275,65 @@ fun ApplicationScope.TrayApp(
         dialogState.size = currentWindowSize
     }
 
-    // Helper to request hide with a minimum visible duration guard
-    val requestHide: () -> Unit = {
-        val now = System.currentTimeMillis()
-        val sinceShow = now - lastShownAt
-        if (sinceShow >= minVisibleDurationMs) {
-            trayAppState.hide()
-            lastHiddenAt = System.currentTimeMillis()
-        } else {
-            val wait = minVisibleDurationMs - sinceShow
-            CoroutineScope(Dispatchers.IO).launch {
-                delay(wait)
-                trayAppState.hide()
-                lastHiddenAt = System.currentTimeMillis()
+    // Handle visibility changes
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            if (!shouldShowWindow) {
+                // Calculate position before showing
+                delay(150)
+                val widthPx = currentWindowSize.width.value.toInt()
+                val heightPx = currentWindowSize.height.value.toInt()
+
+                var position: WindowPosition = WindowPosition.PlatformDefault
+                val deadline = System.currentTimeMillis() + 3000
+
+                while (position is WindowPosition.PlatformDefault &&
+                    System.currentTimeMillis() < deadline) {
+                    position = getTrayWindowPositionForInstance(
+                        tray.instanceKey(), widthPx, heightPx
+                    )
+                    delay(150)
+                }
+
+                dialogState.position = position
+                shouldShowWindow = true
             }
+        } else {
+            // Wait for fade animation to complete
+            delay(fadeDurationMs.toLong())
+            shouldShowWindow = false
         }
     }
 
-    // Primary action: toggle visibility with debounce + platform guard
-    val internalPrimaryAction: () -> Unit = {
-        val now = System.currentTimeMillis()
-        if (now - lastPrimaryActionAt >= toggleDebounceMs) {
-            lastPrimaryActionAt = now
+    // Update tray icon and menu
+    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, primaryAction, menu, contentHash, menuHash) {
+        tray.update(pngIconPath, windowsIconPath, tooltip, primaryAction, menu)
+    }
 
-            if (isVisible) {
-                // Simplified hide logic for primary action
-                requestHide()
-            } else {
-                if (now - lastHiddenAt >= minHiddenDurationMs) {
-                    if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
-                        // Ignore immediate re-show after focus loss on Windows
+    // macOS: Manage Dock visibility
+    if (os == OperatingSystem.MACOS) {
+        LaunchedEffect(Unit) {
+            WindowVisibilityMonitor.hasAnyVisibleWindows.collectLatest { hasVisible ->
+                runCatching {
+                    val manager = MacOSWindowManager()
+                    if (hasVisible) {
+                        manager.showInDock()
                     } else {
-                        trayAppState.show()
-                        // `lastShownAt` will be set in LaunchedEffect(isVisible)
+                        manager.hideFromDock()
                     }
                 }
             }
         }
     }
 
-    // FIX: Consolidated visibility handling with position calculation BEFORE showing the window.
-    LaunchedEffect(isVisible) {
-        if (isVisible) {
-            if (!shouldShowWindow) {
-                delay(150)
-
-                val widthPx = currentWindowSize.width.value.toInt()
-                val heightPx = currentWindowSize.height.value.toInt()
-                var position: WindowPosition = WindowPosition.PlatformDefault
-                val deadline = System.currentTimeMillis() + 3000 // Max 3s wait to avoid hanging
-                while (position is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
-                    position = getTrayWindowPositionForInstance(
-                        tray.instanceKey(), widthPx, heightPx
-                    )
-                    delay(150)
-                }
-                // If still default after timeout, proceed anyway to avoid invisible window
-                dialogState.position = position
-
-                if (os == WINDOWS) {
-                    autoHideEnabledAt = System.currentTimeMillis() + 1000
-                }
-
-                // Now safe to show—no glitch.
-                shouldShowWindow = true
-                lastShownAt = System.currentTimeMillis()
-            }
-        } else {
-            delay(fadeDurationMs.toLong())
-            shouldShowWindow = false
-            lastHiddenAt = System.currentTimeMillis()
+    // Cleanup
+    DisposableEffect(Unit) {
+        onDispose {
+            tray.dispose()
         }
     }
 
-    // Update tray icon/menu when needed
-    LaunchedEffect(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu, contentHash, menuHash) {
-        tray.update(pngIconPath, windowsIconPath, tooltip, internalPrimaryAction, menu)
-    }
-
-    // macOS: manage Dock visibility based on global AWT visibility
-    LaunchedEffect(os) {
-        if (os == MACOS) {
-            WindowVisibilityMonitor.hasAnyVisibleWindows.collectLatest { hasVisible ->
-                runCatching {
-                    val manager = MacOSWindowManager()
-                    if (hasVisible) manager.showInDock() else manager.hideFromDock()
-                }
-            }
-        }
-    }
-
-    DisposableEffect(Unit) { onDispose { tray.dispose() } }
-
-    // Invisible helper window (Compose requirement on some platforms)
+    // Invisible helper window (required on some platforms)
     DialogWindow(
         onCloseRequest = { },
         visible = false,
@@ -457,9 +347,13 @@ fun ApplicationScope.TrayApp(
         focusable = false,
     ) { }
 
-    // === Main popup window (ALWAYS MOUNTED) ===
+    // Main popup window (always mounted to preserve state)
     DialogWindow(
-        onCloseRequest = { requestHide() },
+        onCloseRequest = {
+            if (dismissMode == TrayWindowDismissMode.MANUAL) {
+                state.hide()
+            }
+        },
         title = "",
         undecorated = true,
         resizable = false,
@@ -469,71 +363,74 @@ fun ApplicationScope.TrayApp(
         visible = shouldShowWindow,
         state = dialogState,
     ) {
-        // Attach/Detach platform listeners only while window is actually visible
-        DisposableEffect(shouldShowWindow) {
+        // Setup auto-dismiss listeners only if in AUTO mode and window is visible
+        DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) {
-                onDispose { }
                 return@DisposableEffect onDispose { }
             }
 
-            // Mark this as the tray popup (macOS visibility monitor)
+            // Mark as tray dialog for macOS
             try {
                 window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME
-            } catch (_: Throwable) {
-            }
+            } catch (_: Throwable) { }
+
             runCatching { WindowVisibilityMonitor.recompute() }
 
-            // Bring to front on open
+            // Bring window to front
             invokeLater {
                 try {
                     window.toFront()
                     window.requestFocus()
                     window.requestFocusInWindow()
-                } catch (_: Throwable) {
-                }
+                } catch (_: Throwable) { }
             }
 
-            val focusListener = object : WindowFocusListener {
-                override fun windowGainedFocus(e: WindowEvent?) = Unit
-                override fun windowLostFocus(e: WindowEvent?) {
-                    lastFocusLostAt = System.currentTimeMillis()
-                    if (os == WINDOWS && lastFocusLostAt < autoHideEnabledAt) {
-                        // Ignore focus loss during startup grace period on Windows
-                        return
+            // Only attach auto-dismiss listeners if in AUTO mode
+            if (dismissMode == TrayWindowDismissMode.AUTO) {
+                val focusListener = object : WindowFocusListener {
+                    override fun windowGainedFocus(e: WindowEvent?) = Unit
+                    override fun windowLostFocus(e: WindowEvent?) {
+                        invokeLater { state.hide() }
                     }
-                    requestHide()
                 }
-            }
 
-            val macWatcher = if (getOperatingSystem() == MACOS) {
-                MacOutsideClickWatcher(
-                    windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHide() } }
-                ).also { it.start() }
-            } else null
+                val macWatcher = if (os == OperatingSystem.MACOS) {
+                    MacOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = { invokeLater { state.hide() } }
+                    ).also { it.start() }
+                } else null
 
-            val linuxWatcher = if (getOperatingSystem() == OperatingSystem.LINUX) {
-                LinuxOutsideClickWatcher(
-                    windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHide() } }
-                ).also { it.start() }
-            } else null
+                val linuxWatcher = if (os == OperatingSystem.LINUX) {
+                    LinuxOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = { invokeLater { state.hide() } }
+                    ).also { it.start() }
+                } else null
 
-            window.addWindowFocusListener(focusListener)
+                window.addWindowFocusListener(focusListener)
 
-            onDispose {
-                window.removeWindowFocusListener(focusListener)
-                macWatcher?.stop()
-                linuxWatcher?.stop()
-                runCatching { WindowVisibilityMonitor.recompute() }
+                onDispose {
+                    window.removeWindowFocusListener(focusListener)
+                    macWatcher?.stop()
+                    linuxWatcher?.stop()
+                    runCatching { WindowVisibilityMonitor.recompute() }
+                }
+            } else {
+                // MANUAL mode: no auto-dismiss listeners
+                onDispose {
+                    runCatching { WindowVisibilityMonitor.recompute() }
+                }
             }
         }
 
-        // Content wrapper with fade animation (state is preserved across show/hide)
+        // Content with fade animation
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(alpha)
-        ) { content() }
+        ) {
+            content()
+        }
     }
 }
