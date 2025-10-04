@@ -75,6 +75,7 @@ fun ApplicationScope.TrayApp(
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     transparent: Boolean = true,
     windowsTitle: String = "",
+    windowIcon: Painter? = null,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -99,6 +100,7 @@ fun ApplicationScope.TrayApp(
         animationSpec = animationSpec,
         transparent = transparent,
         windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
         menu = menu,
         content = content,
     )
@@ -117,6 +119,7 @@ fun ApplicationScope.TrayApp(
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     transparent: Boolean = true,
     windowsTitle: String = "",
+    windowIcon: Painter? = null,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -134,6 +137,7 @@ fun ApplicationScope.TrayApp(
         animationSpec = animationSpec,
         transparent = transparent,
         windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
         menu = menu,
         content = content,
     )
@@ -154,6 +158,7 @@ fun ApplicationScope.TrayApp(
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     transparent: Boolean = true,
     windowsTitle: String = "",
+    windowIcon: Painter? = null,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -169,6 +174,7 @@ fun ApplicationScope.TrayApp(
             animationSpec = animationSpec,
             transparent = transparent,
             windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
             menu = menu,
             content = content,
         )
@@ -185,6 +191,7 @@ fun ApplicationScope.TrayApp(
             animationSpec = animationSpec,
             transparent = transparent,
             windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
             menu = menu,
             content = content,
         )
@@ -204,6 +211,7 @@ fun ApplicationScope.TrayApp(
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     transparent: Boolean = true,
     windowsTitle: String = "",
+    windowIcon: Painter? = null,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -218,6 +226,7 @@ fun ApplicationScope.TrayApp(
         animationSpec = animationSpec,
         transparent = transparent,
         windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
         menu = menu,
         content = content,
     )
@@ -238,6 +247,7 @@ fun ApplicationScope.TrayApp(
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     transparent: Boolean = true,
     windowsTitle: String = "",
+    windowIcon: Painter? = null,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -253,6 +263,7 @@ fun ApplicationScope.TrayApp(
         animationSpec = animationSpec,
         transparent = transparent,
         windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
         menu = menu,
         content = content,
     )
@@ -269,6 +280,7 @@ fun ApplicationScope.TrayApp(
             animationSpec = animationSpec,
             transparent = transparent,
             windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
             menu = menu,
             content = content,
         )
@@ -290,17 +302,18 @@ fun ApplicationScope.TrayApp(
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
     transparent: Boolean = true,
     windowsTitle: String = "",
+    windowIcon: Painter? = null,
     menu: (TrayMenuBuilder.() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     when (getOperatingSystem()) {
         OperatingSystem.LINUX -> TrayAppImplLinux(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
-            visibleOnStart, fadeDurationMs, animationSpec, transparent, windowsTitle, menu, content
+            visibleOnStart, fadeDurationMs, animationSpec, transparent, windowsTitle, windowIcon, menu, content
         )
         else -> TrayAppImplOriginal(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
-            visibleOnStart, fadeDurationMs, animationSpec, transparent, windowsTitle, menu, content
+            visibleOnStart, fadeDurationMs, animationSpec, transparent, windowsTitle, windowIcon, menu, content
         )
     }
 }
@@ -319,6 +332,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
     animationSpec: AnimationSpec<Float>,
     transparent: Boolean,
     windowsTitle: String,
+    windowIcon: Painter?,
     menu: (TrayMenuBuilder.() -> Unit)?,
     content: @Composable () -> Unit,
 ) {
@@ -454,6 +468,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
     DialogWindow(
         onCloseRequest = { requestHideExplicit() },
         title = windowsTitle,
+        icon = windowIcon,
         undecorated = true,
         resizable = false,
         focusable = true,
@@ -534,6 +549,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     animationSpec: AnimationSpec<Float>,
     transparent: Boolean,
     windowsTitle: String,
+    windowIcon: Painter?,
     menu: (TrayMenuBuilder.() -> Unit)?,
     content: @Composable () -> Unit,
 ) {
@@ -644,6 +660,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     DialogWindow(
         onCloseRequest = { requestHideExplicit() },
         title = windowsTitle,
+        icon = windowIcon,
         undecorated = true,
         resizable = false,
         focusable = shouldShowWindow, // avoid focus-steal while hidden

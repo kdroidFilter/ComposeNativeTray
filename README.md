@@ -694,6 +694,28 @@ application {
 }
 ```
 
+#### Window Icon
+Set a custom window icon for the popup using `windowIcon`. This maps directly to the `icon` parameter of Compose's `DialogWindow`.
+
+- Type: `Painter?`
+- Default: `null` (no custom icon)
+- Example:
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    val trayState = rememberTrayAppState()
+    TrayApp(
+        state = trayState,
+        icon = Icons.Default.Dashboard,
+        tooltip = "My Tray App",
+        windowsTitle = "My Tray Popup",
+        windowIcon = painterResource(Res.drawable.icon)
+    ) {
+        // content
+    }
+}
+```
+
  ## 🧩 New: Tray Window Dismiss Modes
 
 By default, the `TrayApp` popup window closes automatically when it loses focus or when the user clicks outside of it.
