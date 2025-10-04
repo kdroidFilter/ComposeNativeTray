@@ -646,6 +646,36 @@ trayAppState.setWindowSize(400.dp, 600.dp)
 trayAppState.setWindowSize(DpSize(350.dp, 500.dp))
 ```
 
+#### Window Transparency
+By default, the tray popup window is created with a transparent background so your UI can have rounded corners and shadows without a visible window frame.
+You can turn transparency off if you prefer an opaque window.
+
+- Default: `transparent = true`
+- Opaque window: set `transparent = false`
+
+Example:
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    val trayAppState = rememberTrayAppState(
+        initialWindowSize = DpSize(320.dp, 420.dp),
+        initiallyVisible = true
+    )
+
+    TrayApp(
+        state = trayAppState,
+        icon = Icons.Default.Dashboard,
+        tooltip = "My Tray App",
+        transparent = false, // 👈 make the popup opaque
+    ) {
+        // Your popup content
+        MaterialTheme { /* ... */ }
+    }
+}
+```
+
+Note: The fade-in/out animation in TrayApp controls the content alpha (visual fade) and is independent from window transparency. Transparency support is available on Linux, Windows, and macOS.
+
 ## 🧩 New: Tray Window Dismiss Modes
 
 By default, the `TrayApp` popup window closes automatically when it loses focus or when the user clicks outside of it.
