@@ -447,20 +447,6 @@ fun ApplicationScope.TrayApp(
 
     DisposableEffect(Unit) { onDispose { tray.dispose() } }
 
-    // Invisible helper window (Compose requirement on some platforms)
-    DialogWindow(
-        onCloseRequest = { /* noop */ },
-        visible = false,
-        state = rememberDialogState(
-            size = DpSize(1.dp, 1.dp),
-            position = WindowPosition(0.dp, 0.dp)
-        ),
-        transparent = true,
-        undecorated = true,
-        resizable = false,
-        focusable = false,
-    ) { }
-
     // === Main popup window (ALWAYS MOUNTED) ===
     DialogWindow(
         // Closing the popup via OS/ESC is considered explicit user intent → allowed in MANUAL
@@ -468,7 +454,7 @@ fun ApplicationScope.TrayApp(
         title = "",
         undecorated = true,
         resizable = false,
-        focusable = true,
+        focusable = shouldShowWindow,
         alwaysOnTop = true,
         transparent = true,
         visible = shouldShowWindow,
