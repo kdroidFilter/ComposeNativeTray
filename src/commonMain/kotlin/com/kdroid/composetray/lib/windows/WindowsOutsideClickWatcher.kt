@@ -1,51 +1,23 @@
 package com.kdroid.composetray.lib.windows
 
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.Structure
+import com.sun.jna.Pointer
+import com.sun.jna.platform.win32.Kernel32
+import com.sun.jna.platform.win32.WinDef
+import com.sun.jna.platform.win32.WinUser
+import com.sun.jna.platform.win32.User32
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.Window
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Minimal JNA mapping for user32.dll functions we need.
- */
-interface User32 : Library {
-    companion object {
-        val INSTANCE: User32 = Native.load("user32", User32::class.java)
-        const val VK_LBUTTON = 0x01
-    }
-
-    /**
-     * Returns the state of a virtual key. High-order bit set => key is down.
-     */
-    fun GetAsyncKeyState(vKey: Int): Short
-
-    /**
-     * Retrieves the cursor's position, in screen coordinates.
-     * Returns true on success; fills the provided POINT.
-     */
-    fun GetCursorPos(lpPoint: POINT): Boolean
-}
-
-/**
- * Win32 POINT structure.
- */
-open class POINT : Structure() {
-    @JvmField var x: Int = 0
-    @JvmField var y: Int = 0
-    override fun getFieldOrder() = listOf("x", "y")
-}
-
-/**
- * WindowsOutsideClickWatcher: polls the left mouse button state and cursor position.
- * When a left-click press is detected (transition from up -> down) outside the target window,
- * it invokes onOutsideClick(). You can provide an optional ignore predicate (e.g., to ignore
- * clicks on the system tray icon) that receives (x, y) screen coordinates and returns true
- * if the click should be ignored.
+ * WindowsOutsideClickWatcher using a low-level mouse hook (WH_MOUSE_LL).
+ *
+ * Behavior:
+ *  - Listens for global left-button *down* events.
+ *  - If the click occurs outside the supplied window (and not ignored by predicate), invokes onOutsideClick().
+ *
+ * Public signatures are preserved.
  */
 class WindowsOutsideClickWatcher(
     private val windowSupplier: () -> Window?,
@@ -53,70 +25,130 @@ class WindowsOutsideClickWatcher(
     private val ignorePointPredicate: ((x: Int, y: Int) -> Boolean)? = null
 ) : AutoCloseable {
 
-    private var scheduler: ScheduledExecutorService? = null
-    private var prevLeftDown: Boolean = false
+    @Volatile private var hookThread: Thread? = null
+    @Volatile private var hookHandle: WinUser.HHOOK? = null
+    @Volatile private var hookThreadId: Int = 0
+    @Volatile private var mouseProc: WinUser.LowLevelMouseProc? = null
+    private val stopping = AtomicBoolean(false)
 
+    private companion object {
+        const val WH_MOUSE_LL = 14
+        const val WM_LBUTTONDOWN = 0x0201
+        const val WM_NCLBUTTONDOWN = 0x00A1
+        const val WM_QUIT = 0x0012
+    }
+
+    /** Start the global low-level mouse hook on a dedicated daemon thread. */
     fun start() {
         if (getOperatingSystem() != OperatingSystem.WINDOWS) return
-        if (scheduler != null) return
+        synchronized(this) {
+            if (hookThread != null) return
+            stopping.set(false)
 
-        scheduler = Executors.newSingleThreadScheduledExecutor { r ->
-            Thread(r, "WindowsOutsideClickWatcher").apply { isDaemon = true }
-        }.also { exec ->
-            // ~60Hz polling; tune if you need lower CPU usage
-            exec.scheduleAtFixedRate({ pollOnce() }, 0, 16, TimeUnit.MILLISECONDS)
+            hookThread = Thread({
+                hookThreadId = Kernel32.INSTANCE.GetCurrentThreadId()
+
+                // Strong reference kept on the field to avoid GC of the callback.
+                mouseProc = WinUser.LowLevelMouseProc { nCode, wParam, lParam ->
+                    try {
+                        if (nCode >= 0) {
+                            val msg = wParam.toInt() // For WH_MOUSE_LL this is the WM_* code.
+                            if (msg == WM_LBUTTONDOWN || msg == WM_NCLBUTTONDOWN) {
+                                // lParam is already the populated MSLLHOOKSTRUCT.
+                                val px = lParam.pt.x
+                                val py = lParam.pt.y
+
+                                val win = windowSupplier()
+                                if (win != null && win.isShowing) {
+                                    val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
+                                    if (winLoc != null) {
+                                        val wx = winLoc.x
+                                        val wy = winLoc.y
+                                        val ww = win.width
+                                        val wh = win.height
+
+                                        val insideWindow = px in wx until (wx + ww) && py in wy until (wy + wh)
+                                        val ignored = ignorePointPredicate?.invoke(px, py) == true
+
+                                        if (!insideWindow && !ignored) {
+                                            // Let caller decide EDT marshaling.
+                                            onOutsideClick()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_: Throwable) {
+                        // Never crash the hook; always fall through to CallNextHookEx.
+                    }
+
+                    // Pass original WPARAM and a *pointer* to the struct as LPARAM.
+                    val lParamNative = WinDef.LPARAM(Pointer.nativeValue(lParam.pointer))
+                    User32.INSTANCE.CallNextHookEx(hookHandle, nCode, wParam, lParamNative)
+                }
+
+                // Install the hook (global, threadId = 0).
+                val hMod = Kernel32.INSTANCE.GetModuleHandle(null)
+                hookHandle = User32.INSTANCE.SetWindowsHookEx(WH_MOUSE_LL, mouseProc, hMod, 0)
+
+                if (hookHandle == null) {
+                    mouseProc = null
+                    return@Thread
+                }
+
+                // Minimal message loop to keep the hook thread alive.
+                val msg = WinUser.MSG()
+                while (!stopping.get()) {
+                    val r = User32.INSTANCE.GetMessage(msg, null, 0, 0)
+                    if (r == 0 || r == -1) break // WM_QUIT or error
+                }
+
+                // Cleanup before thread exits.
+                try {
+                    hookHandle?.let { User32.INSTANCE.UnhookWindowsHookEx(it) }
+                } finally {
+                    hookHandle = null
+                    mouseProc = null
+                }
+            }, "WindowsOutsideClickWatcher-LL").apply {
+                isDaemon = true
+                start()
+            }
         }
     }
 
-    private fun pollOnce() {
-        try {
-            val u32 = User32.INSTANCE
-            // High-order bit set => key is pressed
-            val leftDownNow = (u32.GetAsyncKeyState(User32.VK_LBUTTON).toInt() and 0x8000) != 0
+    /** Stop the hook (alias to close()). */
+    fun stop() = close()
 
-            // Fire only on the transition from "not pressed" to "pressed"
-            if (leftDownNow && !prevLeftDown) {
-                val win = windowSupplier.invoke()
-                if (win != null && win.isShowing) {
-                    val pt = POINT()
-                    if (u32.GetCursorPos(pt)) {
-                        val px = pt.x
-                        val py = pt.y
+    /** Uninstalls the hook and signals the hook thread to exit. */
+    override fun close() {
+        synchronized(this) {
+            stopping.set(true)
 
-                        val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
-                        if (winLoc != null) {
-                            val wx = winLoc.x
-                            val wy = winLoc.y
-                            val ww = win.width
-                            val wh = win.height
+            // Unhook immediately; also helps release if thread is blocked in GetMessage().
+            try {
+                hookHandle?.let { User32.INSTANCE.UnhookWindowsHookEx(it) }
+            } catch (_: Throwable) {
+            } finally {
+                hookHandle = null
+            }
 
-                            val insideWindow =
-                                px >= wx && px < wx + ww && py >= wy && py < wy + wh
-
-                            val ignored = ignorePointPredicate?.invoke(px, py) == true
-
-                            if (!insideWindow && !ignored) {
-                                onOutsideClick.invoke()
-                            }
-                        }
-                    }
+            // Break GetMessage() with WM_QUIT.
+            if (hookThreadId != 0) {
+                try {
+                    User32.INSTANCE.PostThreadMessage(
+                        hookThreadId,
+                        WM_QUIT,
+                        WinDef.WPARAM(0),
+                        WinDef.LPARAM(0)
+                    )
+                } catch (_: Throwable) {
                 }
             }
 
-            prevLeftDown = leftDownNow
-        } catch (_: Throwable) {
-            // Swallow errors to keep the scheduler alive
-        }
-    }
-
-    fun stop() = close()
-
-    override fun close() {
-        try {
-            scheduler?.shutdownNow()
-        } catch (_: Throwable) {
-        } finally {
-            scheduler = null
+            hookThread = null
+            hookThreadId = 0
+            mouseProc = null
         }
     }
 }
