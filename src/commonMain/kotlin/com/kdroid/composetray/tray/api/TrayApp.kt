@@ -13,8 +13,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
@@ -27,15 +25,19 @@ import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.*
+import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
 import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
+import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
@@ -378,17 +380,27 @@ fun ApplicationScope.TrayApp(
         val now = System.currentTimeMillis()
         if (now - lastPrimaryActionAt >= toggleDebounceMs) {
             lastPrimaryActionAt = now
-
             if (isVisible) {
-                // Explicit hide (works both in AUTO and MANUAL)
                 requestHideExplicit()
             } else {
                 if (now - lastHiddenAt >= minHiddenDurationMs) {
                     if (os == WINDOWS && (now - lastFocusLostAt) < 300) {
-                        // Ignore immediate re-show after focus loss on Windows
+                        // Ignore
                     } else {
+                        if (detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE) {
+                            // Pré-calculer la position AVANT de montrer
+                            val widthPx = currentWindowSize.width.value.toInt()
+                            val heightPx = currentWindowSize.height.value.toInt()
+                            val newPosition = getTrayWindowPositionForInstance(
+                                tray.instanceKey(), widthPx, heightPx
+                            )
+
+                            // Mettre à jour immédiatement
+                            if (newPosition !is WindowPosition.PlatformDefault) {
+                                dialogState.position = newPosition
+                            }
+                        }
                         trayAppState.show()
-                        // `lastShownAt` will be set in LaunchedEffect(isVisible)
                     }
                 }
             }
