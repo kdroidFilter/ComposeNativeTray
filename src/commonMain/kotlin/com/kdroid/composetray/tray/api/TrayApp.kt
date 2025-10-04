@@ -422,19 +422,6 @@ private fun ApplicationScope.TrayAppImplOriginal(
     DisposableEffect(Unit) { onDispose { tray.dispose() } }
 
     DialogWindow(
-        onCloseRequest = { /* noop */ },
-        visible = false,
-        state = rememberDialogState(
-            size = DpSize(1.dp, 1.dp),
-            position = WindowPosition(0.dp, 0.dp)
-        ),
-        transparent = true,
-        undecorated = true,
-        resizable = false,
-        focusable = false,
-    ) { }
-
-    DialogWindow(
         onCloseRequest = { requestHideExplicit() },
         title = "",
         undecorated = true,
