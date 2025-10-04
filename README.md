@@ -60,10 +60,6 @@
     - [Icon Limitations](#icon-limitations)
     - [Theme Behavior](#theme-behavior)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
-    - [Overview](#overview)
-    - [Basic Usage](#basic-usage)
-    - [TrayAppState API](#trayappstate-api)
-    - [Advanced Examples](#advanced-examples)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
 - [👨‍💻 Author](#-author)
@@ -556,7 +552,7 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
 - **Windows**: Follows the system theme
 - **Linux**: Varies by desktop environment (GNOME/KDE/etc.)
 
-# TrayApp
+# 🧪 TrayApp (Experimental)
 
 `TrayApp` gives your desktop app a **system‑tray/menu‑bar icon** and a **tiny popup window** for quick actions. It’s perfect for quick toggles, mini dashboards, and “control center” UIs.
 
