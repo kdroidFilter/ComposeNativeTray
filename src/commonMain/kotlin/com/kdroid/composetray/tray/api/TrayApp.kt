@@ -24,6 +24,7 @@ import androidx.compose.ui.window.rememberDialogState
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
+import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.*
 import io.github.kdroidfilter.platformtools.OperatingSystem
@@ -524,12 +525,20 @@ fun ApplicationScope.TrayApp(
                 ).also { it.start() }
             } else null
 
+            val windowsWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == WINDOWS) {
+                WindowsOutsideClickWatcher(
+                    windowSupplier = { window },
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }
+                ).also { it.start() }
+            } else null
+
             window.addWindowFocusListener(focusListener)
 
             onDispose {
                 window.removeWindowFocusListener(focusListener)
                 macWatcher?.stop()
                 linuxWatcher?.stop()
+                windowsWatcher?.stop()
                 runCatching { WindowVisibilityMonitor.recompute() }
             }
         }

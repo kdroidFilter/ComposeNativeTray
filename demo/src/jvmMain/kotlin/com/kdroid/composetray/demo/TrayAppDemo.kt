@@ -43,7 +43,7 @@ fun main() {
         val trayAppState = rememberTrayAppState(
             initialWindowSize = DpSize(300.dp, 500.dp),
             initiallyVisible = true,
-            initialDismissMode = TrayWindowDismissMode.MANUAL
+            initialDismissMode = TrayWindowDismissMode.AUTO
         )
 
         // Observe visibility changes
