@@ -60,10 +60,6 @@
     - [Icon Limitations](#icon-limitations)
     - [Theme Behavior](#theme-behavior)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
-    - [Overview](#overview)
-    - [Basic Usage](#basic-usage)
-    - [TrayAppState API](#trayappstate-api)
-    - [Advanced Examples](#advanced-examples)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
 - [👨‍💻 Author](#-author)
@@ -556,249 +552,123 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
 - **Windows**: Follows the system theme
 - **Linux**: Varies by desktop environment (GNOME/KDE/etc.)
 
-## 🧪 TrayApp (Experimental)
+# 🧪 TrayApp (Experimental)
 
+`TrayApp` gives your desktop app a **system‑tray/menu‑bar icon** and a **tiny popup window** for quick actions. It’s perfect for quick toggles, mini dashboards, and “control center” UIs.
 
-<p align="center">
-  <img src="screenshots/trayappdemo.gif" alt="demo">
-</p>
+**Works on Windows, macOS, and Linux.** Smooth fade animations, smart positioning near the tray, and a simple API so you stay productive.
 
-### Overview
-TrayApp is a high-level API that creates a system tray icon and an undecorated popup window that toggles when the tray icon is clicked. The popup auto-hides when it loses focus or when you click outside it (macOS/Linux watchers supported) and can fade in/out.
+---
 
-Use TrayApp when you want a compact companion window (like a quick settings or mini dashboard) anchored to the system tray, in addition to or instead of your main window – ideal for building apps in the style of JetBrains Toolbox.
+## Why you’ll like it
 
-### Basic Usage
+* **One‑click popup** anchored to the tray/menu bar
+* **Auto‑dismiss** on outside click (or **manual** if you prefer)
+* **State preserved**: toggling visibility doesn’t remount your UI
+* **Easy sizing** with `setWindowSize(...)`
+* **Tray menu builder** for quick actions
+* **Theming**: transparent/undecorated styles for a modern look
+
+---
+
+## Quick Start (minimal)
 
 ```kotlin
 @OptIn(ExperimentalTrayAppApi::class)
 application {
-    // Create TrayAppState to control the popup
     val trayAppState = rememberTrayAppState(
-        initialWindowSize = DpSize(300.dp, 500.dp),
-        initiallyVisible = true  // Show on startup
+        initialWindowSize = DpSize(300.dp, 420.dp),
+        initiallyVisible = true // default is false
+        // initialDismissMode defaults to TrayWindowDismissMode.AUTO
     )
-    
+
     TrayApp(
-        state = trayAppState,  // Required: pass the state
-        icon = Icons.Default.Book,
-        tooltip = "My App",
-        menu = {
-            Item("Open") { /* ... */ }
+        state = trayAppState,
+        icon = Icons.Default.Dashboard,   // required (or Painter / platform-specific overloads)
+        tooltip = "My Tray App",          // required
+
+        // Optional visual controls (defaults shown below)
+        transparent = true,               // default = true
+        undecorated = true,               // default = true
+        resizable = false,                // default = false
+        windowsTitle = "My Tray Popup",   // default = "" — recommended (esp. on Linux & when undecorated=false)
+        windowIcon = null,                // default = null — set your app icon; important on Linux & when undecorated=false
+
+        menu = {                          // optional (default = null)
+            Item("Toggle popup") { trayAppState.toggle() }
             Divider()
             Item("Quit") { exitApplication() }
         }
     ) {
-        // Popup content
-        MaterialTheme { 
-            Text("Quick Settings Panel")
+        // Your Compose UI (DialogWindowScope receiver)
+        MaterialTheme {
+            Text("Quick Settings")
+            Button(onClick = { trayAppState.hide() }) { Text("Close") }
         }
     }
 }
 ```
 
-### TrayAppState API
+---
 
-TrayAppState provides comprehensive control over the popup window:
+## Common recipes
 
-#### Creating State
+### Show / Hide / Toggle
+
 ```kotlin
-val trayAppState = rememberTrayAppState(
-    initialWindowSize = DpSize(300.dp, 400.dp),
-    initiallyVisible = false  // Hidden by default
-)
-```
-
-#### Controlling Visibility
-```kotlin
-// Show the popup
 trayAppState.show()
-
-// Hide the popup
 trayAppState.hide()
-
-// Toggle visibility
 trayAppState.toggle()
 ```
 
-#### Observing State
+### Resize the popup
+
 ```kotlin
-// Observe visibility as State
-val isVisible by trayAppState.isVisible.collectAsState()
-
-// Observe window size
-val windowSize by trayAppState.windowSize.collectAsState()
-
-// Callback for visibility changes
-LaunchedEffect(trayAppState) {
-    trayAppState.onVisibilityChanged { visible ->
-        println("Popup is now ${if (visible) "visible" else "hidden"}")
-    }
-}
-```
-
-#### Dynamic Window Resizing
-```kotlin
-// Change size programmatically
 trayAppState.setWindowSize(400.dp, 600.dp)
-
-// Or using DpSize
-trayAppState.setWindowSize(DpSize(350.dp, 500.dp))
+// or
+trayAppState.setWindowSize(DpSize(250.dp, 350.dp))
 ```
 
-## 🧩 New: Tray Window Dismiss Modes
-
-By default, the `TrayApp` popup window closes automatically when it loses focus or when the user clicks outside of it.
-With the new `TrayWindowDismissMode` API, you can choose between:
-
-* **AUTO** (default): The popup closes automatically when focus is lost or when clicking outside.
-* **MANUAL**: The popup remains visible until you explicitly call `trayAppState.hide()`.
-
-### Example
+### Dismiss mode
 
 ```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
-application {
-    val trayAppState = rememberTrayAppState(
-        initialWindowSize = DpSize(300.dp, 400.dp),
-        initiallyVisible = false,
-        initialDismissMode = TrayWindowDismissMode.MANUAL  // 👈 Manual mode
-    )
+// AUTO (default): closes when user clicks outside or focus is lost
+val state = rememberTrayAppState(initialDismissMode = TrayWindowDismissMode.AUTO)
 
-    TrayApp(
-        state = trayAppState,
-        icon = Icons.Default.Settings,
-        tooltip = "Quick Settings"
-    ) {
-        Column {
-            Text("This popup will NOT auto-close")
-            Button(onClick = { trayAppState.hide() }) {
-                Text("Close manually")
-            }
-        }
-    }
-}
-```
-
-### Switching at runtime
-
-```kotlin
+// MANUAL: you decide when to hide
 LaunchedEffect(Unit) {
-    trayAppState.setDismissMode(TrayWindowDismissMode.AUTO)
+    state.setDismissMode(TrayWindowDismissMode.MANUAL)
 }
 ```
 
-### Advanced Examples
+### Tray menu (compact)
 
-#### Example 1: Control from Main Window
 ```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
-application {
-    val trayAppState = rememberTrayAppState()
-    var isMainWindowVisible by remember { mutableStateOf(true) }
-    
-    // Tray with popup
-    TrayApp(
-        state = trayAppState,
-        icon = Icons.Default.Settings,
-        tooltip = "Quick Settings"
-    ) {
-        // Popup content
-        Column {
-            Text("Quick Settings")
-            Button(onClick = { 
-                isMainWindowVisible = true
-                trayAppState.hide()
-            }) {
-                Text("Open Main Window")
-            }
-        }
-    }
-    
-    // Main window can control the popup
-    if (isMainWindowVisible) {
-        Window(onCloseRequest = { isMainWindowVisible = false }) {
-            Column {
-                Button(onClick = { trayAppState.show() }) {
-                    Text("Show Quick Settings")
-                }
-                
-                Button(onClick = { 
-                    trayAppState.setWindowSize(250.dp, 350.dp) 
-                }) {
-                    Text("Make Popup Smaller")
-                }
-            }
-        }
-    }
-}
-```
-
-#### Example 2: Reactive UI Based on State
-```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
 TrayApp(
     state = trayAppState,
-    icon = Icons.Default.Dashboard,
-    tooltip = "Dashboard",
+    icon = Icons.Default.Settings,
+    tooltip = "Quick Settings",
     menu = {
         val isVisible by trayAppState.isVisible.collectAsState()
-        
-        Item(
-            label = if (isVisible) "Hide Dashboard" else "Show Dashboard",
-            icon = if (isVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
-        ) {
-            trayAppState.toggle()
-        }
-        
-        SubMenu("Window Size") {
-            Item("Small (250x350)") { 
-                trayAppState.setWindowSize(250.dp, 350.dp) 
-            }
-            Item("Medium (350x500)") { 
-                trayAppState.setWindowSize(350.dp, 500.dp) 
-            }
-            Item("Large (450x600)") { 
-                trayAppState.setWindowSize(450.dp, 600.dp) 
-            }
+        Item(if (isVisible) "Hide" else "Show") { trayAppState.toggle() }
+        SubMenu("Size") {
+            Item("250×350") { trayAppState.setWindowSize(250.dp, 350.dp) }
+            Item("350×500") { trayAppState.setWindowSize(350.dp, 500.dp) }
+            Item("450×600") { trayAppState.setWindowSize(450.dp, 600.dp) }
         }
     }
 ) {
-    // Popup content
-    val windowSize by trayAppState.windowSize.collectAsState()
-    Text("Window size: ${windowSize.width} x ${windowSize.height}")
+    // your content
 }
 ```
 
-#### Example 3: Integration with Application State
-```kotlin
-@OptIn(ExperimentalTrayAppApi::class)
-application {
-    val trayAppState = rememberTrayAppState()
-    val appViewModel = remember { AppViewModel() }
-    
-    // React to app events
-    LaunchedEffect(appViewModel.hasNotification) {
-        if (appViewModel.hasNotification) {
-            trayAppState.show()  // Show popup when notification arrives
-        }
-    }
-    
-    TrayApp(
-        state = trayAppState,
-        icon = Icons.Default.Notifications,
-        tooltip = "Notifications"
-    ) {
-        NotificationPanel(
-            notifications = appViewModel.notifications,
-            onClear = { 
-                appViewModel.clearNotifications()
-                trayAppState.hide()
-            }
-        )
-    }
-}
-```
+---
+
+## Tips
+
+* **Title & icon matter:** set `windowsTitle` and `windowIcon`. Even with undecorated UIs, Linux desktop environments often show a dock/taskbar entry; providing a title/icon prevents generic placeholders and improves discoverability.
+
+---
 ## 📄 License
 
 This library is licensed under the MIT License. The Linux module uses Apache 2.0

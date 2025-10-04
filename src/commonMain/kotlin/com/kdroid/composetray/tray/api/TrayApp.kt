@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTrayAppApi::class)
+
 package com.kdroid.composetray.tray.api
 
 import androidx.compose.animation.core.AnimationSpec
@@ -14,12 +16,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberDialogState
+import androidx.compose.ui.window.DialogWindowScope
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
@@ -41,24 +45,12 @@ import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 
+
 /**
- * TrayApp – state-preserving tray popup with platform-tuned anchoring.
- *
- * Linux and macOS behave differently on initial placement:
- *  - macOS/Windows: the original logic (delayed first frame + polling until a non-default
- *    anchor) works reliably with NSStatusItem and Win tray.
- *  - Linux (GNOME/KDE/etc.): the newer approach (pre-seed DialogState.position, re-apply
- *    right before show, and re-anchor while visible) is more robust against KWin/GNOME races.
- *
- * This file keeps one public API but internally routes to platform-specific implementations:
- *  - Linux  -> ImplLinux (new logic)
- *  - mac/Win -> ImplOriginal (previous logic)
- *
- * All code comments are in English by user preference.
+ * Creates a tray-based desktop application with support for customizable icons, tooltips, menus,
+ * and composable content. The application integrates with the system's tray or menu bar and
+ * supports optional window functionality.
  */
-
-// --------------------- Overloads (public API kept stable) ---------------------
-
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -71,8 +63,15 @@ fun ApplicationScope.TrayApp(
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    transparent: Boolean = true,
+    windowsTitle: String = "",
+    windowIcon: Painter? = null,
+    undecorated: Boolean = true,
+    resizable: Boolean = false,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     val iconContent: @Composable () -> Unit = {
         val isDark = isMenuBarInDarkMode()
@@ -93,6 +92,13 @@ fun ApplicationScope.TrayApp(
         visibleOnStart = visibleOnStart,
         fadeDurationMs = fadeDurationMs,
         animationSpec = animationSpec,
+        transparent = transparent,
+        windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
+        undecorated = undecorated,
+        resizable = resizable,
+        onPreviewKeyEvent = onPreviewKeyEvent,
+        onKeyEvent = onKeyEvent,
         menu = menu,
         content = content,
     )
@@ -109,8 +115,15 @@ fun ApplicationScope.TrayApp(
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    transparent: Boolean = true,
+    windowsTitle: String = "",
+    windowIcon: Painter? = null,
+    undecorated: Boolean = true,
+    resizable: Boolean = false,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     val iconContent: @Composable () -> Unit = {
         Image(painter = icon, contentDescription = null, modifier = Modifier.fillMaxSize())
@@ -124,11 +137,19 @@ fun ApplicationScope.TrayApp(
         visibleOnStart = visibleOnStart,
         fadeDurationMs = fadeDurationMs,
         animationSpec = animationSpec,
+        transparent = transparent,
+        windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
+        undecorated = undecorated,
+        resizable = resizable,
+        onPreviewKeyEvent = onPreviewKeyEvent,
+        onKeyEvent = onKeyEvent,
         menu = menu,
         content = content,
     )
 }
 
+/** Platform-overloaded API (Painter for Windows, ImageVector for macOS/Linux) */
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -142,8 +163,15 @@ fun ApplicationScope.TrayApp(
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    transparent: Boolean = true,
+    windowsTitle: String = "",
+    windowIcon: Painter? = null,
+    undecorated: Boolean = true,
+    resizable: Boolean = false,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     if (getOperatingSystem() == WINDOWS) {
         TrayApp(
@@ -155,6 +183,13 @@ fun ApplicationScope.TrayApp(
             visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
+            transparent = transparent,
+            windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
+            undecorated = undecorated,
+            resizable = resizable,
+            onPreviewKeyEvent = onPreviewKeyEvent,
+            onKeyEvent = onKeyEvent,
             menu = menu,
             content = content,
         )
@@ -169,6 +204,13 @@ fun ApplicationScope.TrayApp(
             visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
+            transparent = transparent,
+            windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
+            undecorated = undecorated,
+            resizable = resizable,
+            onPreviewKeyEvent = onPreviewKeyEvent,
+            onKeyEvent = onKeyEvent,
             menu = menu,
             content = content,
         )
@@ -186,8 +228,15 @@ fun ApplicationScope.TrayApp(
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    transparent: Boolean = true,
+    windowsTitle: String = "",
+    windowIcon: Painter? = null,
+    undecorated: Boolean = true,
+    resizable: Boolean = false,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     TrayApp(
         icon = painterResource(icon),
@@ -198,6 +247,11 @@ fun ApplicationScope.TrayApp(
         visibleOnStart = visibleOnStart,
         fadeDurationMs = fadeDurationMs,
         animationSpec = animationSpec,
+        transparent = transparent,
+        windowsTitle = windowsTitle,
+        windowIcon = windowIcon,
+        undecorated = undecorated,
+        resizable = resizable,
         menu = menu,
         content = content,
     )
@@ -216,8 +270,15 @@ fun ApplicationScope.TrayApp(
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    transparent: Boolean = true,
+    windowsTitle: String = "",
+    windowIcon: Painter? = null,
+    undecorated: Boolean = true,
+    resizable: Boolean = false,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     if (getOperatingSystem() == WINDOWS) {
         TrayApp(
@@ -229,6 +290,13 @@ fun ApplicationScope.TrayApp(
             visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
+            transparent = transparent,
+            windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
+            undecorated = undecorated,
+            resizable = resizable,
+            onPreviewKeyEvent = onPreviewKeyEvent,
+            onKeyEvent = onKeyEvent,
             menu = menu,
             content = content,
         )
@@ -243,6 +311,13 @@ fun ApplicationScope.TrayApp(
             visibleOnStart = visibleOnStart,
             fadeDurationMs = fadeDurationMs,
             animationSpec = animationSpec,
+            transparent = transparent,
+            windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
+            undecorated = undecorated,
+            resizable = resizable,
+            onPreviewKeyEvent = onPreviewKeyEvent,
+            onKeyEvent = onKeyEvent,
             menu = menu,
             content = content,
         )
@@ -262,17 +337,24 @@ fun ApplicationScope.TrayApp(
     visibleOnStart: Boolean = false,
     fadeDurationMs: Int = 200,
     animationSpec: AnimationSpec<Float> = tween(durationMillis = fadeDurationMs, easing = EaseInOut),
+    transparent: Boolean = true,
+    windowsTitle: String = "",
+    windowIcon: Painter? = null,
+    undecorated: Boolean = true,
+    resizable: Boolean = false,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
+    onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     when (getOperatingSystem()) {
         OperatingSystem.LINUX -> TrayAppImplLinux(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
-            visibleOnStart, fadeDurationMs, animationSpec, menu, content
+            visibleOnStart, fadeDurationMs, animationSpec, transparent, windowsTitle, windowIcon, undecorated, resizable, onPreviewKeyEvent, onKeyEvent, menu, content
         )
         else -> TrayAppImplOriginal(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
-            visibleOnStart, fadeDurationMs, animationSpec, menu, content
+            visibleOnStart, fadeDurationMs, animationSpec, transparent, windowsTitle, windowIcon, undecorated, resizable, onPreviewKeyEvent, onKeyEvent, menu, content
         )
     }
 }
@@ -289,8 +371,15 @@ private fun ApplicationScope.TrayAppImplOriginal(
     visibleOnStart: Boolean,
     fadeDurationMs: Int,
     animationSpec: AnimationSpec<Float>,
+    transparent: Boolean,
+    windowsTitle: String,
+    windowIcon: Painter?,
+    undecorated: Boolean,
+    resizable: Boolean,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean,
+    onKeyEvent: (KeyEvent) -> Boolean,
     menu: (TrayMenuBuilder.() -> Unit)?,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     // State holder
     val trayAppState = state ?: rememberTrayAppState(
@@ -423,14 +512,17 @@ private fun ApplicationScope.TrayAppImplOriginal(
 
     DialogWindow(
         onCloseRequest = { requestHideExplicit() },
-        title = "",
-        undecorated = true,
-        resizable = false,
+        title = windowsTitle,
+        icon = windowIcon,
+        undecorated = undecorated,
+        resizable = resizable,
         focusable = true,
         alwaysOnTop = true,
-        transparent = true,
+        transparent = transparent,
         visible = shouldShowWindow,
         state = dialogState,
+        onPreviewKeyEvent = onPreviewKeyEvent,
+        onKeyEvent = onKeyEvent,
     ) {
         DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) return@DisposableEffect onDispose { }
@@ -484,9 +576,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
             }
         }
 
-        Box(
-            modifier = Modifier.fillMaxSize().alpha(alpha)
-        ) { content() }
+        Box(modifier = Modifier.fillMaxSize().alpha(alpha)) { content() }
     }
 }
 
@@ -502,8 +592,15 @@ private fun ApplicationScope.TrayAppImplLinux(
     visibleOnStart: Boolean,
     fadeDurationMs: Int,
     animationSpec: AnimationSpec<Float>,
+    transparent: Boolean,
+    windowsTitle: String,
+    windowIcon: Painter?,
+    undecorated: Boolean,
+    resizable: Boolean,
+    onPreviewKeyEvent: (KeyEvent) -> Boolean,
+    onKeyEvent: (KeyEvent) -> Boolean,
     menu: (TrayMenuBuilder.() -> Unit)?,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     // State holder (window always mounted; visibility toggled)
     val trayAppState = state ?: rememberTrayAppState(
@@ -558,7 +655,7 @@ private fun ApplicationScope.TrayAppImplLinux(
         } else {
             val wait = (minVisibleDurationMs - sinceShow).coerceAtLeast(0)
             CoroutineScope(Dispatchers.IO).launch {
-                delay(wait.toLong())
+                delay(wait)
                 trayAppState.hide(); lastHiddenAt = System.currentTimeMillis()
             }
         }
@@ -611,14 +708,17 @@ private fun ApplicationScope.TrayAppImplLinux(
 
     DialogWindow(
         onCloseRequest = { requestHideExplicit() },
-        title = "",
-        undecorated = true,
-        resizable = false,
+        title = windowsTitle,
+        icon = windowIcon,
+        undecorated = undecorated,
+        resizable = resizable,
         focusable = shouldShowWindow, // avoid focus-steal while hidden
         alwaysOnTop = true,
-        transparent = true,
+        transparent = transparent,
         visible = shouldShowWindow,
         state = dialogState,
+        onPreviewKeyEvent = onPreviewKeyEvent,
+        onKeyEvent = onKeyEvent,
     ) {
         DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) return@DisposableEffect onDispose { }
@@ -650,8 +750,6 @@ private fun ApplicationScope.TrayAppImplLinux(
             }
         }
 
-        Box(
-            modifier = Modifier.fillMaxSize().alpha(alpha)
-        ) { content() }
+        Box(modifier = Modifier.fillMaxSize().alpha(alpha)) { content() }
     }
 }
