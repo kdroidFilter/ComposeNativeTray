@@ -716,6 +716,30 @@ application {
 }
 ```
 
+#### Window Decoration and Resizing
+You can control whether the tray popup window has native decorations (title bar, borders) and whether it is resizable.
+
+- undecorated: Boolean = true (default). When true, the window has no OS decorations. Set to false to show the standard window frame.
+- resizable: Boolean = false (default). When true, users can resize the popup window.
+
+Example:
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    val trayAppState = rememberTrayAppState(initialWindowSize = DpSize(360.dp, 480.dp))
+    TrayApp(
+        state = trayAppState,
+        icon = Icons.Default.Dashboard,
+        tooltip = "My Tray App",
+        transparent = false,
+        undecorated = false,  // show standard window frame
+        resizable = true      // allow resizing
+    ) {
+        // content
+    }
+}
+```
+
  ## 🧩 New: Tray Window Dismiss Modes
 
 By default, the `TrayApp` popup window closes automatically when it loses focus or when the user clicks outside of it.
