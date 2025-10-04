@@ -23,6 +23,7 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberDialogState
+import androidx.compose.ui.window.DialogWindowScope
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
@@ -49,23 +50,6 @@ import java.awt.event.WindowFocusListener
  * Creates a tray-based desktop application with support for customizable icons, tooltips, menus,
  * and composable content. The application integrates with the system's tray or menu bar and
  * supports optional window functionality.
- *
- * @param icon The primary icon to display in the system tray or menu bar.
- * @param tint Optional color tint for the icon. Defaults to null, using the appropriate dark or light mode color.
- * @param iconRenderProperties Properties for rendering the icon, with defaults based on the operating system.
- * @param tooltip Text to be displayed as a tooltip when hovering over the tray icon.
- * @param state Optional state for managing the tray application's properties or lifecycle.
- * @param windowSize Optional initial size of the window, if a window is displayed.
- * @param visibleOnStart Whether the application's window should be visible on startup. Defaults to false.
- * @param fadeDurationMs Duration in milliseconds for fade animations. Defaults to 200ms.
- * @param animationSpec Animation specification for fading effects. Defaults to a smooth easing with the specified duration.
- * @param transparent Whether the application's window should be transparent. Defaults to true.
- * @param windowsTitle Title of the window for Windows operating systems. Defaults to an empty string.
- * @param windowIcon Optional icon to be used for the application's window.
- * @param onPreviewKeyEvent Handler for previewing key events before they are processed. Returns `true` if the event is consumed.
- * @param onKeyEvent Handler for processing key events. Returns `true` if the event is consumed.
- * @param menu Optional builder block for defining the application's tray menu. Defaults to null if no menu is needed.
- * @param content Composable content to be displayed within the application's window.
  */
 @ExperimentalTrayAppApi
 @Composable
@@ -87,7 +71,7 @@ fun ApplicationScope.TrayApp(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     val iconContent: @Composable () -> Unit = {
         val isDark = isMenuBarInDarkMode()
@@ -120,25 +104,6 @@ fun ApplicationScope.TrayApp(
     )
 }
 
-/**
- * Creates a system tray application with the provided configuration.
- *
- * @param icon The icon displayed in the system tray for this application.
- * @param iconRenderProperties The properties defining how the icon is rendered. Default is based on the current operating system.
- * @param tooltip The tooltip text displayed when hovering over the tray icon.
- * @param state The state of the tray app, which can be used to manage its visibility and behavior. Defaults to `null`.
- * @param windowSize The size of the application window when displayed. Defaults to `null`.
- * @param visibleOnStart Determines whether the application window is visible when the app starts. Defaults to `false`.
- * @param fadeDurationMs The duration of the fade animation (in milliseconds) when showing or hiding the window. Defaults to `200`.
- * @param animationSpec The animation specification used for window fade transitions. Defaults to an easing `tween` animation.
- * @param transparent Indicates if the application window background should be transparent. Defaults to `true`.
- * @param windowsTitle The title of the window displayed in the task manager or window list on Windows systems. Defaults to an empty string.
- * @param windowIcon The icon displayed for the application window (if any). Can be `null`.
- * @param onPreviewKeyEvent A callback invoked before key events are dispatched. It can intercept and handle key events. Defaults to returning `false`.
- * @param onKeyEvent A callback invoked to handle key events. Defaults to returning `false`.
- * @param menu An optional builder block to define the tray menu items.
- * @param content The content displayed in the tray application's main window.
- */
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -158,7 +123,7 @@ fun ApplicationScope.TrayApp(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     val iconContent: @Composable () -> Unit = {
         Image(painter = icon, contentDescription = null, modifier = Modifier.fillMaxSize())
@@ -184,28 +149,7 @@ fun ApplicationScope.TrayApp(
     )
 }
 
-/**
- * Composable function for displaying a system tray application with a GUI window.
- * This function differs behavior based on the user's operating system.
- *
- * @param windowsIcon Icon displayed in the system tray on Windows systems.
- * @param macLinuxIcon Icon displayed in the system tray on macOS and Linux systems.
- * @param tint Optional tint applied to the macOS and Linux tray icon.
- * @param iconRenderProperties Properties determining how the icon should be rendered.
- * @param tooltip Text displayed as a tooltip when hovering over the tray icon.
- * @param state Optional state for managing the tray application window (visibility, etc.).
- * @param windowSize Desired size of the window when opened, if applicable.
- * @param visibleOnStart Whether the window should be visible immediately after starting the app.
- * @param fadeDurationMs Duration of the fade-in and fade-out animations for showing/hiding the window, in milliseconds.
- * @param animationSpec Animation specification for fade effects.
- * @param transparent Whether the window's background should be transparent.
- * @param windowsTitle Title of the GUI window on Windows.
- * @param windowIcon Icon displayed in the top-left corner of the window on Windows.
- * @param onPreviewKeyEvent Lambda for handling preview key events invoked before onKeyEvent. Defaults to ignoring key events.
- * @param onKeyEvent Lambda for handling key events when the window has focus. Defaults to ignoring key events.
- * @param menu Optional lambda for building the context menu attached to the tray icon.
- * @param content Composable content displayed within the GUI window.
- */
+/** Platform-overloaded API (Painter for Windows, ImageVector for macOS/Linux) */
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -227,7 +171,7 @@ fun ApplicationScope.TrayApp(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     if (getOperatingSystem() == WINDOWS) {
         TrayApp(
@@ -273,7 +217,6 @@ fun ApplicationScope.TrayApp(
     }
 }
 
-
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -293,7 +236,7 @@ fun ApplicationScope.TrayApp(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     TrayApp(
         icon = painterResource(icon),
@@ -313,7 +256,6 @@ fun ApplicationScope.TrayApp(
         content = content,
     )
 }
-
 
 @ExperimentalTrayAppApi
 @Composable
@@ -336,28 +278,28 @@ fun ApplicationScope.TrayApp(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     if (getOperatingSystem() == WINDOWS) {
         TrayApp(
-        icon = painterResource(windowsIcon),
-        iconRenderProperties = iconRenderProperties,
-        tooltip = tooltip,
-        state = state,
-        windowSize = windowSize,
-        visibleOnStart = visibleOnStart,
-        fadeDurationMs = fadeDurationMs,
-        animationSpec = animationSpec,
-        transparent = transparent,
-        windowsTitle = windowsTitle,
-        windowIcon = windowIcon,
-        undecorated = undecorated,
-        resizable = resizable,
-        onPreviewKeyEvent = onPreviewKeyEvent,
-        onKeyEvent = onKeyEvent,
-        menu = menu,
-        content = content,
-    )
+            icon = painterResource(windowsIcon),
+            iconRenderProperties = iconRenderProperties,
+            tooltip = tooltip,
+            state = state,
+            windowSize = windowSize,
+            visibleOnStart = visibleOnStart,
+            fadeDurationMs = fadeDurationMs,
+            animationSpec = animationSpec,
+            transparent = transparent,
+            windowsTitle = windowsTitle,
+            windowIcon = windowIcon,
+            undecorated = undecorated,
+            resizable = resizable,
+            onPreviewKeyEvent = onPreviewKeyEvent,
+            onKeyEvent = onKeyEvent,
+            menu = menu,
+            content = content,
+        )
     } else {
         TrayApp(
             icon = macLinuxIcon,
@@ -403,7 +345,7 @@ fun ApplicationScope.TrayApp(
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     when (getOperatingSystem()) {
         OperatingSystem.LINUX -> TrayAppImplLinux(
@@ -437,7 +379,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
     onPreviewKeyEvent: (KeyEvent) -> Boolean,
     onKeyEvent: (KeyEvent) -> Boolean,
     menu: (TrayMenuBuilder.() -> Unit)?,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     // State holder
     val trayAppState = state ?: rememberTrayAppState(
@@ -634,9 +576,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
             }
         }
 
-        Box(
-            modifier = Modifier.fillMaxSize().alpha(alpha)
-        ) { content() }
+        Box(modifier = Modifier.fillMaxSize().alpha(alpha)) { content() }
     }
 }
 
@@ -660,7 +600,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     onPreviewKeyEvent: (KeyEvent) -> Boolean,
     onKeyEvent: (KeyEvent) -> Boolean,
     menu: (TrayMenuBuilder.() -> Unit)?,
-    content: @Composable () -> Unit,
+    content: @Composable DialogWindowScope.() -> Unit,
 ) {
     // State holder (window always mounted; visibility toggled)
     val trayAppState = state ?: rememberTrayAppState(
@@ -715,7 +655,7 @@ private fun ApplicationScope.TrayAppImplLinux(
         } else {
             val wait = (minVisibleDurationMs - sinceShow).coerceAtLeast(0)
             CoroutineScope(Dispatchers.IO).launch {
-                delay(wait.toLong())
+                delay(wait)
                 trayAppState.hide(); lastHiddenAt = System.currentTimeMillis()
             }
         }
@@ -810,8 +750,6 @@ private fun ApplicationScope.TrayAppImplLinux(
             }
         }
 
-        Box(
-            modifier = Modifier.fillMaxSize().alpha(alpha)
-        ) { content() }
+        Box(modifier = Modifier.fillMaxSize().alpha(alpha)) { content() }
     }
 }
