@@ -676,7 +676,25 @@ application {
 
 Note: The fade-in/out animation in TrayApp controls the content alpha (visual fade) and is independent from window transparency. Transparency support is available on Linux, Windows, and macOS.
 
-## 🧩 New: Tray Window Dismiss Modes
+#### Window Title
+You can set the popup window title using the `windowsTitle` parameter. The window remains undecorated, but the title may still be used by some window managers or for accessibility/debugging.
+
+- Default: `windowsTitle = ""` (empty)
+- Example:
+```kotlin
+@OptIn(ExperimentalTrayAppApi::class)
+application {
+    TrayApp(
+        icon = Icons.Default.Dashboard,
+        tooltip = "My Tray App",
+        windowsTitle = "My Tray Popup"
+    ) {
+        // content
+    }
+}
+```
+
+ ## 🧩 New: Tray Window Dismiss Modes
 
 By default, the `TrayApp` popup window closes automatically when it loses focus or when the user clicks outside of it.
 With the new `TrayWindowDismissMode` API, you can choose between:
