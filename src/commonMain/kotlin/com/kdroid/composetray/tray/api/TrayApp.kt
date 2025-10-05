@@ -1,11 +1,13 @@
-@file:OptIn(ExperimentalTrayAppApi::class)
+@file:OptIn(
+    ExperimentalTrayAppApi::class,
+    ExperimentalTransitionApi::class,
+    InternalAnimationApi::class
+)
 
 package com.kdroid.composetray.tray.api
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,8 +19,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.layout.*
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastMap
+import androidx.compose.ui.util.fastMaxOfOrDefault
 import androidx.compose.ui.window.*
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
@@ -41,18 +49,27 @@ import org.jetbrains.compose.resources.painterResource
 import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
+import kotlin.math.max
 
 // --------------------- Public API (defaults) ---------------------
 
-private val defaultTrayAppEnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
-    initialOffsetY = { fullHeight -> fullHeight }, animationSpec = tween(250, easing = EaseInOut)
-) + fadeIn(animationSpec = tween(200, easing = EaseInOut))
-else fadeIn(animationSpec = tween(200, easing = EaseInOut))
+private val defaultTrayAppEnterTransition =
+    if (getOperatingSystem() == WINDOWS)
+        slideInVertically(
+            initialOffsetY = { fullHeight -> fullHeight },
+            animationSpec = tween(250, easing = EaseInOut)
+        ) + fadeIn(animationSpec = tween(200, easing = EaseInOut))
+    else
+        fadeIn(animationSpec = tween(200, easing = EaseInOut))
 
-private val defaultTrayAppExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
-    targetOffsetY = { fullHeight -> fullHeight }, animationSpec = tween(250, easing = EaseInOut)
-) + fadeOut(animationSpec = tween(200, easing = EaseInOut))
-else fadeOut(animationSpec = tween(200, easing = EaseInOut))
+private val defaultTrayAppExitTransition =
+    if (getOperatingSystem() == WINDOWS)
+        slideOutVertically(
+            targetOffsetY = { fullHeight -> fullHeight },
+            animationSpec = tween(250, easing = EaseInOut)
+        ) + fadeOut(animationSpec = tween(200, easing = EaseInOut))
+    else
+        fadeOut(animationSpec = tween(200, easing = EaseInOut))
 
 private val defaultVerticalOffset = when (getOperatingSystem()) {
     WINDOWS -> -10
@@ -93,7 +110,8 @@ fun ApplicationScope.TrayApp(
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             colorFilter = tint?.let { ColorFilter.tint(it) }
-                ?: if (isDark) ColorFilter.tint(Color.White) else ColorFilter.tint(Color.Black))
+                ?: if (isDark) ColorFilter.tint(Color.White) else ColorFilter.tint(Color.Black)
+        )
     }
     TrayApp(
         iconContent = iconContent,
@@ -494,7 +512,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
     val dialogState = rememberDialogState(size = currentWindowSize)
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
-    // Visibility controller for AnimatedVisibility to observe end of exit animation
+    // Visibility controller for exit-finish observation; content will NOT be disposed.
     val visibleState = remember { MutableTransitionState(false) }
 
     val requestHideExplicit: () -> Unit = {
@@ -532,12 +550,12 @@ private fun ApplicationScope.TrayAppImplOriginal(
     }
 
     LaunchedEffect(isVisible) {
-        // Drive AnimatedVisibility
+        // Drive transition state
         visibleState.targetState = isVisible
 
         if (isVisible) {
             if (!shouldShowWindow) {
-                delay(150) // Let tray click/dock settle (macOS)
+                delay(150) // let tray click/dock settle (macOS)
                 val widthPx = currentWindowSize.width.value.toInt()
                 val heightPx = currentWindowSize.height.value.toInt()
                 var position: WindowPosition = WindowPosition.PlatformDefault
@@ -557,7 +575,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 lastShownAt = System.currentTimeMillis()
             }
         } else {
-            // Wait for exit transition to fully finish, then actually hide the window
+            // Wait for exit animation to finish, then actually hide the window
             if (shouldShowWindow) {
                 snapshotFlow { visibleState.isIdle && !visibleState.currentState }.first { it }
                 shouldShowWindow = false
@@ -600,10 +618,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
         DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) return@DisposableEffect onDispose { }
 
-            try {
-                window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME
-            } catch (_: Throwable) {
-            }
+            try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
             runCatching { WindowVisibilityMonitor.recompute() }
 
             invokeLater {
@@ -626,20 +641,23 @@ private fun ApplicationScope.TrayAppImplOriginal(
             val macWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == MACOS) {
                 MacOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }
+                ).also { it.start() }
             } else null
 
             val linuxWatcher =
                 if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == OperatingSystem.LINUX) {
                     LinuxOutsideClickWatcher(
                         windowSupplier = { window },
-                        onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
+                        onOutsideClick = { invokeLater { requestHideExplicit() } }
+                    ).also { it.start() }
                 } else null
 
             val windowsWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == WINDOWS) {
                 WindowsOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }
+                ).also { it.start() }
             } else null
 
             window.addWindowFocusListener(focusListener)
@@ -650,11 +668,19 @@ private fun ApplicationScope.TrayAppImplOriginal(
             }
         }
 
-        // Configurable content animation; window hides only after exit finishes
-        AnimatedVisibility(
-            visibleState = visibleState, enter = enterTransition, exit = exitTransition
+        // ---- Persistent (non-disposing) visibility wrapper ----
+        PersistentAnimatedVisibility(
+            visibleState = visibleState,
+            enter = enterTransition,
+            exit = exitTransition
         ) {
-            Box(modifier = Modifier.fillMaxSize().graphicsLayer().animateEnterExit()) { content() }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer()
+                    // Child can still opt into its own per-node enter/exit if desired:
+                    .animateEnterExit()
+            ) { content() }
         }
     }
 }
@@ -720,7 +746,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     SideEffect { dialogState.position = initialPositionForFirstFrame }
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
-    // Visibility controller for exit-finish detection
+    // Visibility controller for exit-finish detection; content will NOT be disposed.
     val visibleState = remember { MutableTransitionState(false) }
 
     val requestHideExplicit: () -> Unit = {
@@ -752,7 +778,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     }
 
     LaunchedEffect(isVisible) {
-        // Drive AnimatedVisibility
+        // Drive transition state
         visibleState.targetState = isVisible
 
         if (isVisible) {
@@ -815,7 +841,8 @@ private fun ApplicationScope.TrayAppImplLinux(
             val linuxWatcher = if (dismissMode == TrayWindowDismissMode.AUTO) {
                 LinuxOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }
+                ).also { it.start() }
             } else null
 
             window.addWindowFocusListener(object : WindowFocusListener {
@@ -828,10 +855,18 @@ private fun ApplicationScope.TrayAppImplLinux(
             onDispose { linuxWatcher?.stop() }
         }
 
-        AnimatedVisibility(
-            visibleState = visibleState, enter = enterTransition, exit = exitTransition
+        // ---- Persistent (non-disposing) visibility wrapper ----
+        PersistentAnimatedVisibility(
+            visibleState = visibleState,
+            enter = enterTransition,
+            exit = exitTransition
         ) {
-            Box(modifier = Modifier.fillMaxSize()) { content() }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer()
+                    .animateEnterExit()
+            ) { content() }
         }
     }
 }
