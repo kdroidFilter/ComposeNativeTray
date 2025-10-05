@@ -10,10 +10,15 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -61,8 +66,24 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = fadeIn(animationSpec = tween(200, easing = EaseInOut)),
-    exitTransition: ExitTransition = fadeOut(animationSpec = tween(200, easing = EaseInOut)),
+    enterTransition: EnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
+        initialOffsetY = { fullHeight -> fullHeight },
+        animationSpec = tween(200, easing = EaseInOut)
+    ) + fadeIn(animationSpec = tween(200, easing = EaseInOut)) else fadeIn(
+        animationSpec = tween(
+            200,
+            easing = EaseInOut
+        )
+    ),
+    exitTransition: ExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
+        targetOffsetY = { fullHeight -> fullHeight },
+        animationSpec = tween(200, easing = EaseInOut)
+    ) + fadeOut(animationSpec = tween(200, easing = EaseInOut)) else fadeOut(
+        animationSpec = tween(
+            200,
+            easing = EaseInOut
+        )
+    ),
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
@@ -353,6 +374,7 @@ fun ApplicationScope.TrayApp(
             visibleOnStart, enterTransition, exitTransition, transparent, windowsTitle,
             windowIcon, undecorated, resizable, onPreviewKeyEvent, onKeyEvent, menu, content
         )
+
         else -> TrayAppImplOriginal(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
             visibleOnStart, enterTransition, exitTransition, transparent, windowsTitle,
@@ -529,7 +551,10 @@ private fun ApplicationScope.TrayAppImplOriginal(
         DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) return@DisposableEffect onDispose { }
 
-            try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
+            try {
+                window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME
+            } catch (_: Throwable) {
+            }
             runCatching { WindowVisibilityMonitor.recompute() }
 
             invokeLater {
@@ -556,12 +581,13 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 ).also { it.start() }
             } else null
 
-            val linuxWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == OperatingSystem.LINUX) {
-                LinuxOutsideClickWatcher(
-                    windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }
-                ).also { it.start() }
-            } else null
+            val linuxWatcher =
+                if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == OperatingSystem.LINUX) {
+                    LinuxOutsideClickWatcher(
+                        windowSupplier = { window },
+                        onOutsideClick = { invokeLater { requestHideExplicit() } }
+                    ).also { it.start() }
+                } else null
 
             val windowsWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == WINDOWS) {
                 WindowsOutsideClickWatcher(
@@ -626,7 +652,8 @@ private fun ApplicationScope.TrayAppImplLinux(
     val isDark = isMenuBarInDarkMode()
     val contentHash =
         ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) + isDark.hashCode()
-    val pngIconPath = remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
+    val pngIconPath =
+        remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
     val windowsIconPath = pngIconPath
     val menuHash = MenuContentHash.calculateMenuHash(menu)
 
