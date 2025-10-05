@@ -55,7 +55,7 @@ private val defaultTrayAppEnterTransition =
             animationSpec = tween(250, easing = EaseInOut)
         ) + fadeIn(animationSpec = tween(200, easing = EaseInOut))
     else
-        fadeIn(animationSpec = tween(200, easing = EaseInOut))
+        fadeIn(animationSpec = tween(if (detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE) 50 else 200, easing = EaseInOut))
 
 private val defaultTrayAppExitTransition =
     if (getOperatingSystem() == WINDOWS)
@@ -64,7 +64,7 @@ private val defaultTrayAppExitTransition =
             animationSpec = tween(250, easing = EaseInOut)
         ) + fadeOut(animationSpec = tween(200, easing = EaseInOut))
     else
-        fadeOut(animationSpec = tween(200, easing = EaseInOut))
+        fadeOut(animationSpec = tween(if (detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE) 50 else 200, easing = EaseInOut))
 
 private val defaultVerticalOffset = when (getOperatingSystem()) {
     WINDOWS -> -10
@@ -781,10 +781,6 @@ private fun ApplicationScope.TrayAppImplLinux(
 
         if (isVisible) {
             if (!shouldShowWindow) {
-                val w = currentWindowSize.width.value.toInt()
-                val h = currentWindowSize.height.value.toInt()
-                dialogState.position =
-                    getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
                 shouldShowWindow = true
                 lastShownAt = System.currentTimeMillis()
             }
