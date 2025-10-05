@@ -741,7 +741,6 @@ private fun ApplicationScope.TrayAppImplLinux(
     }
 
     val dialogState = rememberDialogState(position = initialPositionForFirstFrame, size = currentWindowSize)
-    SideEffect { dialogState.position = initialPositionForFirstFrame }
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
     // Visibility controller for exit-finish detection; content will NOT be disposed.

@@ -328,23 +328,29 @@ private fun calculateWindowPositionFromClick(
     horizontalOffset: Int,
     verticalOffset: Int
 ): WindowPosition {
+    val isTop = trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT
+    val isRight = trayPosition == TrayPosition.TOP_RIGHT || trayPosition == TrayPosition.BOTTOM_RIGHT
+
     var x = clickX - (windowWidth / 2)
-    var y = if (trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT) {
+    var y = if (isTop) {
+        // Anchor below the top bar
         clickY
     } else {
+        // Anchor above the bottom bar
         clickY - windowHeight
     }
 
-    // Offsets utilisateur
-    x += horizontalOffset
-    y += verticalOffset
+    // Direction-aware offsets: always push AWAY from the bar/edge.
+    x += if (isRight) -horizontalOffset else horizontalOffset
+    y += if (isTop)  verticalOffset   else -verticalOffset
 
-    // Clamp écran
+    // Clamp to screen
     if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
     if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
 
     return WindowPosition(x = x.dp, y = y.dp)
 }
+
 
 /** Position de repli coin + offsets */
 private fun fallbackCornerPosition(
