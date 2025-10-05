@@ -68,7 +68,7 @@ private val defaultTrayAppExitTransition =
 
 private val defaultVerticalOffset = when (getOperatingSystem()) {
     WINDOWS -> -10
-    MACOS -> 30
+    MACOS -> 5
     else -> when (detectLinuxDesktopEnvironment()) {
         LinuxDesktopEnvironment.GNOME -> 10
         else -> 0
