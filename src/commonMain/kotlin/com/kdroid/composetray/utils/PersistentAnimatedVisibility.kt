@@ -126,10 +126,8 @@ private class AVMeasurePolicy(private val scope: AVScopeImpl) : MeasurePolicy {
         m.maxOfOrNull { it.maxIntrinsicHeight(w) } ?: 0
 }
 
-@OptIn(
-    ExperimentalTransitionApi::class,
-    InternalAnimationApi::class
-)
+
+@OptIn(ExperimentalTransitionApi::class, InternalAnimationApi::class)
 @Composable
 private fun <T> AnimatedEnterExitImplPersistent(
     transition: Transition<T>,
@@ -137,35 +135,46 @@ private fun <T> AnimatedEnterExitImplPersistent(
     modifier: Modifier,
     enter: EnterTransition,
     exit: ExitTransition,
-    // on garde la signature mais on ne dispose jamais (toujours false)
-    shouldDisposeBlock: (EnterExitState, EnterExitState) -> Boolean,
+    shouldDisposeBlock: (EnterExitState, EnterExitState) -> Boolean, // kept for API symmetry
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
-    if (
-        visible(transition.targetState) ||
-        visible(transition.currentState) ||
-        transition.isSeeking ||
-        transition.hasInitialValueAnimations
-    ) {
-        val child = transition.createChildTransition(label = "EnterExitTransition") {
-            transition.targetEnterExit(visible, it)
-        }
 
-        // On NE JAMAIS appelle createModifier(...) directement !
-        val scope = remember(transition) { AVScopeImpl(child) }
-
-        // Important: appliquer les transitions au conteneur via l’API publique
-        val animatedContainerModifier = with(scope) {
-            Modifier.animateEnterExit(enter = enter, exit = exit, label = "Built-in")
-        }
-
-        Layout(
-            content = { scope.content() },
-            modifier = modifier.then(animatedContainerModifier),
-            measurePolicy = remember { AVMeasurePolicy(scope) },
-        )
+    val child = transition.createChildTransition(label = "EnterExitTransition") { parent ->
+        transition.targetEnterExit(visible, parent)
     }
+
+    // Scope is a plain object -> it's fine to remember it keyed by the child transition
+    val scope = remember(child) { AVScopeImpl(child) }
+
+    // Built-in animateEnterExit (public API) to attach enter/exit effects
+    val containerModifier = with(scope) {
+        Modifier.animateEnterExit(enter = enter, exit = exit, label = "Built-in")
+    }
+
+    // Keep the subtree always composed; collapse to 0x0 when fully hidden & idle
+    val collapseModifier = Modifier.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+
+        val isActiveOrAnimating =
+            visible(transition.currentState) ||
+                    visible(transition.targetState) ||
+                    transition.isSeeking ||
+                    transition.hasInitialValueAnimations
+
+        if (!isActiveOrAnimating) {
+            layout(0, 0) { /* keep composed, take no space */ }
+        } else {
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }
+    }
+
+    Layout(
+        content = { scope.content() },
+        modifier = modifier.then(containerModifier).then(collapseModifier),
+        measurePolicy = remember(scope) { AVMeasurePolicy(scope) },
+    )
 }
+
 
 private val Transition<EnterExitState>.exitFinished: Boolean
     get() = currentState == EnterExitState.PostExit && targetState == EnterExitState.PostExit

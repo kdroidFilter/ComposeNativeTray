@@ -19,14 +19,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEvent
-import androidx.compose.ui.layout.*
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastForEach
-import androidx.compose.ui.util.fastMap
-import androidx.compose.ui.util.fastMaxOfOrDefault
 import androidx.compose.ui.window.*
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
@@ -49,7 +43,6 @@ import org.jetbrains.compose.resources.painterResource
 import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
-import kotlin.math.max
 
 // --------------------- Public API (defaults) ---------------------
 
