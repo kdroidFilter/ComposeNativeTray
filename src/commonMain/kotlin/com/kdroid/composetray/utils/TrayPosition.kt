@@ -211,7 +211,20 @@ fun getTrayWindowPosition(
 
     if (getOperatingSystem() == OperatingSystem.WINDOWS) {
         val freshPos = TrayClickTracker.getLastClickPosition()
-        val posToUse = freshPos ?: return fallbackCornerPosition(windowWidth, windowHeight, horizontalOffset, verticalOffset)
+            ?: loadTrayClickPosition()
+
+        val posToUse = freshPos ?: run {
+            // No click yet (e.g., initiallyVisible = true). Synthesize one near the tray corner
+            val corner = getTrayPosition()
+            val (sx, sy) = syntheticClickFromCorner(corner, screenSize.width, screenSize.height)
+            return calculateWindowPositionFromClick(
+                sx, sy, corner,
+                windowWidth, windowHeight,
+                screenSize.width, screenSize.height,
+                horizontalOffset, verticalOffset
+            )
+        }
+
         return calculateWindowPositionFromClick(
             posToUse.x, posToUse.y, posToUse.position,
             windowWidth, windowHeight,
@@ -452,4 +465,19 @@ internal fun isPointWithinLinuxStatusItem(px: Int, py: Int): Boolean {
     val top    = iy - half - fudge
     val bottom = iy + half + fudge
     return px in left..right && py in top..bottom
+}
+
+// TrayPosition.kt
+
+private fun syntheticClickFromCorner(
+    corner: TrayPosition,
+    screenW: Int,
+    screenH: Int
+): Pair<Int, Int> {
+    val half = dpiAwareHalfIconOffset() // ~half icon in px, DPI-aware
+    val x = if (corner == TrayPosition.TOP_RIGHT || corner == TrayPosition.BOTTOM_RIGHT)
+        screenW - half else half
+    val y = if (corner == TrayPosition.BOTTOM_LEFT || corner == TrayPosition.BOTTOM_RIGHT)
+        screenH - half else half
+    return x to y
 }
