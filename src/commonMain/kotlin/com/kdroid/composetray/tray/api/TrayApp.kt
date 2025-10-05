@@ -45,7 +45,7 @@ import java.awt.event.WindowFocusListener
 
 val defaultTrayAppEnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
     initialOffsetY = { fullHeight -> fullHeight },
-    animationSpec = tween(200, easing = EaseInOut)
+    animationSpec = tween(250, easing = EaseInOut)
 ) + fadeIn(animationSpec = tween(200, easing = EaseInOut)) else fadeIn(
     animationSpec = tween(
         200,
@@ -55,7 +55,7 @@ val defaultTrayAppEnterTransition = if (getOperatingSystem() == WINDOWS) slideIn
 
 val defaultTrayAppExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
     targetOffsetY = { fullHeight -> fullHeight },
-    animationSpec = tween(200, easing = EaseInOut)
+    animationSpec = tween(250, easing = EaseInOut)
 ) + fadeOut(animationSpec = tween(200, easing = EaseInOut)) else fadeOut(
     animationSpec = tween(
         200,
