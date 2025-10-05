@@ -28,9 +28,11 @@ import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.*
+import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
 import io.github.kdroidfilter.platformtools.OperatingSystem.WINDOWS
+import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +69,10 @@ private val defaultTrayAppExitTransition =
 private val defaultVerticalOffset = when (getOperatingSystem()) {
     WINDOWS -> -10
     MACOS -> 30
-    else -> 0
+    else -> when (detectLinuxDesktopEnvironment()) {
+        LinuxDesktopEnvironment.GNOME -> 25
+        else -> 0
+    }
 }
 
 // --------------------- Public API (overloads) ---------------------
