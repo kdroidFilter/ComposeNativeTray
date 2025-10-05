@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEvent
@@ -653,7 +654,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
         AnimatedVisibility(
             visibleState = visibleState, enter = enterTransition, exit = exitTransition
         ) {
-            Box(modifier = Modifier.fillMaxSize()) { content() }
+            Box(modifier = Modifier.fillMaxSize().graphicsLayer().animateEnterExit()) { content() }
         }
     }
 }
