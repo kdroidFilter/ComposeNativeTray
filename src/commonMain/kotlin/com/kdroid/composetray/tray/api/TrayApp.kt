@@ -68,7 +68,7 @@ private val defaultTrayAppExitTransition =
 
 private val defaultVerticalOffset = when (getOperatingSystem()) {
     WINDOWS -> -10
-    MACOS -> 5
+    MACOS -> 30
     else -> when (detectLinuxDesktopEnvironment()) {
         LinuxDesktopEnvironment.GNOME -> 10
         else -> 0
@@ -741,6 +741,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     }
 
     val dialogState = rememberDialogState(position = initialPositionForFirstFrame, size = currentWindowSize)
+    if (detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE) SideEffect { dialogState.position = initialPositionForFirstFrame }
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
     // Visibility controller for exit-finish detection; content will NOT be disposed.
