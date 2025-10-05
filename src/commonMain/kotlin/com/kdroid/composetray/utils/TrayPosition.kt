@@ -328,23 +328,26 @@ private fun calculateWindowPositionFromClick(
     horizontalOffset: Int,
     verticalOffset: Int
 ): WindowPosition {
+    // Snap to the bar edge instead of using the raw clickY.
+    // This removes the "top vs bottom of icon" discrepancy on GNOME.
     val isTop = trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT
     val isRight = trayPosition == TrayPosition.TOP_RIGHT || trayPosition == TrayPosition.BOTTOM_RIGHT
 
-    var x = clickX - (windowWidth / 2)
-    var y = if (isTop) {
-        // Anchor below the top bar
-        clickY
-    } else {
-        // Anchor above the bottom bar
-        clickY - windowHeight
-    }
+    // Heuristic bar thickness in pixels (kept conservative; scaling-safe enough in practice)
+    val panelGuessPx = 28
 
-    // Direction-aware offsets: always push AWAY from the bar/edge.
+    // Horizontal: center on clickX, then apply direction-aware offset
+    var x = clickX - (windowWidth / 2)
+
+    // Vertical: snap to the bar edge; ignore clickY height within the icon
+    val anchorY = if (isTop) panelGuessPx else screenHeight - panelGuessPx
+    var y = if (isTop) anchorY else anchorY - windowHeight
+
+    // Direction-aware offsets: push away from the bar/edge for a consistent "gap".
     x += if (isRight) -horizontalOffset else horizontalOffset
     y += if (isTop)  verticalOffset   else -verticalOffset
 
-    // Clamp to screen
+    // Clamp to screen bounds
     if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
     if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
 

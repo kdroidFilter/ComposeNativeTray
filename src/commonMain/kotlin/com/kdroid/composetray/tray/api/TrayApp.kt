@@ -70,7 +70,7 @@ private val defaultVerticalOffset = when (getOperatingSystem()) {
     WINDOWS -> -10
     MACOS -> 30
     else -> when (detectLinuxDesktopEnvironment()) {
-        LinuxDesktopEnvironment.GNOME -> 25
+        LinuxDesktopEnvironment.GNOME -> 10
         else -> 0
     }
 }
