@@ -328,31 +328,40 @@ private fun calculateWindowPositionFromClick(
     horizontalOffset: Int,
     verticalOffset: Int
 ): WindowPosition {
-    // Snap to the bar edge instead of using the raw clickY.
-    // This removes the "top vs bottom of icon" discrepancy on GNOME.
+    val os = getOperatingSystem()
     val isTop = trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT
     val isRight = trayPosition == TrayPosition.TOP_RIGHT || trayPosition == TrayPosition.BOTTOM_RIGHT
 
-    // Heuristic bar thickness in pixels (kept conservative; scaling-safe enough in practice)
-    val panelGuessPx = 28
+    return if (os == OperatingSystem.WINDOWS) {
+        // ---- Legacy behavior for Windows (keep exact clickY & raw offsets) ----
+        var x = clickX - (windowWidth / 2)
+        var y = if (isTop) clickY else clickY - windowHeight
 
-    // Horizontal: center on clickX, then apply direction-aware offset
-    var x = clickX - (windowWidth / 2)
+        x += horizontalOffset
+        y += verticalOffset
 
-    // Vertical: snap to the bar edge; ignore clickY height within the icon
-    val anchorY = if (isTop) panelGuessPx else screenHeight - panelGuessPx
-    var y = if (isTop) anchorY else anchorY - windowHeight
+        if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
+        if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
+        WindowPosition(x = x.dp, y = y.dp)
+    } else {
+        // ---- New behavior for macOS & Linux: snap to bar edge (ignore clickY height within icon) ----
+        // Conservative guess of panel thickness; works well across GNOME/KDE and typical macOS menubar heights.
+        val panelGuessPx = 28
 
-    // Direction-aware offsets: push away from the bar/edge for a consistent "gap".
-    x += if (isRight) -horizontalOffset else horizontalOffset
-    y += if (isTop)  verticalOffset   else -verticalOffset
+        var x = clickX - (windowWidth / 2)
+        val anchorY = if (isTop) panelGuessPx else (screenHeight - panelGuessPx)
+        var y = if (isTop) anchorY else anchorY - windowHeight
 
-    // Clamp to screen bounds
-    if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
-    if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
+        // Direction-aware offsets: always push AWAY from the bar/edge for consistency.
+        x += if (isRight) -horizontalOffset else horizontalOffset
+        y += if (isTop)  verticalOffset   else -verticalOffset
 
-    return WindowPosition(x = x.dp, y = y.dp)
+        if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
+        if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
+        WindowPosition(x = x.dp, y = y.dp)
+    }
 }
+
 
 
 /** Position de repli coin + offsets */
