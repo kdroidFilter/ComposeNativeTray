@@ -41,27 +41,29 @@ import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 
+// --------------------- Public API (defaults) ---------------------
+
+val defaultTrayAppEnterTransition =
+    if (getOperatingSystem() == WINDOWS)
+        slideInVertically(
+            initialOffsetY = { fullHeight -> fullHeight },
+            animationSpec = tween(250, easing = EaseInOut)
+        ) + fadeIn(animationSpec = tween(200, easing = EaseInOut))
+    else
+        fadeIn(animationSpec = tween(200, easing = EaseInOut))
+
+val defaultTrayAppExitTransition =
+    if (getOperatingSystem() == WINDOWS)
+        slideOutVertically(
+            targetOffsetY = { fullHeight -> fullHeight },
+            animationSpec = tween(250, easing = EaseInOut)
+        ) + fadeOut(animationSpec = tween(200, easing = EaseInOut))
+    else
+        fadeOut(animationSpec = tween(200, easing = EaseInOut))
+
+
+val defaultVerticalOffset = if (getOperatingSystem() == WINDOWS) -10 else 0
 // --------------------- Public API (overloads) ---------------------
-
-val defaultTrayAppEnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
-    initialOffsetY = { fullHeight -> fullHeight },
-    animationSpec = tween(250, easing = EaseInOut)
-) + fadeIn(animationSpec = tween(200, easing = EaseInOut)) else fadeIn(
-    animationSpec = tween(
-        200,
-        easing = EaseInOut
-    )
-)
-
-val defaultTrayAppExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
-    targetOffsetY = { fullHeight -> fullHeight },
-    animationSpec = tween(250, easing = EaseInOut)
-) + fadeOut(animationSpec = tween(200, easing = EaseInOut)) else fadeOut(
-    animationSpec = tween(
-        200,
-        easing = EaseInOut
-    )
-)
 
 @ExperimentalTrayAppApi
 @Composable
@@ -80,6 +82,8 @@ fun ApplicationScope.TrayApp(
     windowIcon: Painter? = null,
     undecorated: Boolean = true,
     resizable: Boolean = false,
+    horizontalOffset: Int = 0,
+    verticalOffset: Int = defaultVerticalOffset,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -109,6 +113,8 @@ fun ApplicationScope.TrayApp(
         windowIcon = windowIcon,
         undecorated = undecorated,
         resizable = resizable,
+        horizontalOffset = horizontalOffset,
+        verticalOffset = verticalOffset,
         onPreviewKeyEvent = onPreviewKeyEvent,
         onKeyEvent = onKeyEvent,
         menu = menu,
@@ -132,6 +138,8 @@ fun ApplicationScope.TrayApp(
     windowIcon: Painter? = null,
     undecorated: Boolean = true,
     resizable: Boolean = false,
+    horizontalOffset: Int = 0,
+    verticalOffset: Int = defaultVerticalOffset,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -154,6 +162,8 @@ fun ApplicationScope.TrayApp(
         windowIcon = windowIcon,
         undecorated = undecorated,
         resizable = resizable,
+        horizontalOffset = horizontalOffset,
+        verticalOffset = verticalOffset,
         onPreviewKeyEvent = onPreviewKeyEvent,
         onKeyEvent = onKeyEvent,
         menu = menu,
@@ -180,6 +190,8 @@ fun ApplicationScope.TrayApp(
     windowIcon: Painter? = null,
     undecorated: Boolean = true,
     resizable: Boolean = false,
+    horizontalOffset: Int = 0,
+    verticalOffset: Int = defaultVerticalOffset,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -200,6 +212,8 @@ fun ApplicationScope.TrayApp(
             windowIcon = windowIcon,
             undecorated = undecorated,
             resizable = resizable,
+            horizontalOffset = horizontalOffset,
+            verticalOffset = verticalOffset,
             onPreviewKeyEvent = onPreviewKeyEvent,
             onKeyEvent = onKeyEvent,
             menu = menu,
@@ -221,6 +235,8 @@ fun ApplicationScope.TrayApp(
             windowIcon = windowIcon,
             undecorated = undecorated,
             resizable = resizable,
+            horizontalOffset = horizontalOffset,
+            verticalOffset = verticalOffset,
             onPreviewKeyEvent = onPreviewKeyEvent,
             onKeyEvent = onKeyEvent,
             menu = menu,
@@ -245,6 +261,8 @@ fun ApplicationScope.TrayApp(
     windowIcon: Painter? = null,
     undecorated: Boolean = true,
     resizable: Boolean = false,
+    horizontalOffset: Int = 0,
+    verticalOffset: Int = defaultVerticalOffset,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -264,6 +282,8 @@ fun ApplicationScope.TrayApp(
         windowIcon = windowIcon,
         undecorated = undecorated,
         resizable = resizable,
+        horizontalOffset = horizontalOffset,
+        verticalOffset = verticalOffset,
         menu = menu,
         content = content,
     )
@@ -287,6 +307,8 @@ fun ApplicationScope.TrayApp(
     windowIcon: Painter? = null,
     undecorated: Boolean = true,
     resizable: Boolean = false,
+    horizontalOffset: Int = 0,
+    verticalOffset: Int = defaultVerticalOffset,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -307,6 +329,8 @@ fun ApplicationScope.TrayApp(
             windowIcon = windowIcon,
             undecorated = undecorated,
             resizable = resizable,
+            horizontalOffset = horizontalOffset,
+            verticalOffset = verticalOffset,
             onPreviewKeyEvent = onPreviewKeyEvent,
             onKeyEvent = onKeyEvent,
             menu = menu,
@@ -328,6 +352,8 @@ fun ApplicationScope.TrayApp(
             windowIcon = windowIcon,
             undecorated = undecorated,
             resizable = resizable,
+            horizontalOffset = horizontalOffset,
+            verticalOffset = verticalOffset,
             onPreviewKeyEvent = onPreviewKeyEvent,
             onKeyEvent = onKeyEvent,
             menu = menu,
@@ -354,6 +380,8 @@ fun ApplicationScope.TrayApp(
     windowIcon: Painter? = null,
     undecorated: Boolean = true,
     resizable: Boolean = false,
+    horizontalOffset: Int = 0,
+    verticalOffset: Int = defaultVerticalOffset,
     onPreviewKeyEvent: (KeyEvent) -> Boolean = { false },
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     menu: (TrayMenuBuilder.() -> Unit)? = null,
@@ -363,13 +391,14 @@ fun ApplicationScope.TrayApp(
         OperatingSystem.LINUX -> TrayAppImplLinux(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
             visibleOnStart, enterTransition, exitTransition, transparent, windowsTitle,
-            windowIcon, undecorated, resizable, onPreviewKeyEvent, onKeyEvent, menu, content
+            windowIcon, undecorated, resizable, horizontalOffset, verticalOffset,
+            onPreviewKeyEvent, onKeyEvent, menu, content
         )
-
         else -> TrayAppImplOriginal(
             iconContent, iconRenderProperties, tooltip, state, windowSize,
             visibleOnStart, enterTransition, exitTransition, transparent, windowsTitle,
-            windowIcon, undecorated, resizable, onPreviewKeyEvent, onKeyEvent, menu, content
+            windowIcon, undecorated, resizable, horizontalOffset, verticalOffset,
+            onPreviewKeyEvent, onKeyEvent, menu, content
         )
     }
 }
@@ -391,6 +420,8 @@ private fun ApplicationScope.TrayAppImplOriginal(
     windowIcon: Painter?,
     undecorated: Boolean,
     resizable: Boolean,
+    horizontalOffset: Int,
+    verticalOffset: Int,
     onPreviewKeyEvent: (KeyEvent) -> Boolean,
     onKeyEvent: (KeyEvent) -> Boolean,
     menu: (TrayMenuBuilder.() -> Unit)?,
@@ -485,7 +516,8 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 val deadline = System.currentTimeMillis() + 3000
                 while (position is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
                     position = getTrayWindowPositionForInstance(
-                        tray.instanceKey(), widthPx, heightPx
+                        tray.instanceKey(), widthPx, heightPx,
+                        horizontalOffset, verticalOffset
                     )
                     delay(150)
                 }
@@ -623,6 +655,8 @@ private fun ApplicationScope.TrayAppImplLinux(
     windowIcon: Painter?,
     undecorated: Boolean,
     resizable: Boolean,
+    horizontalOffset: Int,
+    verticalOffset: Int,
     onPreviewKeyEvent: (KeyEvent) -> Boolean,
     onKeyEvent: (KeyEvent) -> Boolean,
     menu: (TrayMenuBuilder.() -> Unit)?,
@@ -656,10 +690,10 @@ private fun ApplicationScope.TrayAppImplLinux(
     val minVisibleDurationMs = 350L
     val minHiddenDurationMs = 250L
 
-    val initialPositionForFirstFrame = remember(instanceKey, currentWindowSize) {
+    val initialPositionForFirstFrame = remember(instanceKey, currentWindowSize, horizontalOffset, verticalOffset) {
         val w = currentWindowSize.width.value.toInt()
         val h = currentWindowSize.height.value.toInt()
-        getTrayWindowPositionForInstance(instanceKey, w, h)
+        getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
     }
 
     val dialogState = rememberDialogState(position = initialPositionForFirstFrame, size = currentWindowSize)
@@ -692,7 +726,7 @@ private fun ApplicationScope.TrayAppImplLinux(
         } else if (now - lastHiddenAt >= minHiddenDurationMs) {
             val w = currentWindowSize.width.value.toInt()
             val h = currentWindowSize.height.value.toInt()
-            dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h)
+            dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
             trayAppState.show()
         }
     }
@@ -705,7 +739,7 @@ private fun ApplicationScope.TrayAppImplLinux(
             if (!shouldShowWindow) {
                 val w = currentWindowSize.width.value.toInt()
                 val h = currentWindowSize.height.value.toInt()
-                dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h)
+                dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
                 shouldShowWindow = true
                 lastShownAt = System.currentTimeMillis()
             }
@@ -719,12 +753,12 @@ private fun ApplicationScope.TrayAppImplLinux(
         }
     }
 
-    // Re-anchor when visible and size changes
-    LaunchedEffect(currentWindowSize, shouldShowWindow) {
+    // Re-anchor when visible and size/offset changes
+    LaunchedEffect(currentWindowSize, horizontalOffset, verticalOffset, shouldShowWindow) {
         if (shouldShowWindow) {
             val w = currentWindowSize.width.value.toInt()
             val h = currentWindowSize.height.value.toInt()
-            dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h)
+            dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
         }
     }
 
@@ -754,7 +788,7 @@ private fun ApplicationScope.TrayAppImplLinux(
             runCatching {
                 val w = currentWindowSize.width.value.toInt()
                 val h = currentWindowSize.height.value.toInt()
-                dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h)
+                dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
             }
 
             val linuxWatcher = if (dismissMode == TrayWindowDismissMode.AUTO) {
