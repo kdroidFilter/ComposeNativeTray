@@ -2,23 +2,14 @@
 
 package com.kdroid.composetray.tray.api
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.*
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -27,11 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.ApplicationScope
-import androidx.compose.ui.window.DialogWindow
-import androidx.compose.ui.window.DialogWindowScope
-import androidx.compose.ui.window.WindowPosition
-import androidx.compose.ui.window.rememberDialogState
+import androidx.compose.ui.window.*
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
@@ -56,6 +43,26 @@ import java.awt.event.WindowFocusListener
 
 // --------------------- Public API (overloads) ---------------------
 
+val defaultTrayAppEnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
+    initialOffsetY = { fullHeight -> fullHeight },
+    animationSpec = tween(200, easing = EaseInOut)
+) + fadeIn(animationSpec = tween(200, easing = EaseInOut)) else fadeIn(
+    animationSpec = tween(
+        200,
+        easing = EaseInOut
+    )
+)
+
+val defaultTrayAppExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
+    targetOffsetY = { fullHeight -> fullHeight },
+    animationSpec = tween(200, easing = EaseInOut)
+) + fadeOut(animationSpec = tween(200, easing = EaseInOut)) else fadeOut(
+    animationSpec = tween(
+        200,
+        easing = EaseInOut
+    )
+)
+
 @ExperimentalTrayAppApi
 @Composable
 fun ApplicationScope.TrayApp(
@@ -66,24 +73,8 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
-        initialOffsetY = { fullHeight -> fullHeight },
-        animationSpec = tween(200, easing = EaseInOut)
-    ) + fadeIn(animationSpec = tween(200, easing = EaseInOut)) else fadeIn(
-        animationSpec = tween(
-            200,
-            easing = EaseInOut
-        )
-    ),
-    exitTransition: ExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
-        targetOffsetY = { fullHeight -> fullHeight },
-        animationSpec = tween(200, easing = EaseInOut)
-    ) + fadeOut(animationSpec = tween(200, easing = EaseInOut)) else fadeOut(
-        animationSpec = tween(
-            200,
-            easing = EaseInOut
-        )
-    ),
+    enterTransition: EnterTransition = defaultTrayAppEnterTransition,
+    exitTransition: ExitTransition = defaultTrayAppExitTransition,
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
@@ -134,8 +125,8 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = fadeIn(animationSpec = tween(200, easing = EaseInOut)),
-    exitTransition: ExitTransition = fadeOut(animationSpec = tween(200, easing = EaseInOut)),
+    enterTransition: EnterTransition = defaultTrayAppEnterTransition,
+    exitTransition: ExitTransition = defaultTrayAppExitTransition,
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
@@ -182,8 +173,8 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = fadeIn(animationSpec = tween(200, easing = EaseInOut)),
-    exitTransition: ExitTransition = fadeOut(animationSpec = tween(200, easing = EaseInOut)),
+    enterTransition: EnterTransition = defaultTrayAppEnterTransition,
+    exitTransition: ExitTransition = defaultTrayAppExitTransition,
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
@@ -247,8 +238,8 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = fadeIn(animationSpec = tween(200, easing = EaseInOut)),
-    exitTransition: ExitTransition = fadeOut(animationSpec = tween(200, easing = EaseInOut)),
+    enterTransition: EnterTransition = defaultTrayAppEnterTransition,
+    exitTransition: ExitTransition = defaultTrayAppExitTransition,
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
@@ -289,8 +280,8 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = fadeIn(animationSpec = tween(200, easing = EaseInOut)),
-    exitTransition: ExitTransition = fadeOut(animationSpec = tween(200, easing = EaseInOut)),
+    enterTransition: EnterTransition = defaultTrayAppEnterTransition,
+    exitTransition: ExitTransition = defaultTrayAppExitTransition,
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
@@ -356,8 +347,8 @@ fun ApplicationScope.TrayApp(
     state: TrayAppState? = null,
     windowSize: DpSize? = null,
     visibleOnStart: Boolean = false,
-    enterTransition: EnterTransition = fadeIn(animationSpec = tween(200, easing = EaseInOut)),
-    exitTransition: ExitTransition = fadeOut(animationSpec = tween(200, easing = EaseInOut)),
+    enterTransition: EnterTransition = defaultTrayAppEnterTransition,
+    exitTransition: ExitTransition = defaultTrayAppExitTransition,
     transparent: Boolean = true,
     windowsTitle: String = "",
     windowIcon: Painter? = null,
