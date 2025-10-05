@@ -43,26 +43,22 @@ import java.awt.event.WindowFocusListener
 
 // --------------------- Public API (defaults) ---------------------
 
-val defaultTrayAppEnterTransition =
-    if (getOperatingSystem() == WINDOWS)
-        slideInVertically(
-            initialOffsetY = { fullHeight -> fullHeight },
-            animationSpec = tween(250, easing = EaseInOut)
-        ) + fadeIn(animationSpec = tween(200, easing = EaseInOut))
-    else
-        fadeIn(animationSpec = tween(200, easing = EaseInOut))
+private val defaultTrayAppEnterTransition = if (getOperatingSystem() == WINDOWS) slideInVertically(
+    initialOffsetY = { fullHeight -> fullHeight }, animationSpec = tween(250, easing = EaseInOut)
+) + fadeIn(animationSpec = tween(200, easing = EaseInOut))
+else fadeIn(animationSpec = tween(200, easing = EaseInOut))
 
-val defaultTrayAppExitTransition =
-    if (getOperatingSystem() == WINDOWS)
-        slideOutVertically(
-            targetOffsetY = { fullHeight -> fullHeight },
-            animationSpec = tween(250, easing = EaseInOut)
-        ) + fadeOut(animationSpec = tween(200, easing = EaseInOut))
-    else
-        fadeOut(animationSpec = tween(200, easing = EaseInOut))
+private val defaultTrayAppExitTransition = if (getOperatingSystem() == WINDOWS) slideOutVertically(
+    targetOffsetY = { fullHeight -> fullHeight }, animationSpec = tween(250, easing = EaseInOut)
+) + fadeOut(animationSpec = tween(200, easing = EaseInOut))
+else fadeOut(animationSpec = tween(200, easing = EaseInOut))
 
+private val defaultVerticalOffset = when (getOperatingSystem()) {
+    WINDOWS -> -10
+    MACOS -> 30
+    else -> 0
+}
 
-val defaultVerticalOffset = if (getOperatingSystem() == WINDOWS) -10 else 0
 // --------------------- Public API (overloads) ---------------------
 
 @ExperimentalTrayAppApi
@@ -96,8 +92,7 @@ fun ApplicationScope.TrayApp(
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             colorFilter = tint?.let { ColorFilter.tint(it) }
-                ?: if (isDark) ColorFilter.tint(Color.White) else ColorFilter.tint(Color.Black)
-        )
+                ?: if (isDark) ColorFilter.tint(Color.White) else ColorFilter.tint(Color.Black))
     }
     TrayApp(
         iconContent = iconContent,
@@ -389,16 +384,47 @@ fun ApplicationScope.TrayApp(
 ) {
     when (getOperatingSystem()) {
         OperatingSystem.LINUX -> TrayAppImplLinux(
-            iconContent, iconRenderProperties, tooltip, state, windowSize,
-            visibleOnStart, enterTransition, exitTransition, transparent, windowsTitle,
-            windowIcon, undecorated, resizable, horizontalOffset, verticalOffset,
-            onPreviewKeyEvent, onKeyEvent, menu, content
+            iconContent,
+            iconRenderProperties,
+            tooltip,
+            state,
+            windowSize,
+            visibleOnStart,
+            enterTransition,
+            exitTransition,
+            transparent,
+            windowsTitle,
+            windowIcon,
+            undecorated,
+            resizable,
+            horizontalOffset,
+            verticalOffset,
+            onPreviewKeyEvent,
+            onKeyEvent,
+            menu,
+            content
         )
+
         else -> TrayAppImplOriginal(
-            iconContent, iconRenderProperties, tooltip, state, windowSize,
-            visibleOnStart, enterTransition, exitTransition, transparent, windowsTitle,
-            windowIcon, undecorated, resizable, horizontalOffset, verticalOffset,
-            onPreviewKeyEvent, onKeyEvent, menu, content
+            iconContent,
+            iconRenderProperties,
+            tooltip,
+            state,
+            windowSize,
+            visibleOnStart,
+            enterTransition,
+            exitTransition,
+            transparent,
+            windowsTitle,
+            windowIcon,
+            undecorated,
+            resizable,
+            horizontalOffset,
+            verticalOffset,
+            onPreviewKeyEvent,
+            onKeyEvent,
+            menu,
+            content
         )
     }
 }
@@ -438,14 +464,15 @@ private fun ApplicationScope.TrayAppImplOriginal(
 
     val tray = remember { NativeTray() }
     val isDark = isMenuBarInDarkMode()
-    val contentHash =
-        ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) + isDark.hashCode()
+    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) + isDark.hashCode()
     val pngIconPath = remember(contentHash) {
         ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
     }
     val windowsIconPath = remember(contentHash) {
-        if (getOperatingSystem() == WINDOWS)
-            ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent)
+        if (getOperatingSystem() == WINDOWS) ComposableIconUtils.renderComposableToIcoFile(
+            iconRenderProperties,
+            iconContent
+        )
         else pngIconPath
     }
     val menuHash = MenuContentHash.calculateMenuHash(menu)
@@ -516,8 +543,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 val deadline = System.currentTimeMillis() + 3000
                 while (position is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
                     position = getTrayWindowPositionForInstance(
-                        tray.instanceKey(), widthPx, heightPx,
-                        horizontalOffset, verticalOffset
+                        tray.instanceKey(), widthPx, heightPx, horizontalOffset, verticalOffset
                     )
                     delay(150)
                 }
@@ -532,8 +558,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
         } else {
             // Wait for exit transition to fully finish, then actually hide the window
             if (shouldShowWindow) {
-                snapshotFlow { visibleState.isIdle && !visibleState.currentState }
-                    .first { it }
+                snapshotFlow { visibleState.isIdle && !visibleState.currentState }.first { it }
                 shouldShowWindow = false
                 lastHiddenAt = System.currentTimeMillis()
             }
@@ -600,23 +625,20 @@ private fun ApplicationScope.TrayAppImplOriginal(
             val macWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == MACOS) {
                 MacOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }
-                ).also { it.start() }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
             } else null
 
             val linuxWatcher =
                 if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == OperatingSystem.LINUX) {
                     LinuxOutsideClickWatcher(
                         windowSupplier = { window },
-                        onOutsideClick = { invokeLater { requestHideExplicit() } }
-                    ).also { it.start() }
+                        onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
                 } else null
 
             val windowsWatcher = if (dismissMode == TrayWindowDismissMode.AUTO && getOperatingSystem() == WINDOWS) {
                 WindowsOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }
-                ).also { it.start() }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
             } else null
 
             window.addWindowFocusListener(focusListener)
@@ -629,9 +651,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
 
         // Configurable content animation; window hides only after exit finishes
         AnimatedVisibility(
-            visibleState = visibleState,
-            enter = enterTransition,
-            exit = exitTransition
+            visibleState = visibleState, enter = enterTransition, exit = exitTransition
         ) {
             Box(modifier = Modifier.fillMaxSize()) { content() }
         }
@@ -675,8 +695,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     val instanceKey = remember { tray.instanceKey() }
 
     val isDark = isMenuBarInDarkMode()
-    val contentHash =
-        ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) + isDark.hashCode()
+    val contentHash = ComposableIconUtils.calculateContentHash(iconRenderProperties, iconContent) + isDark.hashCode()
     val pngIconPath =
         remember(contentHash) { ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent) }
     val windowsIconPath = pngIconPath
@@ -739,14 +758,14 @@ private fun ApplicationScope.TrayAppImplLinux(
             if (!shouldShowWindow) {
                 val w = currentWindowSize.width.value.toInt()
                 val h = currentWindowSize.height.value.toInt()
-                dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
+                dialogState.position =
+                    getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
                 shouldShowWindow = true
                 lastShownAt = System.currentTimeMillis()
             }
         } else {
             if (shouldShowWindow) {
-                snapshotFlow { visibleState.isIdle && !visibleState.currentState }
-                    .first { it }
+                snapshotFlow { visibleState.isIdle && !visibleState.currentState }.first { it }
                 shouldShowWindow = false
                 lastHiddenAt = System.currentTimeMillis()
             }
@@ -788,14 +807,14 @@ private fun ApplicationScope.TrayAppImplLinux(
             runCatching {
                 val w = currentWindowSize.width.value.toInt()
                 val h = currentWindowSize.height.value.toInt()
-                dialogState.position = getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
+                dialogState.position =
+                    getTrayWindowPositionForInstance(instanceKey, w, h, horizontalOffset, verticalOffset)
             }
 
             val linuxWatcher = if (dismissMode == TrayWindowDismissMode.AUTO) {
                 LinuxOutsideClickWatcher(
                     windowSupplier = { window },
-                    onOutsideClick = { invokeLater { requestHideExplicit() } }
-                ).also { it.start() }
+                    onOutsideClick = { invokeLater { requestHideExplicit() } }).also { it.start() }
             } else null
 
             window.addWindowFocusListener(object : WindowFocusListener {
@@ -809,9 +828,7 @@ private fun ApplicationScope.TrayAppImplLinux(
         }
 
         AnimatedVisibility(
-            visibleState = visibleState,
-            enter = enterTransition,
-            exit = exitTransition
+            visibleState = visibleState, enter = enterTransition, exit = exitTransition
         ) {
             Box(modifier = Modifier.fillMaxSize()) { content() }
         }
