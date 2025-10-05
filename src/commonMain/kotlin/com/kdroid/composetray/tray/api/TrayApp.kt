@@ -707,6 +707,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     menu: (TrayMenuBuilder.() -> Unit)?,
     content: @Composable DialogWindowScope.() -> Unit,
 ) {
+    val isKde = detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE
     val trayAppState = state ?: rememberTrayAppState(
         initialWindowSize = windowSize ?: DpSize(300.dp, 200.dp),
         initiallyVisible = visibleOnStart,
@@ -741,7 +742,7 @@ private fun ApplicationScope.TrayAppImplLinux(
     }
 
     val dialogState = rememberDialogState(position = initialPositionForFirstFrame, size = currentWindowSize)
-    if (detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE) SideEffect { dialogState.position = initialPositionForFirstFrame }
+    if (isKde) SideEffect { dialogState.position = initialPositionForFirstFrame }
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
     // Visibility controller for exit-finish detection; content will NOT be disposed.
