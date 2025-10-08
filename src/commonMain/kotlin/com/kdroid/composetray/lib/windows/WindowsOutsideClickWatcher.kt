@@ -62,10 +62,16 @@ class WindowsOutsideClickWatcher(
                                 if (win != null && win.isShowing) {
                                     val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
                                     if (winLoc != null) {
-                                        val wx = winLoc.x
-                                        val wy = winLoc.y
-                                        val ww = win.width
-                                        val wh = win.height
+                                        // Get the graphics configuration to determine the DPI scale
+                                        val scale = try {
+                                            win.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
+                                        } catch (_: Throwable) { 1.0 }
+
+                                        // Convert window bounds from logical to physical pixels
+                                        val wx = (winLoc.x * scale).toInt()
+                                        val wy = (winLoc.y * scale).toInt()
+                                        val ww = (win.width * scale).toInt()
+                                        val wh = (win.height * scale).toInt()
 
                                         val insideWindow = px in wx until (wx + ww) && py in wy until (wy + wh)
                                         val ignored = ignorePointPredicate?.invoke(px, py) == true
