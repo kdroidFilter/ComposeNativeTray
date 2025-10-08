@@ -30,7 +30,7 @@ internal object TrayClickTracker {
         Collections.synchronizedMap(mutableMapOf())
 
     fun updateClickPosition(x: Int, y: Int) {
-        val screenSize = Toolkit.getDefaultToolkit().screenSize
+        val screenSize = getLogicalScreenSize()
         val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
         val pos = TrayClickPosition(x, y, position)
         lastClickPosition.set(pos)
@@ -38,7 +38,7 @@ internal object TrayClickTracker {
     }
 
     fun updateClickPosition(instanceId: String, x: Int, y: Int) {
-        val screenSize = Toolkit.getDefaultToolkit().screenSize
+        val screenSize = getLogicalScreenSize()
         val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
         val pos = TrayClickPosition(x, y, position)
         perInstancePositions[instanceId] = pos
@@ -63,11 +63,38 @@ internal object TrayClickTracker {
     fun getLastClickPosition(instanceId: String): TrayClickPosition? = perInstancePositions[instanceId]
 }
 
-internal fun convertPositionToCorner(x: Int, y: Int, width: Int, height: Int): TrayPosition = when {
-    x < width / 2 && y < height / 2 -> TrayPosition.TOP_LEFT
-    x >= width / 2 && y < height / 2 -> TrayPosition.TOP_RIGHT
-    x < width / 2 && y >= height / 2 -> TrayPosition.BOTTOM_LEFT
-    else -> TrayPosition.BOTTOM_RIGHT
+/**
+ * Get logical screen size (DPI-independent on Windows).
+ * On Windows, Toolkit.getDefaultToolkit().screenSize returns logical coordinates.
+ */
+private fun getLogicalScreenSize(): java.awt.Dimension {
+    return Toolkit.getDefaultToolkit().screenSize
+}
+
+internal fun convertPositionToCorner(x: Int, y: Int, width: Int, height: Int): TrayPosition {
+    // Use smarter margins based on typical taskbar/panel size
+    // 100px from edge = probably within taskbar/panel area
+    val edgeThreshold = 100
+
+    val isNearTop = y < edgeThreshold
+    val isNearBottom = y > height - edgeThreshold
+    val isNearLeft = x < edgeThreshold
+    val isNearRight = x > width - edgeThreshold
+
+    return when {
+        // Strong edge detection first
+        isNearTop && isNearLeft -> TrayPosition.TOP_LEFT
+        isNearTop && isNearRight -> TrayPosition.TOP_RIGHT
+        isNearTop -> TrayPosition.TOP_RIGHT  // Default top to right
+        isNearBottom && isNearLeft -> TrayPosition.BOTTOM_LEFT
+        isNearBottom && isNearRight -> TrayPosition.BOTTOM_RIGHT
+        isNearBottom -> TrayPosition.BOTTOM_RIGHT  // Default bottom to right
+        // Fallback: use quadrant-based detection
+        x >= width / 2 && y < height / 2 -> TrayPosition.TOP_RIGHT
+        x < width / 2 && y < height / 2 -> TrayPosition.TOP_LEFT
+        x >= width / 2 -> TrayPosition.BOTTOM_RIGHT
+        else -> TrayPosition.BOTTOM_LEFT
+    }
 }
 
 private const val PROPERTIES_FILE = "tray_position.properties"
@@ -427,6 +454,32 @@ private fun dpiAwareHalfIconOffset(): Int {
         (15 * scale).roundToInt().coerceAtLeast(0)
     } catch (_: Throwable) {
         15
+    }
+}
+
+/**
+ * Detects the Windows taskbar height based on DPI scaling.
+ * Default taskbar: 40px at 100%, 48px at 125%, 60px at 150%, etc.
+ */
+private fun getWindowsTaskbarHeight(): Int {
+    return try {
+        val dpi = Toolkit.getDefaultToolkit().screenResolution
+        val scale = dpi / 96.0
+        // Taskbar default height: 40px at 100% scaling
+        (40 * scale).roundToInt().coerceIn(32, 72)
+    } catch (_: Throwable) {
+        40
+    }
+}
+
+/**
+ * Gets the appropriate bar size (taskbar/menubar/panel) for the current OS.
+ */
+private fun getSystemBarSize(): Int {
+    return when (getOperatingSystem()) {
+        OperatingSystem.WINDOWS -> getWindowsTaskbarHeight()
+        OperatingSystem.MACOS -> 25  // macOS menu bar
+        else -> 28  // Linux panel (GNOME/KDE average)
     }
 }
 
