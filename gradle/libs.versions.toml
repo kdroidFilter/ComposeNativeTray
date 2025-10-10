@@ -2,7 +2,7 @@
 kermit = "2.0.8"
 kotlin = "2.2.20"
 kotlinx-coroutines = "1.10.2"
-compose = "1.9.0"
+compose = "1.10.0+dev3056"
 jna = "5.18.1"
 platformtools = "0.7.1"
 
