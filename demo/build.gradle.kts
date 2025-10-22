@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
-    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.2"
+    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.5"
 }
 
 kotlin {
