@@ -5,13 +5,57 @@ on:
     tags:
       - '**'
 
+env:
+  NATIVE_LIBS_DIR: ${{ github.workspace }}/build/nativeLibs
+
 jobs:
+  build-native:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            command: bash linuxlib/build.sh
+          - os: macos-latest
+            command: bash maclib/build.sh
+          - os: windows-latest
+            command: cmd /c winlib/build.bat
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build native binary
+        run: ${{ matrix.command }}
+        env:
+          NATIVE_LIBS_OUTPUT_DIR: ${{ env.NATIVE_LIBS_DIR }}
+
+      - name: Upload native binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: nativeLibs-${{ matrix.os }}
+          path: ${{ env.NATIVE_LIBS_DIR }}/**
+
   publish:
+    needs: [ "build-native" ]
     runs-on: macos-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Download all native binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: nativeLibs-*
+          path: ${{ env.NATIVE_LIBS_DIR }}
+          merge-multiple: true
+
+      - name: Copy native libs into src/commonMain/resources/
+        run: |
+          mkdir -p src/commonMain/resources/
+          cp -r ${{ env.NATIVE_LIBS_DIR }}/* src/commonMain/resources/
 
       - name: Set up JDK
         uses: actions/setup-java@v3
@@ -27,4 +71,3 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNINGINMEMORYKEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNINGKEYID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNINGPASSWORD }}
-

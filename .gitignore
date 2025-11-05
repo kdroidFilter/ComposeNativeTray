@@ -49,3 +49,8 @@ tray_position.properties
 
 linuxlib/build-x86-64
 linuxlibdbus/build-x86-64
+
+# don't commit compiled native binaries
+src/commonMain/resources/**/*.so
+src/commonMain/resources/**/*.dll
+src/commonMain/resources/**/*.dylib
