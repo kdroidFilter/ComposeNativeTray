@@ -5,9 +5,15 @@ set -e
 
 echo "Building MacTray library..."
 
+OUTPUT_DIR="${NATIVE_LIBS_OUTPUT_DIR}"
+echo "output dir for mac is: $OUTPUT_DIR"
+
 echo "Building for ARM64 (Apple Silicon)..."
 
-swiftc -emit-library -o ../src/commonMain/resources/darwin-aarch64/libMacTray.dylib \
+mkdir -p "$OUTPUT_DIR/darwin-aarch64"
+mkdir -p "$OUTPUT_DIR/darwin-x86-64"
+
+swiftc -emit-library -o "$OUTPUT_DIR/darwin-aarch64/libMacTray.dylib" \
     -module-name MacTray \
     -swift-version 5 \
     -target arm64-apple-macosx11.0 \
@@ -20,7 +26,7 @@ swiftc -emit-library -o ../src/commonMain/resources/darwin-aarch64/libMacTray.dy
 
 echo "Building for x86_64 (Intel)..."
 
-swiftc -emit-library -o ../src/commonMain/resources/darwin-x86-64/libMacTray.dylib \
+swiftc -emit-library -o "$OUTPUT_DIR/darwin-x86-64/libMacTray.dylib" \
     -module-name MacTray \
     -swift-version 5 \
     -target x86_64-apple-macosx11.0 \

@@ -15,11 +15,14 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            command: bash linuxlib/build.sh
+            command: |
+              cd linuxlib && bash build.sh
           - os: macos-latest
-            command: bash maclib/build.sh
+            command: |
+              cd maclib && bash build.sh
           - os: windows-latest
-            command: cmd /c winlib/build.bat
+            command: |
+              cd winlib && cmd /c build.bat
 
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +51,7 @@ jobs:
       - name: Download all native binaries
         uses: actions/download-artifact@v4
         with:
-          name: nativeLibs-*
+          pattern: nativeLibs-*
           path: ${{ env.NATIVE_LIBS_DIR }}
           merge-multiple: true
 
