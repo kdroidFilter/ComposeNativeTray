@@ -59,6 +59,7 @@
 - [⚠️ Platform-Specific Notes](#️-platform-specific-notes)
     - [Icon Limitations](#icon-limitations)
     - [Theme Behavior](#theme-behavior)
+    - [ProGuard / R8](#proguard--r8)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
@@ -551,6 +552,17 @@ By default, icons are optimized by OS: 32x32px (Windows), 44x44px (macOS), 24x24
 - **macOS**: The menu bar color depends on the wallpaper, not the system theme
 - **Windows**: Follows the system theme
 - **Linux**: Varies by desktop environment (GNOME/KDE/etc.)
+
+### ProGuard / R8
+
+When building a release package (e.g. via `packageReleaseUberJarForCurrentOS`), you need to add ProGuard rules to keep JNA and library classes since this library relies on reflection. Without these rules, the tray icon may render incorrectly (semi-transparent background, broken click actions, wrong tooltip).
+
+Add the following to your ProGuard rules file:
+
+```
+-keep class com.sun.jna.** { *; }
+-keep class com.kdroid.composetray.** { *; }
+```
 
 # 🧪 TrayApp (Experimental)
 
