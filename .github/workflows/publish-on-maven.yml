@@ -1,72 +1,166 @@
 name: Publish to Maven Central
 
 on:
-  push:
-    tags:
-      - '**'
-
-env:
-  NATIVE_LIBS_DIR: ${{ github.workspace }}/build/nativeLibs
+  release:
+    types: [published]
 
 jobs:
-  build-native:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            command: |
-              cd linuxlib && bash build.sh
-          - os: macos-latest
-            command: |
-              cd maclib && bash build.sh
-          - os: windows-latest
-            command: |
-              cd winlib && cmd /c build.bat
-
+  build-native-macos:
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build native binary
-        run: ${{ matrix.command }}
+      - name: Build macOS native libraries
+        working-directory: maclib
+        run: bash build.sh
         env:
-          NATIVE_LIBS_OUTPUT_DIR: ${{ env.NATIVE_LIBS_DIR }}
+          NATIVE_LIBS_OUTPUT_DIR: ${{ github.workspace }}/build/nativeLibs
 
-      - name: Upload native binaries
+      - name: Upload macOS ARM64 library
         uses: actions/upload-artifact@v4
         with:
-          name: nativeLibs-${{ matrix.os }}
-          path: ${{ env.NATIVE_LIBS_DIR }}/**
+          name: native-darwin-aarch64
+          path: build/nativeLibs/darwin-aarch64/libMacTray.dylib
+          retention-days: 1
 
-  publish:
-    needs: [ "build-native" ]
-    runs-on: macos-latest
+      - name: Upload macOS x86_64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-darwin-x86-64
+          path: build/nativeLibs/darwin-x86-64/libMacTray.dylib
+          retention-days: 1
 
+  build-native-linux:
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Download all native binaries
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libappindicator3-dev
+
+      - name: Build Linux native library
+        working-directory: linuxlib
+        run: bash build.sh
+        env:
+          NATIVE_LIBS_OUTPUT_DIR: ${{ github.workspace }}/build/nativeLibs
+
+      - name: Upload Linux x86_64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-x86-64
+          path: build/nativeLibs/linux-x86-64/libsystray.so
+          retention-days: 1
+
+  build-native-windows:
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Windows native libraries
+        working-directory: winlib
+        run: cmd /c build.bat
+        env:
+          NATIVE_LIBS_OUTPUT_DIR: ${{ github.workspace }}/build/nativeLibs
+
+      - name: Upload Windows x64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-win32-x86-64
+          path: build/nativeLibs/win32-x86-64/tray.dll
+          retention-days: 1
+
+      - name: Upload Windows ARM64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-win32-arm64
+          path: build/nativeLibs/win32-arm64/tray.dll
+          retention-days: 1
+
+  publish:
+    if: startsWith(github.event.release.tag_name, 'v')
+    needs:
+      - build-native-macos
+      - build-native-linux
+      - build-native-windows
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set version from tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION_NAME="${TAG#v}"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          sed -i.bak "s/^VERSION_NAME=.*/VERSION_NAME=$VERSION_NAME/" gradle.properties
+          rm -f gradle.properties.bak
+
+      - name: Download macOS ARM64 library
         uses: actions/download-artifact@v4
         with:
-          pattern: nativeLibs-*
-          path: ${{ env.NATIVE_LIBS_DIR }}
-          merge-multiple: true
+          name: native-darwin-aarch64
+          path: src/commonMain/resources/darwin-aarch64/
 
-      - name: Copy native libs into src/commonMain/resources/
+      - name: Download macOS x86_64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-darwin-x86-64
+          path: src/commonMain/resources/darwin-x86-64/
+
+      - name: Download Linux x86_64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x86-64
+          path: src/commonMain/resources/linux-x86-64/
+
+      - name: Download Windows x64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-win32-x86-64
+          path: src/commonMain/resources/win32-x86-64/
+
+      - name: Download Windows ARM64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-win32-arm64
+          path: src/commonMain/resources/win32-arm64/
+
+      - name: Verify native libraries
         run: |
-          mkdir -p src/commonMain/resources/
-          cp -r ${{ env.NATIVE_LIBS_DIR }}/* src/commonMain/resources/
+          echo "=== Native libraries in resources ==="
+          ls -la src/commonMain/resources/darwin-aarch64/
+          ls -la src/commonMain/resources/darwin-x86-64/
+          ls -la src/commonMain/resources/linux-x86-64/
+          ls -la src/commonMain/resources/win32-x86-64/
+          ls -la src/commonMain/resources/win32-arm64/
 
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Publish to Maven Central
+      - name: Publish to Maven Central
         run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVENCENTRALUSERNAME }}
