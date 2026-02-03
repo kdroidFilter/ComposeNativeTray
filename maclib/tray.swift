@@ -348,8 +348,10 @@ public func tray_get_status_item_position(
     x?.pointee = Int32(lround(rect.midX))
 
     // -- Y ---------------------------------------------------------------
-    // Inverted coordinate system to match Windows/Linux (origin at top)
-    let flippedY = Int32(screen.frame.maxY - rect.maxY)
+    // Convert macOS bottom-origin to AWT top-origin using primary screen height.
+    // This produces correct global coordinates for all screens (including external).
+    let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+    let flippedY = Int32(primaryHeight - rect.maxY)
     y?.pointee = flippedY
 
     return 1            // precise coordinates
@@ -398,7 +400,9 @@ public func tray_get_status_item_position_for(
     rect      = window.convertToScreen(rect)
 
     x?.pointee = Int32(lround(rect.midX))
-    let flippedY = Int32(screen.frame.maxY - rect.maxY)
+    // Convert macOS bottom-origin to AWT top-origin using primary screen height.
+    let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+    let flippedY = Int32(primaryHeight - rect.maxY)
     y?.pointee = flippedY
     return 1
 }

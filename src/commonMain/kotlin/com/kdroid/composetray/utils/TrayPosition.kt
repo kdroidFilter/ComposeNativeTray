@@ -10,6 +10,8 @@ import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
+import java.awt.GraphicsEnvironment
+import java.awt.Rectangle
 import java.awt.Toolkit
 import java.io.File
 import java.util.*
@@ -30,16 +32,16 @@ internal object TrayClickTracker {
         Collections.synchronizedMap(mutableMapOf())
 
     fun updateClickPosition(x: Int, y: Int) {
-        val screenSize = getLogicalScreenSize()
-        val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
+        val bounds = getScreenBoundsAt(x, y)
+        val position = convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
         val pos = TrayClickPosition(x, y, position)
         lastClickPosition.set(pos)
         runCatching { saveTrayClickPosition(x, y, position) }
     }
 
     fun updateClickPosition(instanceId: String, x: Int, y: Int) {
-        val screenSize = getLogicalScreenSize()
-        val position = convertPositionToCorner(x, y, screenSize.width, screenSize.height)
+        val bounds = getScreenBoundsAt(x, y)
+        val position = convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
         val pos = TrayClickPosition(x, y, position)
         perInstancePositions[instanceId] = pos
         lastClickPosition.set(pos)
@@ -69,6 +71,20 @@ internal object TrayClickTracker {
  */
 private fun getLogicalScreenSize(): java.awt.Dimension {
     return Toolkit.getDefaultToolkit().screenSize
+}
+
+/**
+ * Returns the bounds of the screen that contains the given point.
+ * Falls back to the primary screen if the point is not on any screen.
+ */
+private fun getScreenBoundsAt(x: Int, y: Int): Rectangle {
+    val ge = GraphicsEnvironment.getLocalGraphicsEnvironment()
+    for (gd in ge.screenDevices) {
+        val bounds = gd.defaultConfiguration.bounds
+        if (bounds.contains(x, y)) return bounds
+    }
+    val primary = Toolkit.getDefaultToolkit().screenSize
+    return Rectangle(0, 0, primary.width, primary.height)
 }
 
 internal fun convertPositionToCorner(x: Int, y: Int, width: Int, height: Int): TrayPosition {
@@ -247,7 +263,6 @@ fun getTrayWindowPosition(
             return calculateWindowPositionFromClick(
                 sx, sy, corner,
                 windowWidth, windowHeight,
-                screenSize.width, screenSize.height,
                 horizontalOffset, verticalOffset
             )
         }
@@ -255,7 +270,6 @@ fun getTrayWindowPosition(
         return calculateWindowPositionFromClick(
             posToUse.x, posToUse.y, posToUse.position,
             windowWidth, windowHeight,
-            screenSize.width, screenSize.height,
             horizontalOffset, verticalOffset
         )
     }
@@ -270,7 +284,6 @@ fun getTrayWindowPosition(
             return calculateWindowPositionFromClick(
                 pos.x, pos.y, pos.position,
                 windowWidth, windowHeight,
-                screenSize.width, screenSize.height,
                 horizontalOffset, verticalOffset
             )
         }
@@ -282,7 +295,6 @@ fun getTrayWindowPosition(
             return calculateWindowPositionFromClick(
                 clickPos.x, clickPos.y, clickPos.position,
                 windowWidth, windowHeight,
-                screenSize.width, screenSize.height,
                 horizontalOffset, verticalOffset
             )
         }
@@ -314,7 +326,6 @@ fun getTrayWindowPositionForInstance(
     verticalOffset: Int = 0
 ): WindowPosition {
     val os = getOperatingSystem()
-    val screenSize = Toolkit.getDefaultToolkit().screenSize
 
     return when (os) {
         OperatingSystem.WINDOWS -> {
@@ -323,7 +334,6 @@ fun getTrayWindowPositionForInstance(
             calculateWindowPositionFromClick(
                 pos.x, pos.y, pos.position,
                 windowWidth, windowHeight,
-                screenSize.width, screenSize.height,
                 horizontalOffset, verticalOffset
             )
         }
@@ -341,12 +351,14 @@ fun getTrayWindowPositionForInstance(
                 if (precise) {
                     val regionStr = runCatching { lib.tray_get_status_item_region_for(trayStruct) }.getOrNull()
                     val trayPos = if (regionStr != null) getMacTrayPosition(regionStr)
-                    else convertPositionToCorner(x, y, screenSize.width, screenSize.height)
+                    else {
+                        val bounds = getScreenBoundsAt(x, y)
+                        convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
+                    }
                     TrayClickTracker.setClickPosition(instanceId, x, y, trayPos)
                     return calculateWindowPositionFromClick(
                         x, y, trayPos,
                         windowWidth, windowHeight,
-                        screenSize.width, screenSize.height,
                         horizontalOffset, verticalOffset
                     )
                 }
@@ -360,11 +372,11 @@ fun getTrayWindowPositionForInstance(
 
 /**
  * Calcule la position (x,y) depuis un clic précis + applique les offsets et un clamp aux bords écran.
+ * Uses the screen containing the click point for correct multi-monitor support.
  */
 private fun calculateWindowPositionFromClick(
     clickX: Int, clickY: Int, trayPosition: TrayPosition,
     windowWidth: Int, windowHeight: Int,
-    screenWidth: Int, screenHeight: Int,
     horizontalOffset: Int,
     verticalOffset: Int
 ): WindowPosition {
@@ -372,32 +384,30 @@ private fun calculateWindowPositionFromClick(
     val isTop = trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT
     val isRight = trayPosition == TrayPosition.TOP_RIGHT || trayPosition == TrayPosition.BOTTOM_RIGHT
 
+    val sb = getScreenBoundsAt(clickX, clickY)
+
     return if (os == OperatingSystem.WINDOWS) {
-        // ---- Legacy behavior for Windows (keep exact clickY & raw offsets) ----
         var x = clickX - (windowWidth / 2)
         var y = if (isTop) clickY else clickY - windowHeight
 
         x += horizontalOffset
         y += verticalOffset
 
-        if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
-        if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
+        if (x < sb.x) x = sb.x else if (x + windowWidth > sb.x + sb.width) x = sb.x + sb.width - windowWidth
+        if (y < sb.y) y = sb.y else if (y + windowHeight > sb.y + sb.height) y = sb.y + sb.height - windowHeight
         WindowPosition(x = x.dp, y = y.dp)
     } else {
-        // ---- New behavior for macOS & Linux: snap to bar edge (ignore clickY height within icon) ----
-        // Conservative guess of panel thickness; works well across GNOME/KDE and typical macOS menubar heights.
         val panelGuessPx = 28
 
         var x = clickX - (windowWidth / 2)
-        val anchorY = if (isTop) panelGuessPx else (screenHeight - panelGuessPx)
+        val anchorY = if (isTop) sb.y + panelGuessPx else (sb.y + sb.height - panelGuessPx)
         var y = if (isTop) anchorY else anchorY - windowHeight
 
-        // Direction-aware offsets: always push AWAY from the bar/edge for consistency.
         x += if (isRight) -horizontalOffset else horizontalOffset
         y += if (isTop)  verticalOffset   else -verticalOffset
 
-        if (x < 0) x = 0 else if (x + windowWidth > screenWidth) x = screenWidth - windowWidth
-        if (y < 0) y = 0 else if (y + windowHeight > screenHeight) y = screenHeight - windowHeight
+        if (x < sb.x) x = sb.x else if (x + windowWidth > sb.x + sb.width) x = sb.x + sb.width - windowWidth
+        if (y < sb.y) y = sb.y else if (y + windowHeight > sb.y + sb.height) y = sb.y + sb.height - windowHeight
         WindowPosition(x = x.dp, y = y.dp)
     }
 }
