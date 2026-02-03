@@ -5,8 +5,9 @@ set -e
 
 echo "Building MacTray library..."
 
-OUTPUT_DIR="${NATIVE_LIBS_OUTPUT_DIR}"
-echo "output dir for mac is: $OUTPUT_DIR"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+OUTPUT_DIR="${NATIVE_LIBS_OUTPUT_DIR:-$SCRIPT_DIR/../src/commonMain/resources}"
+echo "Output dir for mac is: $OUTPUT_DIR"
 
 echo "Building for ARM64 (Apple Silicon)..."
 
