@@ -74,6 +74,9 @@ internal class NativeTray {
     /**
      * New update path: render the composable icon to PNG/ICO with retries and then update/init the tray.
      * If rendering keeps failing, we log and **do not create/update** the tray (never crash the app).
+     *
+     * @param lightIconContent Optional composable for the light-appearance icon (macOS only).
+     * @param darkIconContent Optional composable for the dark-appearance icon (macOS only).
      */
     fun updateComposable(
         iconContent: @Composable () -> Unit,
@@ -83,6 +86,8 @@ internal class NativeTray {
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
         maxAttempts: Int = 3,
         backoffMs: Long = 200,
+        lightIconContent: (@Composable () -> Unit)? = null,
+        darkIconContent: (@Composable () -> Unit)? = null,
     ) {
         trayScope.launch {
             val rendered = renderIconsWithRetry(iconContent, iconRenderProperties, maxAttempts, backoffMs)
@@ -112,6 +117,26 @@ internal class NativeTray {
                     errorln { "[NativeTray] Error updating tray after successful render: $th" }
                 }
             }
+
+            // On macOS, pre-render light/dark variants for instant appearance switching
+            if (os == MACOS && lightIconContent != null && darkIconContent != null) {
+                try {
+                    val lightPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, lightIconContent)
+                    val darkPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, darkIconContent)
+                    MacTrayInitializer.setAppearanceIcons(instanceId, lightPath, darkPath)
+                } catch (th: Throwable) {
+                    errorln { "[NativeTray] Failed to render appearance icons: $th" }
+                }
+            }
+        }
+    }
+
+    /**
+     * Set macOS appearance icons directly from file paths.
+     */
+    fun setMacOSAppearanceIcons(lightPath: String, darkPath: String) {
+        if (os == MACOS && initialized) {
+            MacTrayInitializer.setAppearanceIcons(instanceId, lightPath, darkPath)
         }
     }
 
@@ -323,6 +348,7 @@ fun ApplicationScope.Tray(
 ) {
     val isDark = isMenuBarInDarkMode()
     val isSystemInDarkTheme = isSystemInDarkMode()
+    val isMacOS = getOperatingSystem() == MACOS
 
     // Define the icon content lambda
     val iconContent: @Composable () -> Unit = {
@@ -335,6 +361,29 @@ fun ApplicationScope.Tray(
                 else androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
         )
     }
+
+    // On macOS with auto-tint, pre-render both light and dark variants for instant switching
+    val lightIconContent: (@Composable () -> Unit)? = if (tint == null && isMacOS) {
+        {
+            Image(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
+            )
+        }
+    } else null
+
+    val darkIconContent: (@Composable () -> Unit)? = if (tint == null && isMacOS) {
+        {
+            Image(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White)
+            )
+        }
+    } else null
 
     // Calculate menu hash to detect changes
     val menuHash = MenuContentHash.calculateMenuHash(menuContent)
@@ -357,6 +406,8 @@ fun ApplicationScope.Tray(
             menuContent = menuContent,
             maxAttempts = 3,
             backoffMs = 200,
+            lightIconContent = lightIconContent,
+            darkIconContent = darkIconContent,
         )
     }
 

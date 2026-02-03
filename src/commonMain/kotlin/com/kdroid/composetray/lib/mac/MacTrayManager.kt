@@ -317,6 +317,13 @@ internal class MacTrayManager(
         return tray
     }
 
+    fun setAppearanceIcons(lightIconPath: String, darkIconPath: String) {
+        lock.withLock {
+            val t = tray ?: return
+            trayLib.tray_set_icons_for_appearance(t, lightIconPath, darkIconPath)
+        }
+    }
+
     // Callback interfaces
     interface TrayCallback : Callback {
         fun invoke(tray: Pointer?)
@@ -351,6 +358,8 @@ internal class MacTrayManager(
         @JvmStatic external fun tray_get_status_item_region_for(tray: MacTray): String?
 
         @JvmStatic external fun tray_set_windows_move_to_active_space()
+
+        @JvmStatic external fun tray_set_icons_for_appearance(tray: MacTray, light_icon: String, dark_icon: String)
     }
 
     // Structure for a menu item

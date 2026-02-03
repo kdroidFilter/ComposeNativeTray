@@ -19,6 +19,8 @@ private class TrayContext {
     let clickHandler: InstanceButtonClickHandler
     var contextMenu: NSMenu?
     let appearanceObserver: MenuBarAppearanceObserver
+    var lightImage: NSImage?
+    var darkImage: NSImage?
     init(statusItem: NSStatusItem, clickHandler: InstanceButtonClickHandler, appearanceObserver: MenuBarAppearanceObserver) {
         self.statusItem = statusItem
         self.clickHandler = clickHandler
@@ -64,16 +66,22 @@ private class MenuDelegate: NSObject, NSMenuDelegate {
 }
 
 // MARK: - Appearance observer with ultra‑low latency
-/// Detects menu‑bar theme changes in <60 ms using KVO + GCD debouncing.
+/// Detects menu‑bar theme changes in <10 ms using KVO + GCD debouncing.
 private class MenuBarAppearanceObserver {
     private var observation: NSKeyValueObservation?
     private var workItem: DispatchWorkItem?
+    private var settleItem: DispatchWorkItem?
     private var lastAppearance: NSAppearance.Name?
+    private let trayPtr: UnsafeMutableRawPointer?
 
     /// Debounce delay before first evaluation (keep tiny but non‑zero).
-    private let debounce: TimeInterval = 0.04   // 40 ms
+    private let debounce: TimeInterval = 0.01   // 10 ms
     /// Settling delay to avoid reporting intermediate states.
     private let settle: TimeInterval  = 0.005   // 5 ms
+
+    init(trayPtr: UnsafeMutableRawPointer? = nil) {
+        self.trayPtr = trayPtr
+    }
 
     func startObserving(_ statusItem: NSStatusItem) {
         observation = statusItem.button?.observe(
@@ -99,16 +107,30 @@ private class MenuBarAppearanceObserver {
               matched != lastAppearance else { return }
         lastAppearance = matched
 
+        // Swap cached icon instantly if available
+        if let ptr = trayPtr, let ctx = contexts[ptr] {
+            let isDark = matched == .darkAqua
+            if let img = isDark ? ctx.darkImage : ctx.lightImage {
+                ctx.statusItem.button?.image = img
+            }
+        }
+
+        // Cancel any pending settle callback before scheduling a new one.
+        settleItem?.cancel()
+
         // Allow the system a single run‑loop to settle, then notify.
-        DispatchQueue.main.asyncAfter(deadline: .now() + settle) {
+        let item = DispatchWorkItem {
             themeCallback?(matched == .darkAqua ? 1 : 0)
         }
+        settleItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + settle, execute: item)
     }
 
     func invalidate() {
         observation?.invalidate()
         observation = nil
         workItem?.cancel()
+        settleItem?.cancel()
     }
 }
 
@@ -186,13 +208,14 @@ public func tray_init(_ tray: UnsafeMutableRawPointer) -> Int32 {
     guard let bar = statusBar else { return -1 }
     let statusItem = bar.statusItem(withLength: NSStatusItem.variableLength)
 
-    let observer = MenuBarAppearanceObserver()
-    observer.startObserving(statusItem)
-
+    let observer = MenuBarAppearanceObserver(trayPtr: tray)
     let clickHandler = InstanceButtonClickHandler(trayPtr: tray)
 
     let ctx = TrayContext(statusItem: statusItem, clickHandler: clickHandler, appearanceObserver: observer)
+    // Register context BEFORE starting observation so the .initial KVO fires with context available
     contexts[tray] = ctx
+
+    observer.startObserving(statusItem)
 
     // First-time update sets image/tooltip/menu and target/action
     tray_update(tray)
@@ -424,6 +447,45 @@ public func tray_get_status_item_region_for(
     let midX   = screen.frame.midX
     let region = rect.minX < midX ? "top-left" : "top-right"
     return strdup(region)
+}
+
+// MARK: - Pre-rendered appearance icons
+
+@_cdecl("tray_set_icons_for_appearance")
+public func tray_set_icons_for_appearance(
+    _ tray: UnsafeMutableRawPointer?,
+    _ lightIconPath: UnsafePointer<CChar>?,
+    _ darkIconPath: UnsafePointer<CChar>?
+) {
+    let doWork = {
+        guard let tray = tray, let ctx = contexts[tray] else { return }
+        let height = NSStatusBar.system.thickness
+
+        if let path = lightIconPath.flatMap({ String(cString: $0) }),
+           let img = NSImage(contentsOfFile: path) {
+            let w = img.size.width * (height / img.size.height)
+            img.size = NSSize(width: w, height: height)
+            ctx.lightImage = img
+        }
+        if let path = darkIconPath.flatMap({ String(cString: $0) }),
+           let img = NSImage(contentsOfFile: path) {
+            let w = img.size.width * (height / img.size.height)
+            img.size = NSSize(width: w, height: height)
+            ctx.darkImage = img
+        }
+
+        // Apply the correct variant for the current appearance
+        if let button = ctx.statusItem.button {
+            let isDark = button.effectiveAppearance
+                .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            if let img = isDark ? ctx.darkImage : ctx.lightImage {
+                button.image = img
+            }
+        }
+    }
+
+    if Thread.isMainThread { doWork() }
+    else { DispatchQueue.main.async { doWork() } }
 }
 
 // MARK: - Spaces / Virtual Desktop support
