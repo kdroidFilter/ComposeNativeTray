@@ -349,6 +349,8 @@ internal class MacTrayManager(
 
         @JvmStatic external fun tray_get_status_item_region(): String?
         @JvmStatic external fun tray_get_status_item_region_for(tray: MacTray): String?
+
+        @JvmStatic external fun tray_set_windows_move_to_active_space()
     }
 
     // Structure for a menu item
