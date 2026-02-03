@@ -303,10 +303,18 @@ public func tray_set_theme_callback(_ cb: @escaping ThemeCallback) {
 
 @_cdecl("tray_is_menu_dark")
 public func tray_is_menu_dark() -> Int32 {
+    if !Thread.isMainThread {
+        return DispatchQueue.main.sync { tray_is_menu_dark() }
+    }
     let ctx = trayInstance.flatMap { contexts[$0] } ?? contexts.values.first
-    guard let button = ctx?.statusItem.button else { return 1 }
-    guard let name = button.effectiveAppearance.bestMatch(from: [NSAppearance.Name.darkAqua, NSAppearance.Name.aqua]) else {
-        return 1 // assume dark if unknown
+    let appearance: NSAppearance
+    if let button = ctx?.statusItem.button {
+        appearance = button.effectiveAppearance
+    } else {
+        appearance = NSApp.effectiveAppearance
+    }
+    guard let name = appearance.bestMatch(from: [.darkAqua, .aqua]) else {
+        return 1
     }
     return name == .darkAqua ? 1 : 0
 }
