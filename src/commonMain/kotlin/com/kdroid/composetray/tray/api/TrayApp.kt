@@ -25,6 +25,7 @@ import androidx.compose.ui.window.*
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
+import com.kdroid.composetray.lib.mac.MacTrayLoader
 import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.*
@@ -620,6 +621,11 @@ private fun ApplicationScope.TrayAppImplOriginal(
             runCatching { WindowVisibilityMonitor.recompute() }
 
             invokeLater {
+                // Move the popup to the current Space before bringing it to front (macOS)
+                if (getOperatingSystem() == MACOS) {
+                    runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
+                    runCatching { MacOSWindowManager().setMoveToActiveSpace(window) }
+                }
                 runCatching {
                     window.toFront()
                     window.requestFocus()

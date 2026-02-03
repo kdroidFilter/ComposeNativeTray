@@ -425,3 +425,15 @@ public func tray_get_status_item_region_for(
     let region = rect.minX < midX ? "top-left" : "top-right"
     return strdup(region)
 }
+
+// MARK: - Spaces / Virtual Desktop support
+
+/// Sets NSWindowCollectionBehavior.moveToActiveSpace on all app windows
+/// so that showing a window moves it to the current Space instead of
+/// switching back to the Space where it was originally created.
+@_cdecl("tray_set_windows_move_to_active_space")
+public func tray_set_windows_move_to_active_space() {
+    for window in NSApp.windows {
+        window.collectionBehavior.insert(.moveToActiveSpace)
+    }
+}

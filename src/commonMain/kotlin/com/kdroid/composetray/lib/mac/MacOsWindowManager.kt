@@ -29,18 +29,6 @@ interface Foundation : Library {
 
 class MacOSWindowManager {
 
-    companion object {
-        // Constants for NSApplication activation policies
-        const val NSApplicationActivationPolicyRegular = 0L
-        const val NSApplicationActivationPolicyAccessory = 1L
-        const val NSApplicationActivationPolicyProhibited = 2L
-
-        // Constants for window levels
-        const val NSNormalWindowLevel = 0L
-        const val NSFloatingWindowLevel = 3L
-        const val NSModalPanelWindowLevel = 8L
-    }
-
     // Detect platform once
     private val isMacOs: Boolean = getOperatingSystem() == OperatingSystem.MACOS
 
@@ -204,6 +192,52 @@ class MacOSWindowManager {
     fun canHideFromDock(): Boolean {
         if (!isMacOs) return false
         return getNSApplication() != null
+    }
+
+    /**
+     * Configure an AWT window so that macOS moves it to the active Space
+     * when it is ordered front, instead of switching back to the Space
+     * where the window was originally created.
+     */
+    fun setMoveToActiveSpace(awtWindow: java.awt.Window): Boolean {
+        if (!isMacOs) return false
+        val localObjc = objc ?: return false
+        return try {
+            val viewPtr = Native.getComponentID(awtWindow)
+            if (viewPtr == 0L) return false
+
+            val nsView = Pointer(viewPtr)
+            val windowSel = localObjc.sel_registerName("window")
+            val nsWindow = localObjc.objc_msgSend(nsView, windowSel)
+            if (nsWindow == Pointer.NULL) return false
+
+            // Read current collectionBehavior and add moveToActiveSpace (1 << 1)
+            val getCollSel = localObjc.sel_registerName("collectionBehavior")
+            val current = Pointer.nativeValue(localObjc.objc_msgSend(nsWindow, getCollSel))
+            val setCollSel = localObjc.sel_registerName("setCollectionBehavior:")
+            localObjc.objc_msgSend(nsWindow, setCollSel, current or NSWindowCollectionBehaviorMoveToActiveSpace)
+
+            debugln { "Window configured to move to active Space" }
+            true
+        } catch (e: Throwable) {
+            debugln { "Failed to set moveToActiveSpace: ${e.message}" }
+            false
+        }
+    }
+
+    companion object {
+        // Constants for NSApplication activation policies
+        const val NSApplicationActivationPolicyRegular = 0L
+        const val NSApplicationActivationPolicyAccessory = 1L
+        const val NSApplicationActivationPolicyProhibited = 2L
+
+        // Constants for window levels
+        const val NSNormalWindowLevel = 0L
+        const val NSFloatingWindowLevel = 3L
+        const val NSModalPanelWindowLevel = 8L
+
+        // NSWindowCollectionBehavior
+        const val NSWindowCollectionBehaviorMoveToActiveSpace = 2L // 1 << 1
     }
 
 }
