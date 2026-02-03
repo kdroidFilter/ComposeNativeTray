@@ -6,7 +6,6 @@ import com.kdroid.composetray.utils.warnln
 import com.kdroid.composetray.utils.TrayClickTracker
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
-import java.awt.Toolkit
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.MILLISECONDS
@@ -162,10 +161,8 @@ internal class LinuxTrayManager(
                     go.Systray_GetLastClickXY(xRef, yRef)
                     val x = xRef.value
                     val y = yRef.value
-                    // Infer corner and persist for Linux positioning
-                    val screen = try { Toolkit.getDefaultToolkit().screenSize } catch (_: Throwable) { java.awt.Dimension(0,0) }
-                    val pos = com.kdroid.composetray.utils.convertPositionToCorner(x, y, screen.width, screen.height)
-                    TrayClickTracker.setClickPosition(x, y, pos)
+                    // Use multi-monitor aware position tracking that resolves the correct screen bounds
+                    TrayClickTracker.updateClickPosition(x, y)
                 } catch (_: Throwable) {
                     // ignore, still invoke user callback
                 }
