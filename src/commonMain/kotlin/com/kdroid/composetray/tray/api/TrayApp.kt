@@ -621,6 +621,9 @@ private fun ApplicationScope.TrayAppImplOriginal(
 
             invokeLater {
                 runCatching {
+                    if (getOperatingSystem() == MACOS) {
+                        MacOSWindowManager().setMoveToActiveSpace(window)
+                    }
                     window.toFront()
                     window.requestFocus()
                     window.requestFocusInWindow()
