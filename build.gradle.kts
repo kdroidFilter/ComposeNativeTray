@@ -74,6 +74,12 @@ tasks.register("buildNativeLibraries") {
     dependsOn(buildWin, buildLinux, buildMac)
 }
 
+if (System.getenv("CI") == null) {
+    tasks.named("jvmProcessResources") {
+        dependsOn("buildNativeLibraries")
+    }
+}
+
 mavenPublishing {
     coordinates(
         groupId = "io.github.kdroidfilter",
