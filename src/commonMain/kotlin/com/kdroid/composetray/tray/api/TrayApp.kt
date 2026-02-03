@@ -508,6 +508,9 @@ private fun ApplicationScope.TrayAppImplOriginal(
     var lastFocusLostAt by remember { mutableStateOf(0L) }
     var autoHideEnabledAt by remember { mutableStateOf(0L) }
 
+    // Position pre-computed at click time so the LaunchedEffect can use it immediately.
+    var pendingPosition by remember { mutableStateOf<WindowPosition?>(null) }
+
     val dialogState = rememberDialogState(size = currentWindowSize)
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
@@ -541,6 +544,15 @@ private fun ApplicationScope.TrayAppImplOriginal(
                     if (getOperatingSystem() == WINDOWS && (now - lastFocusLostAt) < 300) {
                         // ignore immediate re-show after focus loss on Windows
                     } else {
+                        // Pre-compute position at click time: the native status item
+                        // geometry is guaranteed to be available right now.
+                        runCatching {
+                            val widthPx = currentWindowSize.width.value.toInt()
+                            val heightPx = currentWindowSize.height.value.toInt()
+                            pendingPosition = getTrayWindowPositionForInstance(
+                                tray.instanceKey(), widthPx, heightPx, horizontalOffset, verticalOffset
+                            )
+                        }
                         trayAppState.show()
                     }
                 }
@@ -554,16 +566,25 @@ private fun ApplicationScope.TrayAppImplOriginal(
 
         if (isVisible) {
             if (!shouldShowWindow) {
-                delay(250) // let tray click/dock settle (macOS)
-                val widthPx = currentWindowSize.width.value.toInt()
-                val heightPx = currentWindowSize.height.value.toInt()
-                var position: WindowPosition = WindowPosition.PlatformDefault
-                val deadline = System.currentTimeMillis() + 3000
-                while (position is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
-                    position = getTrayWindowPositionForInstance(
-                        tray.instanceKey(), widthPx, heightPx, horizontalOffset, verticalOffset
-                    )
+                val preComputed = pendingPosition
+                pendingPosition = null
+
+                val position = if (preComputed != null && preComputed !is WindowPosition.PlatformDefault) {
+                    preComputed
+                } else {
+                    // Fallback: poll for position (e.g. initiallyVisible or programmatic show)
                     delay(250)
+                    val widthPx = currentWindowSize.width.value.toInt()
+                    val heightPx = currentWindowSize.height.value.toInt()
+                    var pos: WindowPosition = WindowPosition.PlatformDefault
+                    val deadline = System.currentTimeMillis() + 3000
+                    while (pos is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
+                        pos = getTrayWindowPositionForInstance(
+                            tray.instanceKey(), widthPx, heightPx, horizontalOffset, verticalOffset
+                        )
+                        if (pos is WindowPosition.PlatformDefault) delay(250)
+                    }
+                    pos
                 }
                 dialogState.position = position
 
