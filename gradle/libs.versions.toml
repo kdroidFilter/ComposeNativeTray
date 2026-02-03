@@ -20,5 +20,5 @@ platformtools-darkmodedetector = { module = "io.github.kdroidfilter:platformtool
 multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-vannitktech-maven-publish = {id = "com.vanniktech.maven.publish", version = "0.33.0"}
+vannitktech-maven-publish = {id = "com.vanniktech.maven.publish", version = "0.36.0"}
 dokka = { id = "org.jetbrains.dokka" , version = "2.0.0"}
