@@ -92,6 +92,11 @@ object MacTrayInitializer {
     }
 
     @Synchronized
+    fun setAppearanceIcons(id: String, lightIconPath: String, darkIconPath: String) {
+        trayManagers[id]?.setAppearanceIcons(lightIconPath, darkIconPath)
+    }
+
+    @Synchronized
     fun dispose(id: String) {
         trayMenuBuilders.remove(id)?.dispose()
         trayManagers.remove(id)?.stopTray()

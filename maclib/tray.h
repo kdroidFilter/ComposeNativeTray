@@ -79,6 +79,9 @@ TRAY_API const char *tray_get_status_item_region(void);
 TRAY_API int         tray_get_status_item_position_for(struct tray *tray, int *x, int *y);
 TRAY_API const char *tray_get_status_item_region_for(struct tray *tray);
 
+/* macOS: pre-rendered appearance icons for instant light/dark switching       */
+TRAY_API void tray_set_icons_for_appearance(struct tray *tray, const char *light_icon, const char *dark_icon);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
