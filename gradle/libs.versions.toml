@@ -1,10 +1,10 @@
 [versions]
 kermit = "2.0.8"
-kotlin = "2.2.21"
+kotlin = "2.3.0"
 kotlinx-coroutines = "1.10.2"
-compose = "1.9.2"
+compose = "1.10.0"
 jna = "5.18.1"
-platformtools = "0.7.1"
+platformtools = "0.7.5"
 
 [libraries]
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
