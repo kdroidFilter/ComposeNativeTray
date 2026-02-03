@@ -107,17 +107,21 @@ internal class WindowsTrayManager(
                     tray.set(newTray)
                     initialized.set(true)
 
-                    // Signal that initialization is complete
+                    // Signal that initialization is complete before entering the loop
                     initLatch.countDown()
 
                     // Run the blocking message loop on this thread
                     runMessageLoop()
 
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     log("Error in tray thread: ${e.message}")
                     e.printStackTrace()
-                    initLatch.countDown() // Ensure latch is released even on error
                 } finally {
+                    // Safety net: release latch in case an Error prevented the
+                    // countDown above from being reached.  CountDownLatch.countDown()
+                    // is a no-op when the count is already 0, so calling it twice
+                    // on the success path is harmless.
+                    initLatch.countDown()
                     cleanupTray()
                 }
             }.apply {
