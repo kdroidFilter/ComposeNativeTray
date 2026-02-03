@@ -554,11 +554,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
 
         if (isVisible) {
             if (!shouldShowWindow) {
-                val isMac = getOperatingSystem() == MACOS
-                // On macOS the native position is available immediately;
-                // on other platforms a short settle delay avoids stale coordinates.
-                if (!isMac) delay(250)
-
+                delay(250) // let tray click/dock settle (macOS)
                 val widthPx = currentWindowSize.width.value.toInt()
                 val heightPx = currentWindowSize.height.value.toInt()
                 var position: WindowPosition = WindowPosition.PlatformDefault
@@ -567,7 +563,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
                     position = getTrayWindowPositionForInstance(
                         tray.instanceKey(), widthPx, heightPx, horizontalOffset, verticalOffset
                     )
-                    if (position is WindowPosition.PlatformDefault) delay(250)
+                    delay(250)
                 }
                 dialogState.position = position
 
