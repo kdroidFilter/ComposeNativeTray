@@ -511,6 +511,9 @@ private fun ApplicationScope.TrayAppImplOriginal(
     // Position pre-computed at click time so the LaunchedEffect can use it immediately.
     var pendingPosition by remember { mutableStateOf<WindowPosition?>(null) }
 
+    // Store window reference for macOS Space detection
+    var windowRef by remember { mutableStateOf<java.awt.Window?>(null) }
+
     val dialogState = rememberDialogState(size = currentWindowSize)
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
@@ -538,6 +541,24 @@ private fun ApplicationScope.TrayAppImplOriginal(
         if (now - lastPrimaryActionAt >= toggleDebounceMs) {
             lastPrimaryActionAt = now
             if (isVisible) {
+                // On macOS, check if window has focus before hiding
+                // If it doesn't have focus (e.g., on another Space), bring it to front instead
+                if (getOperatingSystem() == MACOS && windowRef != null) {
+                    val hasFocus = runCatching { windowRef!!.isFocused() }.getOrElse { false }
+                    if (!hasFocus) {
+                        // Window is not focused (likely on another Space), bring it to current Space
+                        invokeLater {
+                            runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
+                            runCatching { MacOSWindowManager().setMoveToActiveSpace(windowRef!!) }
+                            runCatching {
+                                windowRef!!.toFront()
+                                windowRef!!.requestFocus()
+                                windowRef!!.requestFocusInWindow()
+                            }
+                        }
+                        return@internalPrimaryAction
+                    }
+                }
                 requestHideExplicit()
             } else {
                 if (now - lastHiddenAt >= minHiddenDurationMs) {
@@ -638,6 +659,9 @@ private fun ApplicationScope.TrayAppImplOriginal(
         DisposableEffect(shouldShowWindow, dismissMode) {
             if (!shouldShowWindow) return@DisposableEffect onDispose { }
 
+            // Store window reference for Space detection on macOS
+            windowRef = window
+
             try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
             runCatching { WindowVisibilityMonitor.recompute() }
 
@@ -690,6 +714,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 window.removeWindowFocusListener(focusListener)
                 macWatcher?.stop(); linuxWatcher?.stop(); windowsWatcher?.stop()
                 runCatching { WindowVisibilityMonitor.recompute() }
+                windowRef = null
             }
         }
 
