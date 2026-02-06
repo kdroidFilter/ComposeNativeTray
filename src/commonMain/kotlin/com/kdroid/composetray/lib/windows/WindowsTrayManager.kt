@@ -243,12 +243,21 @@ internal class WindowsTrayManager(
             val xRef = IntByReference()
             val yRef = IntByReference()
             val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
+            log("tray_get_notification_icons_position: precise=$precise, rawX=${xRef.value}, rawY=${yRef.value}")
             if (precise) {
+                // Native coordinates are in physical pixels, but AWT uses logical pixels.
+                // Convert physical to logical by dividing by the DPI scale factor.
+                val scale = getDpiScale(xRef.value, yRef.value)
+                val logicalX = (xRef.value / scale).toInt()
+                val logicalY = (yRef.value / scale).toInt()
+
                 val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
+                log("DPI scale=$scale, logicalX=$logicalX, logicalY=$logicalY, screenW=${screen.width}, screenH=${screen.height}")
                 val corner = com.kdroid.composetray.utils.convertPositionToCorner(
-                    xRef.value, yRef.value, screen.width, screen.height
+                    logicalX, logicalY, screen.width, screen.height
                 )
-                TrayClickTracker.setClickPosition(instanceId, xRef.value, yRef.value, corner)
+                log("Detected corner: $corner")
+                TrayClickTracker.setClickPosition(instanceId, logicalX, logicalY, corner)
                 true
             } else {
                 false
@@ -261,6 +270,57 @@ internal class WindowsTrayManager(
             // Handle other exceptions
             log("Failed to get tray icon position: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Public method to force a fresh capture of the tray icon position.
+     * Called when Windows may have reorganized icons after creation.
+     */
+    fun refreshPosition() {
+        log("Refreshing tray position...")
+        safeGetTrayPosition(instanceId)
+    }
+
+    /**
+     * Gets the DPI scale factor for the screen containing the given physical coordinates.
+     * Returns 1.0 for 100% scaling, 1.25 for 125%, 1.5 for 150%, etc.
+     *
+     * @param physicalX X coordinate in physical pixels (optional, uses primary screen if not provided)
+     * @param physicalY Y coordinate in physical pixels (optional, uses primary screen if not provided)
+     */
+    private fun getDpiScale(physicalX: Int? = null, physicalY: Int? = null): Double {
+        return try {
+            val ge = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+
+            // If coordinates provided, try to find the screen containing those coordinates
+            if (physicalX != null && physicalY != null) {
+                for (gd in ge.screenDevices) {
+                    val config = gd.defaultConfiguration
+                    val scale = config.defaultTransform.scaleX
+                    // Convert physical bounds to check containment
+                    val bounds = config.bounds
+                    val physBounds = java.awt.Rectangle(
+                        (bounds.x * scale).toInt(),
+                        (bounds.y * scale).toInt(),
+                        (bounds.width * scale).toInt(),
+                        (bounds.height * scale).toInt()
+                    )
+                    if (physBounds.contains(physicalX, physicalY)) {
+                        return scale
+                    }
+                }
+            }
+
+            // Fallback to primary screen
+            ge.defaultScreenDevice.defaultConfiguration.defaultTransform.scaleX
+        } catch (_: Throwable) {
+            // Fallback: use screen resolution (96 DPI = 100%)
+            try {
+                java.awt.Toolkit.getDefaultToolkit().screenResolution / 96.0
+            } catch (_: Throwable) {
+                1.0
+            }
         }
     }
 

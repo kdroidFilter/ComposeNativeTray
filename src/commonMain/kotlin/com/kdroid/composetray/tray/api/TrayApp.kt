@@ -23,10 +23,12 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.*
 import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
+import com.kdroid.composetray.utils.debugln
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
 import com.kdroid.composetray.lib.mac.MacTrayLoader
 import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
+import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.*
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
@@ -514,7 +516,12 @@ private fun ApplicationScope.TrayAppImplOriginal(
     // Store window reference for macOS Space detection
     var windowRef by remember { mutableStateOf<java.awt.Window?>(null) }
 
-    val dialogState = rememberDialogState(size = currentWindowSize)
+    // Position off-screen initially to prevent flash at wrong position.
+    // The LaunchedEffect will set the correct position before showing the window.
+    val dialogState = rememberDialogState(
+        position = WindowPosition((-10000).dp, (-10000).dp),
+        size = currentWindowSize
+    )
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
     // Visibility controller for exit-finish observation; content will NOT be disposed.
@@ -556,10 +563,12 @@ private fun ApplicationScope.TrayAppImplOriginal(
                                 windowRef!!.requestFocusInWindow()
                             }
                         }
-                        return@internalPrimaryAction
+                    } else {
+                        requestHideExplicit()
                     }
+                } else {
+                    requestHideExplicit()
                 }
-                requestHideExplicit()
             } else {
                 if (now - lastHiddenAt >= minHiddenDurationMs) {
                     if (getOperatingSystem() == WINDOWS && (now - lastFocusLostAt) < 300) {
@@ -591,27 +600,47 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 pendingPosition = null
 
                 val position = if (preComputed != null && preComputed !is WindowPosition.PlatformDefault) {
+                    debugln { "[TrayApp] Using preComputed position: $preComputed" }
                     preComputed
                 } else {
                     // Fallback: poll for position (e.g. initiallyVisible or programmatic show)
-                    delay(250)
+                    // Wait for Windows to finish reorganizing tray icons after adding a new one.
+                    // Windows moves icons around after creation, so we need to wait and re-poll.
+                    debugln { "[TrayApp] No preComputed position, waiting for tray to stabilize..." }
+                    delay(400) // Give Windows time to reorganize tray icons
+
                     val widthPx = currentWindowSize.width.value.toInt()
                     val heightPx = currentWindowSize.height.value.toInt()
+
+                    // On Windows, force a fresh position capture via the native API
+                    if (getOperatingSystem() == WINDOWS) {
+                        debugln { "[TrayApp] Re-capturing tray position from native API..." }
+                        WindowsTrayInitializer.refreshPosition(tray.instanceKey())
+                        delay(50) // Let the position update propagate
+                    }
+
                     var pos: WindowPosition = WindowPosition.PlatformDefault
                     val deadline = System.currentTimeMillis() + 3000
                     while (pos is WindowPosition.PlatformDefault && System.currentTimeMillis() < deadline) {
                         pos = getTrayWindowPositionForInstance(
                             tray.instanceKey(), widthPx, heightPx, horizontalOffset, verticalOffset
                         )
+                        debugln { "[TrayApp] Polled position: $pos" }
                         if (pos is WindowPosition.PlatformDefault) delay(250)
                     }
                     pos
                 }
+                debugln { "[TrayApp] Setting dialogState.position = $position" }
                 dialogState.position = position
+
+                // Wait for Compose to apply the position before showing the window
+                // This prevents the window from flashing at the wrong position
+                delay(150) // Give Compose time to recompose with new position
 
                 if (getOperatingSystem() == WINDOWS) {
                     autoHideEnabledAt = System.currentTimeMillis() + 1000
                 }
+                debugln { "[TrayApp] Now showing window" }
                 shouldShowWindow = true
                 lastShownAt = System.currentTimeMillis()
             }
@@ -665,12 +694,15 @@ private fun ApplicationScope.TrayAppImplOriginal(
             try { window.name = WindowVisibilityMonitor.TRAY_DIALOG_NAME } catch (_: Throwable) {}
             runCatching { WindowVisibilityMonitor.recompute() }
 
+            debugln { "[TrayApp] Window shown at native position: x=${window.x}, y=${window.y}, dialogState.position=${dialogState.position}" }
+
             invokeLater {
                 // Move the popup to the current Space before bringing it to front (macOS)
                 if (getOperatingSystem() == MACOS) {
                     runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
                     runCatching { MacOSWindowManager().setMoveToActiveSpace(window) }
                 }
+                debugln { "[TrayApp] After invokeLater: window at x=${window.x}, y=${window.y}" }
                 runCatching {
                     window.toFront()
                     window.requestFocus()

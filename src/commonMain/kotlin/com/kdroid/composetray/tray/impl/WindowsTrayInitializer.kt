@@ -50,6 +50,15 @@ object WindowsTrayInitializer {
         trayManagers.remove(id)?.stopTray()
     }
 
+    /**
+     * Force a fresh capture of the tray icon position.
+     * This is useful when Windows reorganizes icons after creation.
+     */
+    @Synchronized
+    fun refreshPosition(id: String) {
+        trayManagers[id]?.refreshPosition()
+    }
+
     // Backward-compatible API for existing callers (single default tray)
     fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
         initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)

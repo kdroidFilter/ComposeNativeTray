@@ -330,7 +330,10 @@ fun getTrayWindowPositionForInstance(
     return when (os) {
         OperatingSystem.WINDOWS -> {
             val pos = TrayClickTracker.getLastClickPosition(instanceId)
-                ?: return fallbackCornerPosition(windowWidth, windowHeight, horizontalOffset, verticalOffset)
+            if (pos == null) {
+                debugln { "[TrayPosition] getTrayWindowPositionForInstance: no position for $instanceId, using fallback" }
+                return fallbackCornerPosition(windowWidth, windowHeight, horizontalOffset, verticalOffset)
+            }
             calculateWindowPositionFromClick(
                 pos.x, pos.y, pos.position,
                 windowWidth, windowHeight,
@@ -385,16 +388,19 @@ private fun calculateWindowPositionFromClick(
     val isRight = trayPosition == TrayPosition.TOP_RIGHT || trayPosition == TrayPosition.BOTTOM_RIGHT
 
     val sb = getScreenBoundsAt(clickX, clickY)
+    debugln { "[TrayPosition] calculateWindowPositionFromClick: clickX=$clickX, clickY=$clickY, trayPos=$trayPosition, winW=$windowWidth, winH=$windowHeight, screenBounds=$sb" }
 
     return if (os == OperatingSystem.WINDOWS) {
         var x = clickX - (windowWidth / 2)
         var y = if (isTop) clickY else clickY - windowHeight
+        debugln { "[TrayPosition] Windows: isTop=$isTop, initial x=$x, y=$y" }
 
         x += horizontalOffset
         y += verticalOffset
 
         if (x < sb.x) x = sb.x else if (x + windowWidth > sb.x + sb.width) x = sb.x + sb.width - windowWidth
         if (y < sb.y) y = sb.y else if (y + windowHeight > sb.y + sb.height) y = sb.y + sb.height - windowHeight
+        debugln { "[TrayPosition] Windows: final x=$x, y=$y" }
         WindowPosition(x = x.dp, y = y.dp)
     } else {
         val panelGuessPx = 28
