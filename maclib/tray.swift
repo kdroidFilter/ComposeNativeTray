@@ -116,7 +116,7 @@ private class MenuBarAppearanceObserver {
             // Update menu appearance for all contexts
             if let ptr = trayPtr, let ctx = contexts[ptr] {
                 if let menu = ctx.contextMenu {
-                    menu.appearance = systemAppearance()
+                    updateMenuAppearance(menu, to: systemAppearance())
                 }
             }
         }
@@ -146,7 +146,7 @@ private class MenuBarAppearanceObserver {
 
             // Update menu appearance to match the system theme (not menu bar)
             if let menu = ctx.contextMenu {
-                menu.appearance = systemAppearance()
+                updateMenuAppearance(menu, to: systemAppearance())
             }
         }
 
@@ -187,6 +187,18 @@ private func systemAppearance() -> NSAppearance {
     let isDarkMode = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
     let appearanceName: NSAppearance.Name = isDarkMode ? .darkAqua : .aqua
     return NSAppearance(named: appearanceName) ?? NSApp.effectiveAppearance
+}
+
+/// Updates the appearance of a menu and all its submenus recursively
+private func updateMenuAppearance(_ menu: NSMenu, to appearance: NSAppearance) {
+    menu.appearance = appearance
+
+    // Recursively update all submenus
+    for item in menu.items {
+        if let submenu = item.submenu {
+            updateMenuAppearance(submenu, to: appearance)
+        }
+    }
 }
 private func nativeMenu(from menuPtr: UnsafeMutableRawPointer, statusItem: NSStatusItem? = nil) -> NSMenu {
     let menu = NSMenu()
