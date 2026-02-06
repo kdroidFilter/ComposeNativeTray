@@ -72,6 +72,7 @@ private class MenuBarAppearanceObserver {
     private var workItem: DispatchWorkItem?
     private var settleItem: DispatchWorkItem?
     private var lastAppearance: NSAppearance.Name?
+    private var lastSystemTheme: Bool?  // Track system theme separately
     private let trayPtr: UnsafeMutableRawPointer?
 
     /// Debounce delay before first evaluation (keep tiny but non‑zero).
@@ -84,11 +85,40 @@ private class MenuBarAppearanceObserver {
     }
 
     func startObserving(_ statusItem: NSStatusItem) {
+        // Observe menu bar appearance changes
         observation = statusItem.button?.observe(
             \.effectiveAppearance,
             options: [.initial, .new]
         ) { [weak self] button, _ in
             self?.scheduleCheck(for: button.effectiveAppearance)
+        }
+
+        // Observe system-wide theme changes via DistributedNotificationCenter
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleSystemThemeChange()
+        }
+
+        // Initial update of menu appearance
+        handleSystemThemeChange()
+    }
+
+    private func handleSystemThemeChange() {
+        let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+
+        // Only update if theme actually changed
+        if lastSystemTheme != isDark {
+            lastSystemTheme = isDark
+
+            // Update menu appearance for all contexts
+            if let ptr = trayPtr, let ctx = contexts[ptr] {
+                if let menu = ctx.contextMenu {
+                    updateMenuAppearance(menu, to: systemAppearance())
+                }
+            }
         }
     }
 
@@ -113,6 +143,11 @@ private class MenuBarAppearanceObserver {
             if let img = isDark ? ctx.darkImage : ctx.lightImage {
                 ctx.statusItem.button?.image = img
             }
+
+            // Update menu appearance to match the system theme (not menu bar)
+            if let menu = ctx.contextMenu {
+                updateMenuAppearance(menu, to: systemAppearance())
+            }
         }
 
         // Cancel any pending settle callback before scheduling a new one.
@@ -131,6 +166,13 @@ private class MenuBarAppearanceObserver {
         observation = nil
         workItem?.cancel()
         settleItem?.cancel()
+
+        // Remove system theme observer
+        DistributedNotificationCenter.default().removeObserver(
+            self,
+            name: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil
+        )
     }
 }
 
@@ -138,10 +180,33 @@ private class MenuBarAppearanceObserver {
 private var menuDelegate: MenuDelegate?
 
 // MARK: - Helpers
-private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
+
+/// Returns the system-wide appearance (not the menu bar appearance)
+private func systemAppearance() -> NSAppearance {
+    // Check if system is in dark mode via UserDefaults
+    let isDarkMode = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+    let appearanceName: NSAppearance.Name = isDarkMode ? .darkAqua : .aqua
+    return NSAppearance(named: appearanceName) ?? NSApp.effectiveAppearance
+}
+
+/// Updates the appearance of a menu and all its submenus recursively
+private func updateMenuAppearance(_ menu: NSMenu, to appearance: NSAppearance) {
+    menu.appearance = appearance
+
+    // Recursively update all submenus
+    for item in menu.items {
+        if let submenu = item.submenu {
+            updateMenuAppearance(submenu, to: appearance)
+        }
+    }
+}
+private func nativeMenu(from menuPtr: UnsafeMutableRawPointer, statusItem: NSStatusItem? = nil) -> NSMenu {
     let menu = NSMenu()
     menu.autoenablesItems = false
     menu.delegate = menuDelegate
+
+    // Set menu appearance to match the system theme (not menu bar)
+    menu.appearance = systemAppearance()
 
     var currentPtr = menuPtr
     while true {
@@ -179,7 +244,7 @@ private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
             menu.addItem(item)
 
             if let submenuPtr = submenu {
-                menu.setSubmenu(nativeMenu(from: submenuPtr), for: item)
+                menu.setSubmenu(nativeMenu(from: submenuPtr, statusItem: statusItem), for: item)
             }
         }
 
@@ -269,7 +334,7 @@ public func tray_update(_ tray: UnsafeMutableRawPointer) {
 
     if let menuPtr = menuPtr {
         // Create and store the menu without assigning it to statusItem
-        ctx.contextMenu = nativeMenu(from: menuPtr)
+        ctx.contextMenu = nativeMenu(from: menuPtr, statusItem: statusItem)
     } else {
         ctx.contextMenu = nil
     }
