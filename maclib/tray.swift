@@ -113,6 +113,11 @@ private class MenuBarAppearanceObserver {
             if let img = isDark ? ctx.darkImage : ctx.lightImage {
                 ctx.statusItem.button?.image = img
             }
+
+            // Update menu appearance to match the system theme (not menu bar)
+            if let menu = ctx.contextMenu {
+                menu.appearance = systemAppearance()
+            }
         }
 
         // Cancel any pending settle callback before scheduling a new one.
@@ -138,10 +143,21 @@ private class MenuBarAppearanceObserver {
 private var menuDelegate: MenuDelegate?
 
 // MARK: - Helpers
-private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
+
+/// Returns the system-wide appearance (not the menu bar appearance)
+private func systemAppearance() -> NSAppearance {
+    // Check if system is in dark mode via UserDefaults
+    let isDarkMode = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+    let appearanceName: NSAppearance.Name = isDarkMode ? .darkAqua : .aqua
+    return NSAppearance(named: appearanceName) ?? NSApp.effectiveAppearance
+}
+private func nativeMenu(from menuPtr: UnsafeMutableRawPointer, statusItem: NSStatusItem? = nil) -> NSMenu {
     let menu = NSMenu()
     menu.autoenablesItems = false
     menu.delegate = menuDelegate
+
+    // Set menu appearance to match the system theme (not menu bar)
+    menu.appearance = systemAppearance()
 
     var currentPtr = menuPtr
     while true {
@@ -179,7 +195,7 @@ private func nativeMenu(from menuPtr: UnsafeMutableRawPointer) -> NSMenu {
             menu.addItem(item)
 
             if let submenuPtr = submenu {
-                menu.setSubmenu(nativeMenu(from: submenuPtr), for: item)
+                menu.setSubmenu(nativeMenu(from: submenuPtr, statusItem: statusItem), for: item)
             }
         }
 
@@ -269,7 +285,7 @@ public func tray_update(_ tray: UnsafeMutableRawPointer) {
 
     if let menuPtr = menuPtr {
         // Create and store the menu without assigning it to statusItem
-        ctx.contextMenu = nativeMenu(from: menuPtr)
+        ctx.contextMenu = nativeMenu(from: menuPtr, statusItem: statusItem)
     } else {
         ctx.contextMenu = nil
     }
