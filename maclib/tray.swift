@@ -72,6 +72,7 @@ private class MenuBarAppearanceObserver {
     private var workItem: DispatchWorkItem?
     private var settleItem: DispatchWorkItem?
     private var lastAppearance: NSAppearance.Name?
+    private var lastSystemTheme: Bool?  // Track system theme separately
     private let trayPtr: UnsafeMutableRawPointer?
 
     /// Debounce delay before first evaluation (keep tiny but non‑zero).
@@ -84,11 +85,40 @@ private class MenuBarAppearanceObserver {
     }
 
     func startObserving(_ statusItem: NSStatusItem) {
+        // Observe menu bar appearance changes
         observation = statusItem.button?.observe(
             \.effectiveAppearance,
             options: [.initial, .new]
         ) { [weak self] button, _ in
             self?.scheduleCheck(for: button.effectiveAppearance)
+        }
+
+        // Observe system-wide theme changes via DistributedNotificationCenter
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleSystemThemeChange()
+        }
+
+        // Initial update of menu appearance
+        handleSystemThemeChange()
+    }
+
+    private func handleSystemThemeChange() {
+        let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+
+        // Only update if theme actually changed
+        if lastSystemTheme != isDark {
+            lastSystemTheme = isDark
+
+            // Update menu appearance for all contexts
+            if let ptr = trayPtr, let ctx = contexts[ptr] {
+                if let menu = ctx.contextMenu {
+                    menu.appearance = systemAppearance()
+                }
+            }
         }
     }
 
@@ -136,6 +166,13 @@ private class MenuBarAppearanceObserver {
         observation = nil
         workItem?.cancel()
         settleItem?.cancel()
+
+        // Remove system theme observer
+        DistributedNotificationCenter.default().removeObserver(
+            self,
+            name: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil
+        )
     }
 }
 
