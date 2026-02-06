@@ -516,12 +516,7 @@ private fun ApplicationScope.TrayAppImplOriginal(
     // Store window reference for macOS Space detection
     var windowRef by remember { mutableStateOf<java.awt.Window?>(null) }
 
-    // Position off-screen initially to prevent flash at wrong position.
-    // The LaunchedEffect will set the correct position before showing the window.
-    val dialogState = rememberDialogState(
-        position = WindowPosition((-10000).dp, (-10000).dp),
-        size = currentWindowSize
-    )
+    val dialogState = rememberDialogState(size = currentWindowSize)
     LaunchedEffect(currentWindowSize) { dialogState.size = currentWindowSize }
 
     // Visibility controller for exit-finish observation; content will NOT be disposed.
