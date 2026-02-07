@@ -61,6 +61,7 @@
     - [Theme Behavior](#theme-behavior)
     - [ProGuard / R8](#proguard--r8)
 - [🧪 TrayApp (Experimental)](#-trayapp-experimental)
+- [📱 Apps Using Compose Native Tray](#-apps-using-compose-native-tray)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
 - [👨‍💻 Author](#-author)
@@ -681,6 +682,15 @@ TrayApp(
 * **Title & icon matter:** set `windowsTitle` and `windowIcon`. Even with undecorated UIs, Linux desktop environments often show a dock/taskbar entry; providing a title/icon prevents generic placeholders and improves discoverability.
 
 ---
+
+## 📱 Apps Using Compose Native Tray
+
+| App | Description |
+|-----|-------------|
+| [AB Download Manager](https://github.com/amir1376/ab-download-manager) | A desktop download manager |
+
+> If your app uses Compose Native Tray, feel free to open a PR to add it here!
+
 ## 📄 License
 
 This library is licensed under the MIT License. The Linux module uses Apache 2.0
