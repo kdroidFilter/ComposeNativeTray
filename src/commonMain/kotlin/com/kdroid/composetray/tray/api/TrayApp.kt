@@ -48,6 +48,7 @@ import org.jetbrains.compose.resources.painterResource
 import java.awt.EventQueue.invokeLater
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
+import java.util.concurrent.atomic.AtomicLong
 
 // --------------------- Public API (defaults) ---------------------
 
@@ -500,12 +501,12 @@ private fun ApplicationScope.TrayAppImplOriginal(
     var shouldShowWindow by remember { mutableStateOf(false) }
 
     var lastPrimaryActionAt by remember { mutableStateOf(0L) }
-    val toggleDebounceMs = 280L
+    val toggleDebounceMs = 150L
 
     var lastShownAt by remember { mutableStateOf(0L) }
     var lastHiddenAt by remember { mutableStateOf(0L) }
-    val minVisibleDurationMs = 350L
-    val minHiddenDurationMs = 250L
+    val minVisibleDurationMs = 200L
+    val minHiddenDurationMs = 100L
 
     var lastFocusLostAt by remember { mutableStateOf(0L) }
     var autoHideEnabledAt by remember { mutableStateOf(0L) }
@@ -522,53 +523,69 @@ private fun ApplicationScope.TrayAppImplOriginal(
     // Visibility controller for exit-finish observation; content will NOT be disposed.
     val visibleState = remember { MutableTransitionState(false) }
 
+    // Thread-safe timestamps for cross-thread communication (IO thread reads, EDT writes)
+    val lastFocusLostAtMs = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val lastHiddenAtMs = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val lastShownAtMs = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val lastPrimaryActionAtMs = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+
     val requestHideExplicit: () -> Unit = {
         val now = System.currentTimeMillis()
-        val sinceShow = now - lastShownAt
+        val sinceShow = now - lastShownAtMs.get()
+        debugln { "[TrayApp] requestHideExplicit called, sinceShow=${sinceShow}ms, thread=${Thread.currentThread().name}" }
         if (sinceShow >= minVisibleDurationMs) {
             trayAppState.hide()
-            lastHiddenAt = System.currentTimeMillis()
+            lastHiddenAtMs.set(System.currentTimeMillis())
+            lastHiddenAt = lastHiddenAtMs.get()
         } else {
             val wait = minVisibleDurationMs - sinceShow
             CoroutineScope(Dispatchers.IO).launch {
                 delay(wait)
                 trayAppState.hide()
-                lastHiddenAt = System.currentTimeMillis()
+                lastHiddenAtMs.set(System.currentTimeMillis())
+                lastHiddenAt = lastHiddenAtMs.get()
             }
         }
     }
 
     val internalPrimaryAction: () -> Unit = {
         val now = System.currentTimeMillis()
-        if (now - lastPrimaryActionAt >= toggleDebounceMs) {
+        // Read directly from StateFlow for thread-safe cross-thread access
+        val isVisibleNow = trayAppState.isVisible.value
+        val timeSinceLastAction = now - lastPrimaryActionAtMs.get()
+        debugln { "[TrayApp] primaryAction: isVisibleNow=$isVisibleNow, isVisible(compose)=$isVisible, timeSinceLastAction=${timeSinceLastAction}ms, thread=${Thread.currentThread().name}" }
+        if (timeSinceLastAction >= toggleDebounceMs) {
+            lastPrimaryActionAtMs.set(now)
             lastPrimaryActionAt = now
-            if (isVisible) {
-                // On macOS, check if window has focus before hiding
-                // If it doesn't have focus (e.g., on another Space), bring it to front instead
-                if (getOperatingSystem() == MACOS && windowRef != null) {
-                    val hasFocus = runCatching { windowRef!!.isFocused() }.getOrElse { false }
-                    if (!hasFocus) {
-                        // Window is not focused (likely on another Space), bring it to current Space
+            if (isVisibleNow) {
+                // On macOS, check if the window is on another Space
+                if (getOperatingSystem() == MACOS) {
+                    val onActiveSpace = runCatching { MacOSWindowManager().isFloatingWindowOnActiveSpace() }.getOrElse { true }
+                    debugln { "[TrayApp] primaryAction: onActiveSpace=$onActiveSpace" }
+                    if (!onActiveSpace) {
+                        // Window is on another Space → move it to current Space via native API
+                        debugln { "[TrayApp] primaryAction -> MOVE TO CURRENT SPACE" }
                         invokeLater {
-                            runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
-                            runCatching { MacOSWindowManager().setMoveToActiveSpace(windowRef!!) }
-                            runCatching {
-                                windowRef!!.toFront()
-                                windowRef!!.requestFocus()
-                                windowRef!!.requestFocusInWindow()
-                            }
+                            runCatching { MacOSWindowManager().bringFloatingWindowToFront() }
                         }
                     } else {
+                        debugln { "[TrayApp] primaryAction -> HIDE" }
                         requestHideExplicit()
                     }
                 } else {
+                    debugln { "[TrayApp] primaryAction -> HIDE" }
                     requestHideExplicit()
                 }
             } else {
-                if (now - lastHiddenAt >= minHiddenDurationMs) {
-                    if (getOperatingSystem() == WINDOWS && (now - lastFocusLostAt) < 300) {
-                        // ignore immediate re-show after focus loss on Windows
+                val hiddenAgo = now - lastHiddenAtMs.get()
+                val focusLostAgo = now - lastFocusLostAtMs.get()
+                debugln { "[TrayApp] primaryAction SHOW path: hiddenAgo=${hiddenAgo}ms, focusLostAgo=${focusLostAgo}ms" }
+                if (hiddenAgo >= minHiddenDurationMs) {
+                    if ((getOperatingSystem() == WINDOWS || getOperatingSystem() == MACOS) && focusLostAgo < 150) {
+                        // ignore immediate re-show after focus loss on Windows/macOS
+                        debugln { "[TrayApp] primaryAction -> SHOW BLOCKED (recent focus loss)" }
                     } else {
+                        debugln { "[TrayApp] primaryAction -> SHOW" }
                         // Pre-compute position at click time: the native status item
                         // geometry is guaranteed to be available right now.
                         runCatching {
@@ -580,8 +597,12 @@ private fun ApplicationScope.TrayAppImplOriginal(
                         }
                         trayAppState.show()
                     }
+                } else {
+                    debugln { "[TrayApp] primaryAction -> SHOW BLOCKED (too soon after hide: ${hiddenAgo}ms < ${minHiddenDurationMs}ms)" }
                 }
             }
+        } else {
+            debugln { "[TrayApp] primaryAction -> DEBOUNCED (${timeSinceLastAction}ms < ${toggleDebounceMs}ms)" }
         }
     }
 
@@ -629,22 +650,25 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 dialogState.position = position
 
                 // Wait for Compose to apply the position before showing the window
-                // This prevents the window from flashing at the wrong position
-                delay(150) // Give Compose time to recompose with new position
+                delay(30)
 
                 if (getOperatingSystem() == WINDOWS) {
                     autoHideEnabledAt = System.currentTimeMillis() + 1000
                 }
                 debugln { "[TrayApp] Now showing window" }
                 shouldShowWindow = true
-                lastShownAt = System.currentTimeMillis()
+                val showTime = System.currentTimeMillis()
+                lastShownAt = showTime
+                lastShownAtMs.set(showTime)
             }
         } else {
             // Wait for exit animation to finish, then actually hide the window
             if (shouldShowWindow) {
                 snapshotFlow { visibleState.isIdle && !visibleState.currentState }.first { it }
                 shouldShowWindow = false
-                lastHiddenAt = System.currentTimeMillis()
+                val hideTime = System.currentTimeMillis()
+                lastHiddenAt = hideTime
+                lastHiddenAtMs.set(hideTime)
             }
         }
     }
@@ -694,8 +718,11 @@ private fun ApplicationScope.TrayAppImplOriginal(
             invokeLater {
                 // Move the popup to the current Space before bringing it to front (macOS)
                 if (getOperatingSystem() == MACOS) {
-                    runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
-                    runCatching { MacOSWindowManager().setMoveToActiveSpace(window) }
+                    debugln { "[TrayApp] Setting up macOS Space behavior on window..." }
+                    val nativeResult = runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
+                    debugln { "[TrayApp] tray_set_windows_move_to_active_space: ${nativeResult.exceptionOrNull()?.message ?: "OK"}" }
+                    val jnaResult = runCatching { MacOSWindowManager().setMoveToActiveSpace(window) }
+                    debugln { "[TrayApp] setMoveToActiveSpace result=${jnaResult.getOrNull()}, error=${jnaResult.exceptionOrNull()?.message}" }
                 }
                 debugln { "[TrayApp] After invokeLater: window at x=${window.x}, y=${window.y}" }
                 runCatching {
@@ -708,8 +735,18 @@ private fun ApplicationScope.TrayAppImplOriginal(
             val focusListener = object : WindowFocusListener {
                 override fun windowGainedFocus(e: WindowEvent?) = Unit
                 override fun windowLostFocus(e: WindowEvent?) {
-                    lastFocusLostAt = System.currentTimeMillis()
-                    if (getOperatingSystem() == WINDOWS && lastFocusLostAt < autoHideEnabledAt) return
+                    val now = System.currentTimeMillis()
+                    lastFocusLostAtMs.set(now)
+                    lastFocusLostAt = now
+                    debugln { "[TrayApp] windowLostFocus at $now, dismissMode=$dismissMode, thread=${Thread.currentThread().name}" }
+                    if (getOperatingSystem() == WINDOWS && now < autoHideEnabledAt) return
+                    // On macOS, don't auto-hide if the window is not on the active Space.
+                    // A Space switch caused the focus loss — let the primary action handle it.
+                    if (getOperatingSystem() == MACOS) {
+                        val onActiveSpace = runCatching { MacOSWindowManager().isFloatingWindowOnActiveSpace() }.getOrElse { true }
+                        debugln { "[TrayApp] windowLostFocus: onActiveSpace=$onActiveSpace" }
+                        if (!onActiveSpace) return
+                    }
                     if (dismissMode == TrayWindowDismissMode.AUTO) requestHideExplicit()
                 }
             }
