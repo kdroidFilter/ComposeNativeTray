@@ -60,7 +60,7 @@
     - [Icon Limitations](#icon-limitations)
     - [Theme Behavior](#theme-behavior)
     - [ProGuard / R8](#proguard--r8)
-- [🧪 TrayApp (Experimental)](#-trayapp-experimental)
+- [🧪 TrayApp (Alpha)](#-trayapp-alpha)
 - [📱 Apps Using Compose Native Tray](#-apps-using-compose-native-tray)
 - [📄 License](#-license)
 - [🤝 Contribution](#-contribution)
@@ -565,9 +565,11 @@ Add the following to your ProGuard rules file:
 -keep class com.kdroid.composetray.** { *; }
 ```
 
-# 🧪 TrayApp (Experimental)
+# 🧪 TrayApp (Alpha)
 
-`TrayApp` gives your desktop app a **system‑tray/menu‑bar icon** and a **tiny popup window** for quick actions. It’s perfect for quick toggles, mini dashboards, and “control center” UIs.
+> **Status: Alpha** — The core API is functional on Windows, macOS, and Linux, but breaking changes may still occur. Feedback and bug reports are welcome!
+
+`TrayApp` gives your desktop app a **system‑tray/menu‑bar icon** and a **tiny popup window** for quick actions. It's perfect for quick toggles, mini dashboards, and "control center" UIs.
 
 **Works on Windows, macOS, and Linux.** Smooth fade animations, smart positioning near the tray, and a simple API so you stay productive.
 
