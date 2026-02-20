@@ -1,17 +1,10 @@
 package com.kdroid.composetray.lib.mac
 
-import com.sun.jna.Native
 import java.util.function.Consumer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
-import com.kdroid.composetray.lib.mac.MacTrayManager.MacTrayLibrary
-
-// Removed kermit Logger import and usage
-// private val logger = Logger.withTag("MacOSMenuBarThemeDetector")
 
 object MacOSMenuBarThemeDetector {
-
-    private val trayLib: MacTrayLibrary = MacTrayLoader.lib
 
     private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashMap.newKeySet()
 
@@ -19,8 +12,8 @@ object MacOSMenuBarThemeDetector {
         Thread(r, "MacOS MenuBar Theme Detector Thread").apply { isDaemon = true }
     }
 
-    private val themeChangedCallback = object : MacTrayManager.ThemeCallback {
-        override fun invoke(isDark: Int) {
+    private val themeChangedCallback = object : MacNativeBridge.ThemeChangeCallback {
+        override fun onThemeChanged(isDark: Int) {
             callbackExecutor.execute {
                 val dark = isDark != 0
                 notifyListeners(dark)
@@ -29,11 +22,11 @@ object MacOSMenuBarThemeDetector {
     }
 
     init {
-        trayLib.tray_set_theme_callback(themeChangedCallback)
+        MacNativeBridge.nativeSetThemeCallback(themeChangedCallback)
     }
 
     fun isDark(): Boolean {
-        return trayLib.tray_is_menu_dark() != 0
+        return MacNativeBridge.nativeIsMenuDark() != 0
     }
 
     fun registerListener(listener: Consumer<Boolean>) {

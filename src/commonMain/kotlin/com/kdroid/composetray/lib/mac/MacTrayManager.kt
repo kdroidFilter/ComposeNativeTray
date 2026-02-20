@@ -1,12 +1,6 @@
-// Modified MacTrayManager.kt (add ThemeCallback and update MacTrayLibrary)
 package com.kdroid.composetray.lib.mac
 
 import androidx.compose.runtime.mutableStateOf
-import com.sun.jna.Native
-import com.sun.jna.Pointer
-import com.sun.jna.Structure
-import com.sun.jna.Callback
-import com.sun.jna.ptr.IntByReference
 import kotlinx.coroutines.*
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -20,9 +14,9 @@ internal class MacTrayManager(
     private var tooltip: String = "",
     onLeftClick: (() -> Unit)? = null
 ) {
-    // Use JNA direct mapping via object MacTrayLibrary
-    private val trayLib = MacTrayLibrary
-    private var tray: MacTray? = null
+    private var trayHandle: Long = 0L
+    private var menuHandle: Long = 0L
+    private var menuItemCount: Int = 0
     private val menuItems: MutableList<MenuItem> = mutableListOf()
     private val running = AtomicBoolean(false)
     private val lock = ReentrantLock()
@@ -33,9 +27,9 @@ internal class MacTrayManager(
     private var mainScope: CoroutineScope? = null
     private var ioScope: CoroutineScope? = null
 
-    // Maintain a reference to all callbacks to avoid GC
-    private val callbackReferences: MutableList<Any> = mutableListOf()
-    private val nativeMenuItemsReferences: MutableList<MacTrayMenuItem> = mutableListOf()
+    // Keep submenu handles for cleanup
+    private val submenuHandles: MutableList<Pair<Long, Int>> = mutableListOf()
+
     private val onLeftClickCallback = mutableStateOf(onLeftClick)
 
     // Top level MenuItem class
@@ -70,7 +64,7 @@ internal class MacTrayManager(
     // Update the tray with new properties and menu items
     fun update(newIconPath: String, newTooltip: String, newOnLeftClick: (() -> Unit)?, newMenuItems: List<MenuItem>? = null) {
         lock.withLock {
-            if (!running.get() || tray == null) return
+            if (!running.get() || trayHandle == 0L) return
 
             // Update properties
             val iconChanged = this.iconPath != newIconPath
@@ -82,17 +76,14 @@ internal class MacTrayManager(
             this.tooltip = newTooltip
             this.onLeftClickCallback.value = newOnLeftClick
 
-            // Update the tray object with new values
-            tray?.let {
-                if (iconChanged) {
-                    it.icon_filepath = newIconPath
-                }
-                if (tooltipChanged) {
-                    it.tooltip = newTooltip
-                }
-                if (onLeftClickChanged) {
-                    initializeOnLeftClickCallback()
-                }
+            if (iconChanged) {
+                MacNativeBridge.nativeSetTrayIcon(trayHandle, newIconPath)
+            }
+            if (tooltipChanged) {
+                MacNativeBridge.nativeSetTrayTooltip(trayHandle, newTooltip)
+            }
+            if (onLeftClickChanged) {
+                initializeOnLeftClickCallback()
             }
 
             // Update menu items if provided
@@ -101,25 +92,38 @@ internal class MacTrayManager(
                 menuItems.addAll(newMenuItems)
                 recreateMenu()
             } else if (iconChanged || tooltipChanged || onLeftClickChanged) {
-                // If any property changed but menu items didn't, still update the tray
-                trayLib.tray_update(tray!!)
+                MacNativeBridge.nativeUpdateTray(trayHandle)
             }
         }
     }
 
     // Recreate the menu with updated state
     private fun recreateMenu() {
-        if (!running.get() || tray == null) return
+        if (!running.get() || trayHandle == 0L) return
 
-        // Clear old references
-        callbackReferences.clear()
-        nativeMenuItemsReferences.clear()
+        // Free old menu
+        freeCurrentMenu()
 
         // Recreate the menu
         initializeTrayMenu()
 
         // Update the tray
-        trayLib.tray_update(tray!!)
+        MacNativeBridge.nativeUpdateTray(trayHandle)
+    }
+
+    private fun freeCurrentMenu() {
+        // Free submenus first (in reverse order to handle nested)
+        for ((handle, count) in submenuHandles.reversed()) {
+            MacNativeBridge.nativeFreeMenuItems(handle, count)
+        }
+        submenuHandles.clear()
+
+        // Free top-level menu
+        if (menuHandle != 0L) {
+            MacNativeBridge.nativeFreeMenuItems(menuHandle, menuItemCount)
+            menuHandle = 0L
+            menuItemCount = 0
+        }
     }
 
     // Start the tray
@@ -138,16 +142,16 @@ internal class MacTrayManager(
             // Create and start the tray thread
             trayThread = Thread {
                 try {
-                    // Create tray structure
-                    tray = MacTray().apply {
-                        icon_filepath = iconPath
-                        tooltip = this@MacTrayManager.tooltip
+                    // Create tray structure via JNI
+                    trayHandle = MacNativeBridge.nativeCreateTray(iconPath, tooltip)
+                    if (trayHandle == 0L) {
+                        throw IllegalStateException("Failed to allocate native tray struct")
                     }
 
                     initializeOnLeftClickCallback()
                     initializeTrayMenu()
 
-                    val initResult = trayLib.tray_init(tray!!)
+                    val initResult = MacNativeBridge.nativeInitTray(trayHandle)
                     if (initResult != 0) {
                         throw IllegalStateException("Failed to initialize tray: $initResult")
                     }
@@ -157,7 +161,7 @@ internal class MacTrayManager(
 
                     // Run the event loop
                     while (running.get()) {
-                        val result = trayLib.tray_loop(0)
+                        val result = MacNativeBridge.nativeLoopTray(0)
                         if (result != 0) {
                             break
                         }
@@ -184,103 +188,89 @@ internal class MacTrayManager(
     }
 
     private fun initializeOnLeftClickCallback() {
-        val trayObj = tray ?: return
+        if (trayHandle == 0L) return
 
-        if (onLeftClickCallback.value != null) {
-            trayObj.cb = object : TrayCallback {
-                override fun invoke(tray: Pointer?) {
-                    mainScope?.launch {
-                        ioScope?.launch {
-                            onLeftClickCallback.value?.invoke()
-                        }
+        val onClick = onLeftClickCallback.value
+        if (onClick != null) {
+            MacNativeBridge.nativeSetTrayCallback(trayHandle, Runnable {
+                mainScope?.launch {
+                    ioScope?.launch {
+                        onClick()
                     }
                 }
-            }
-            callbackReferences.add(trayObj.cb!!)
+            })
+        } else {
+            MacNativeBridge.nativeSetTrayCallback(trayHandle, null)
         }
     }
 
     private fun initializeTrayMenu() {
-        val trayObj = tray ?: return
+        if (trayHandle == 0L) return
 
         if (menuItems.isEmpty()) {
-            // When there are no menu items, clear the native menu pointer so macOS detaches the menu.
-            trayObj.menu = null
+            MacNativeBridge.nativeClearTrayMenu(trayHandle)
             return
         }
 
-        val menuItemPrototype = MacTrayMenuItem()
-        val nativeMenuItems = menuItemPrototype.toArray(menuItems.size + 1) as Array<MacTrayMenuItem>
+        val count = menuItems.size
+        val handle = MacNativeBridge.nativeCreateMenuItems(count)
+        menuHandle = handle
+        menuItemCount = count
 
         menuItems.forEachIndexed { index, item ->
-            val nativeItem = nativeMenuItems[index]
-            initializeNativeMenuItem(nativeItem, item)
-            nativeItem.write()
-            nativeMenuItemsReferences.add(nativeItem)
+            initializeNativeMenuItem(handle, index, item)
         }
 
-        // Last element to mark the end of the menu
-        nativeMenuItems[menuItems.size].text = null
-        nativeMenuItems[menuItems.size].write()
-
-        trayObj.menu = nativeMenuItems[0].pointer
+        MacNativeBridge.nativeSetTrayMenu(trayHandle, handle)
     }
 
-    private fun initializeNativeMenuItem(nativeItem: MacTrayMenuItem, menuItem: MenuItem) {
-        nativeItem.text = menuItem.text
-        nativeItem.icon_filepath = menuItem.icon
-        nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
-        nativeItem.checked = if (menuItem.isChecked) 1 else 0
+    private fun initializeNativeMenuItem(parentHandle: Long, index: Int, menuItem: MenuItem) {
+        MacNativeBridge.nativeSetMenuItem(
+            parentHandle, index,
+            menuItem.text,
+            menuItem.icon,
+            if (menuItem.isEnabled) 0 else 1,
+            if (menuItem.isChecked) 1 else 0
+        )
 
         menuItem.onClick?.let { onClick ->
-            val callback = object : MenuItemCallback {
-                override fun invoke(item: Pointer?) {
-                    if (!running.get()) return
-
-                    mainScope?.launch {
-                        ioScope?.launch {
-                            onClick()
-                            // For checkable items, the onClick handler in MacTrayMenuBuilderImpl
-                            // will call updateMenuItemCheckedState which will recreate the menu
-                        }
+            MacNativeBridge.nativeSetMenuItemCallback(parentHandle, index, Runnable {
+                if (!running.get()) return@Runnable
+                mainScope?.launch {
+                    ioScope?.launch {
+                        onClick()
                     }
                 }
-            }
-            nativeItem.cb = callback
-            callbackReferences.add(callback)
+            })
         }
 
         if (menuItem.subMenuItems.isNotEmpty()) {
-            val subMenuPrototype = MacTrayMenuItem()
-            val subMenuItemsArray = subMenuPrototype.toArray(menuItem.subMenuItems.size + 1) as Array<MacTrayMenuItem>
+            val subCount = menuItem.subMenuItems.size
+            val subHandle = MacNativeBridge.nativeCreateMenuItems(subCount)
+            submenuHandles.add(subHandle to subCount)
 
-            menuItem.subMenuItems.forEachIndexed { index, subItem ->
-                initializeNativeMenuItem(subMenuItemsArray[index], subItem)
-                subMenuItemsArray[index].write()
-                nativeMenuItemsReferences.add(subMenuItemsArray[index])
+            menuItem.subMenuItems.forEachIndexed { subIndex, subItem ->
+                initializeNativeMenuItem(subHandle, subIndex, subItem)
             }
 
-            subMenuItemsArray[menuItem.subMenuItems.size].text = null
-            subMenuItemsArray[menuItem.subMenuItems.size].write()
-            nativeItem.submenu = subMenuItemsArray[0].pointer
+            MacNativeBridge.nativeSetMenuItemSubmenu(parentHandle, index, subHandle)
         }
     }
 
     private fun cleanupTray() {
         lock.withLock {
-            tray?.let {
+            if (trayHandle != 0L) {
                 try {
-                    trayLib.tray_dispose(it)
+                    // Free menu first
+                    freeCurrentMenu()
+                    // Dispose the tray (this frees the struct too)
+                    MacNativeBridge.nativeDisposeTray(trayHandle)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
+                trayHandle = 0L
             }
-
-            // Clear all references
-            callbackReferences.clear()
-            nativeMenuItemsReferences.clear()
             menuItems.clear()
-            tray = null
         }
     }
 
@@ -313,80 +303,14 @@ internal class MacTrayManager(
         trayThread = null
     }
 
-    fun getNativeTrayStruct(): MacTray? {
-        return tray
+    fun getNativeTrayHandle(): Long {
+        return trayHandle
     }
 
     fun setAppearanceIcons(lightIconPath: String, darkIconPath: String) {
         lock.withLock {
-            val t = tray ?: return
-            trayLib.tray_set_icons_for_appearance(t, lightIconPath, darkIconPath)
-        }
-    }
-
-    // Callback interfaces
-    interface TrayCallback : Callback {
-        fun invoke(tray: Pointer?)
-    }
-
-    interface MenuItemCallback : Callback {
-        fun invoke(item: Pointer?)
-    }
-
-    interface ThemeCallback : Callback {
-        fun invoke(isDark: Int)
-    }
-
-    // JNA direct-mapped native library
-    object MacTrayLibrary {
-        init {
-            Native.register("MacTray")
-        }
-
-        @JvmStatic external fun tray_init(tray: MacTray): Int
-        @JvmStatic external fun tray_loop(blocking: Int): Int
-        @JvmStatic external fun tray_update(tray: MacTray)
-        @JvmStatic external fun tray_dispose(tray: MacTray)
-        @JvmStatic external fun tray_exit()
-        @JvmStatic external fun tray_set_theme_callback(cb: ThemeCallback)
-        @JvmStatic external fun tray_is_menu_dark(): Int
-
-        @JvmStatic external fun tray_get_status_item_position(x: IntByReference, y: IntByReference): Int
-        @JvmStatic external fun tray_get_status_item_position_for(tray: MacTray, x: IntByReference, y: IntByReference): Int
-
-        @JvmStatic external fun tray_get_status_item_region(): String?
-        @JvmStatic external fun tray_get_status_item_region_for(tray: MacTray): String?
-
-        @JvmStatic external fun tray_set_windows_move_to_active_space()
-
-        @JvmStatic external fun tray_set_icons_for_appearance(tray: MacTray, light_icon: String, dark_icon: String)
-    }
-
-    // Structure for a menu item
-    @Structure.FieldOrder("text", "icon_filepath", "disabled", "checked", "cb", "submenu")
-    class MacTrayMenuItem : Structure() {
-        @JvmField var text: String? = null
-        @JvmField var icon_filepath: String? = null
-        @JvmField var disabled: Int = 0
-        @JvmField var checked: Int = 0
-        @JvmField var cb: MenuItemCallback? = null
-        @JvmField var submenu: Pointer? = null
-
-        override fun getFieldOrder(): List<String> {
-            return listOf("text", "icon_filepath", "disabled", "checked", "cb", "submenu")
-        }
-    }
-
-    // Structure for the tray
-    @Structure.FieldOrder("icon_filepath", "tooltip", "menu", "cb")
-    class MacTray : Structure() {
-        @JvmField var icon_filepath: String? = null
-        @JvmField var tooltip: String? = null
-        @JvmField var menu: Pointer? = null
-        @JvmField var cb: TrayCallback? = null
-
-        override fun getFieldOrder(): List<String> {
-            return listOf("icon_filepath", "tooltip", "menu", "cb")
+            if (trayHandle == 0L) return
+            MacNativeBridge.nativeSetIconsForAppearance(trayHandle, lightIconPath, darkIconPath)
         }
     }
 }

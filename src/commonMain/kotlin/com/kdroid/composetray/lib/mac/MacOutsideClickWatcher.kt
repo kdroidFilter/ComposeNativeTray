@@ -1,10 +1,6 @@
 package com.kdroid.composetray.lib.mac
 
 import com.kdroid.composetray.utils.isPointWithinMacStatusItem
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.Pointer
-import com.sun.jna.Structure
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.MouseInfo
@@ -12,28 +8,6 @@ import java.awt.Window
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-
-interface ApplicationServices : Library {
-    companion object {
-        val INSTANCE: ApplicationServices =
-            Native.load("ApplicationServices", ApplicationServices::class.java)
-    }
-
-    fun CGEventCreate(source: Pointer?): Pointer // CGEventRef
-    fun CGEventGetLocation(event: Pointer): CGPoint.ByValue  // <-- ByValue is crucial
-    fun CFRelease(ref: Pointer)
-
-    fun CGEventSourceButtonState(stateID: Int, button: Int): Boolean
-}
-
-// CGPoint as ByValue (two doubles)
-open class CGPoint : Structure() {
-    @JvmField var x: Double = 0.0
-    @JvmField var y: Double = 0.0
-    override fun getFieldOrder() = listOf("x", "y")
-    class ByValue : CGPoint(), Structure.ByValue
-}
-
 
 /**
  * MacOutsideClickWatcher: encapsulates macOS-specific logic to detect a left-click
@@ -61,8 +35,7 @@ class MacOutsideClickWatcher(
 
     private fun pollOnce() {
         try {
-            val asvc = ApplicationServices.INSTANCE
-            val left = asvc.CGEventSourceButtonState(0, 0) // kCGEventSourceStateCombinedSessionState, BUTTON_LEFT
+            val left = MacNativeBridge.nativeGetMouseButtonState(0) != 0
 
             if (left && left != prevLeft) {
                 val win = windowSupplier.invoke()
