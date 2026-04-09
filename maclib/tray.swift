@@ -560,9 +560,13 @@ public func tray_set_icons_for_appearance(
 /// switching back to the Space where it was originally created.
 @_cdecl("tray_set_windows_move_to_active_space")
 public func tray_set_windows_move_to_active_space() {
-    for window in NSApp.windows {
-        window.collectionBehavior.insert(.moveToActiveSpace)
+    let doWork = {
+        for window in NSApp.windows {
+            window.collectionBehavior.insert(.moveToActiveSpace)
+        }
     }
+    if Thread.isMainThread { doWork() }
+    else { DispatchQueue.main.sync { doWork() } }
 }
 
 // MARK: - Dock visibility
