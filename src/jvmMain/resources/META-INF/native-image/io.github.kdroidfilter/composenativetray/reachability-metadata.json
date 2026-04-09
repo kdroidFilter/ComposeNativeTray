@@ -15,6 +15,20 @@
             ]
         },
         {
+            "type": "com.kdroid.composetray.lib.linux.LinuxNativeBridge",
+            "jniAccessible": true
+        },
+        {
+            "type": "com.kdroid.composetray.lib.linux.JniRunnable",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "run",
+                    "parameterTypes": []
+                }
+            ]
+        },
+        {
             "type": "java.lang.Runnable",
             "jniAccessible": true,
             "methods": [

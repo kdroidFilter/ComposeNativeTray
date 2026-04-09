@@ -1,0 +1,491 @@
+/*
+ * jni_bridge.c – JNI bridge for ComposeNativeTray Linux native library.
+ *
+ * Target Kotlin class: com.kdroid.composetray.lib.linux.LinuxNativeBridge
+ * JNI prefix:          Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_
+ *
+ * Follows the same patterns as macOS MacTrayBridge.m:
+ * - JavaVM cache with JNI_OnLoad
+ * - GlobalRef-based callback storage
+ * - Runnable trampolines for callbacks
+ * - Handle-based state (sni_tray* as jlong)
+ */
+
+#include <jni.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+#include "sni.h"
+
+/* ========================================================================== */
+/*  JavaVM cache                                                              */
+/* ========================================================================== */
+
+static JavaVM *g_jvm = NULL;
+
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
+    (void)reserved;
+    g_jvm = vm;
+    return JNI_VERSION_1_8;
+}
+
+static JNIEnv *getJNIEnv(void) {
+    JNIEnv *env = NULL;
+    if (g_jvm == NULL) return NULL;
+    jint rc = (*g_jvm)->GetEnv(g_jvm, (void **)&env, JNI_VERSION_1_8);
+    if (rc == JNI_EDETACHED) {
+        (*g_jvm)->AttachCurrentThread(g_jvm, (void **)&env, NULL);
+    }
+    return env;
+}
+
+/* ========================================================================== */
+/*  Callback storage (GlobalRef linked list, same as MacTrayBridge.m)         */
+/* ========================================================================== */
+
+typedef struct CallbackEntry {
+    uintptr_t key;
+    jobject globalRef;
+    struct CallbackEntry *next;
+} CallbackEntry;
+
+static CallbackEntry *g_clickCallback = NULL;
+static CallbackEntry *g_rclickCallback = NULL;
+static CallbackEntry *g_menuCallbacks = NULL;
+
+static void storeCallback(CallbackEntry **list, uintptr_t key, JNIEnv *env, jobject callback) {
+    /* Remove existing entry for this key */
+    CallbackEntry **pp = list;
+    while (*pp) {
+        if ((*pp)->key == key) {
+            CallbackEntry *old = *pp;
+            *pp = old->next;
+            (*env)->DeleteGlobalRef(env, old->globalRef);
+            free(old);
+            break;
+        }
+        pp = &(*pp)->next;
+    }
+    if (callback == NULL) return;
+    CallbackEntry *entry = malloc(sizeof(CallbackEntry));
+    entry->key = key;
+    entry->globalRef = (*env)->NewGlobalRef(env, callback);
+    entry->next = *list;
+    *list = entry;
+}
+
+static jobject findCallback(CallbackEntry *list, uintptr_t key) {
+    for (CallbackEntry *e = list; e; e = e->next) {
+        if (e->key == key) return e->globalRef;
+    }
+    return NULL;
+}
+
+static void clearAllCallbacks(CallbackEntry **list) {
+    JNIEnv *env = getJNIEnv();
+    CallbackEntry *e = *list;
+    while (e) {
+        CallbackEntry *next = e->next;
+        if (env) (*env)->DeleteGlobalRef(env, e->globalRef);
+        free(e);
+        e = next;
+    }
+    *list = NULL;
+}
+
+/* ========================================================================== */
+/*  Runnable invocation helper                                                */
+/* ========================================================================== */
+
+/* Cached Runnable class and run() method ID.
+ * Using the interface class (java.lang.Runnable) instead of GetObjectClass()
+ * so GraalVM native-image can resolve the method without needing to register
+ * every lambda class for JNI access. */
+static jclass g_runnableClass = NULL;
+static jmethodID g_runMethod = NULL;
+
+static void ensureRunnableCached(JNIEnv *env) {
+    if (g_runnableClass) return;
+    jclass cls = (*env)->FindClass(env, "java/lang/Runnable");
+    if (!cls) return;
+    g_runnableClass = (*env)->NewGlobalRef(env, cls);
+    g_runMethod = (*env)->GetMethodID(env, g_runnableClass, "run", "()V");
+}
+
+static void invokeRunnable(jobject runnable) {
+    JNIEnv *env = getJNIEnv();
+    if (!env || !runnable) return;
+    ensureRunnableCached(env);
+    if (!g_runMethod) return;
+    (*env)->CallVoidMethod(env, runnable, g_runMethod);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+}
+
+/* ========================================================================== */
+/*  C callback trampolines                                                    */
+/* ========================================================================== */
+
+static void click_trampoline(int32_t x, int32_t y, void *userdata) {
+    (void)x; (void)y;
+    uintptr_t key = (uintptr_t)userdata;
+    jobject runnable = findCallback(g_clickCallback, key);
+    if (runnable) invokeRunnable(runnable);
+}
+
+static void rclick_trampoline(int32_t x, int32_t y, void *userdata) {
+    (void)x; (void)y;
+    uintptr_t key = (uintptr_t)userdata;
+    jobject runnable = findCallback(g_rclickCallback, key);
+    if (runnable) invokeRunnable(runnable);
+}
+
+static void menu_item_trampoline(uint32_t id, void *userdata) {
+    (void)userdata;
+    jobject runnable = findCallback(g_menuCallbacks, (uintptr_t)id);
+    if (runnable) invokeRunnable(runnable);
+}
+
+/* ========================================================================== */
+/*  JNI exports                                                               */
+/* ========================================================================== */
+
+/* ── Lifecycle ──────────────────────────────────────────────────────── */
+
+JNIEXPORT jlong JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeCreate(
+    JNIEnv *env, jclass clazz, jbyteArray iconBytes, jstring tooltip)
+{
+    (void)clazz;
+
+    const char *tip = NULL;
+    if (tooltip) {
+        tip = (*env)->GetStringUTFChars(env, tooltip, NULL);
+    }
+
+    const uint8_t *icon_data = NULL;
+    jsize icon_len = 0;
+    jbyte *icon_buf = NULL;
+    if (iconBytes) {
+        icon_len = (*env)->GetArrayLength(env, iconBytes);
+        icon_buf = (*env)->GetByteArrayElements(env, iconBytes, NULL);
+        icon_data = (const uint8_t *)icon_buf;
+    }
+
+    sni_tray *tray = sni_tray_create(icon_data, (size_t)icon_len, tip);
+
+    if (icon_buf) (*env)->ReleaseByteArrayElements(env, iconBytes, icon_buf, JNI_ABORT);
+    if (tip) (*env)->ReleaseStringUTFChars(env, tooltip, tip);
+
+    return (jlong)(uintptr_t)tray;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeRun(
+    JNIEnv *env, jclass clazz, jlong handle)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return -1;
+    return (jint)sni_tray_run(tray);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeQuit(
+    JNIEnv *env, jclass clazz, jlong handle)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    sni_tray_quit(tray);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeDestroy(
+    JNIEnv *env, jclass clazz, jlong handle)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+
+    /* Clean up all callbacks for this tray */
+    uintptr_t key = (uintptr_t)tray;
+    storeCallback(&g_clickCallback, key, env, NULL);
+    storeCallback(&g_rclickCallback, key, env, NULL);
+    /* Menu callbacks are keyed by item id, clear all */
+    clearAllCallbacks(&g_menuCallbacks);
+
+    sni_tray_destroy(tray);
+}
+
+/* ── Tray properties ────────────────────────────────────────────────── */
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetIcon(
+    JNIEnv *env, jclass clazz, jlong handle, jbyteArray iconBytes)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray || !iconBytes) return;
+
+    jsize len = (*env)->GetArrayLength(env, iconBytes);
+    jbyte *buf = (*env)->GetByteArrayElements(env, iconBytes, NULL);
+    sni_tray_set_icon(tray, (const uint8_t *)buf, (size_t)len);
+    (*env)->ReleaseByteArrayElements(env, iconBytes, buf, JNI_ABORT);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetTitle(
+    JNIEnv *env, jclass clazz, jlong handle, jstring title)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    const char *utf = title ? (*env)->GetStringUTFChars(env, title, NULL) : NULL;
+    sni_tray_set_title(tray, utf);
+    if (utf) (*env)->ReleaseStringUTFChars(env, title, utf);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetTooltip(
+    JNIEnv *env, jclass clazz, jlong handle, jstring tooltip)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    const char *utf = tooltip ? (*env)->GetStringUTFChars(env, tooltip, NULL) : NULL;
+    sni_tray_set_tooltip(tray, utf);
+    if (utf) (*env)->ReleaseStringUTFChars(env, tooltip, utf);
+}
+
+/* ── Callbacks ──────────────────────────────────────────────────────── */
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetClickCallback(
+    JNIEnv *env, jclass clazz, jlong handle, jobject callback)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    uintptr_t key = (uintptr_t)tray;
+    storeCallback(&g_clickCallback, key, env, callback);
+    sni_tray_set_click_callback(tray,
+                                 callback ? click_trampoline : NULL,
+                                 (void *)key);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetRClickCallback(
+    JNIEnv *env, jclass clazz, jlong handle, jobject callback)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    uintptr_t key = (uintptr_t)tray;
+    storeCallback(&g_rclickCallback, key, env, callback);
+    sni_tray_set_rclick_callback(tray,
+                                  callback ? rclick_trampoline : NULL,
+                                  (void *)key);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetMenuItemCallback(
+    JNIEnv *env, jclass clazz, jlong handle, jint menuId, jobject callback)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    storeCallback(&g_menuCallbacks, (uintptr_t)menuId, env, callback);
+    /* Ensure the global menu callback trampoline is installed */
+    sni_tray_set_menu_callback(tray, menu_item_trampoline, (void *)(uintptr_t)tray);
+}
+
+/* ── Click position ─────────────────────────────────────────────────── */
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeGetLastClickXY(
+    JNIEnv *env, jclass clazz, jlong handle, jintArray outXY)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray || !outXY) return;
+    int32_t x = 0, y = 0;
+    sni_tray_get_last_click_xy(tray, &x, &y);
+    jint buf[2] = {(jint)x, (jint)y};
+    (*env)->SetIntArrayRegion(env, outXY, 0, 2, buf);
+}
+
+/* ── Menu management ────────────────────────────────────────────────── */
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeResetMenu(
+    JNIEnv *env, jclass clazz, jlong handle)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    /* Clear menu item callbacks */
+    clearAllCallbacks(&g_menuCallbacks);
+    sni_tray_reset_menu(tray);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeAddMenuItem(
+    JNIEnv *env, jclass clazz, jlong handle, jstring title, jstring tooltip)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return 0;
+    const char *t = title ? (*env)->GetStringUTFChars(env, title, NULL) : NULL;
+    const char *tt = tooltip ? (*env)->GetStringUTFChars(env, tooltip, NULL) : NULL;
+    uint32_t id = sni_tray_add_menu_item(tray, t, tt);
+    if (t) (*env)->ReleaseStringUTFChars(env, title, t);
+    if (tt) (*env)->ReleaseStringUTFChars(env, tooltip, tt);
+    return (jint)id;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeAddMenuItemCheckbox(
+    JNIEnv *env, jclass clazz, jlong handle, jstring title, jstring tooltip, jboolean checked)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return 0;
+    const char *t = title ? (*env)->GetStringUTFChars(env, title, NULL) : NULL;
+    const char *tt = tooltip ? (*env)->GetStringUTFChars(env, tooltip, NULL) : NULL;
+    uint32_t id = sni_tray_add_menu_item_checkbox(tray, t, tt, checked ? 1 : 0);
+    if (t) (*env)->ReleaseStringUTFChars(env, title, t);
+    if (tt) (*env)->ReleaseStringUTFChars(env, tooltip, tt);
+    return (jint)id;
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeAddSeparator(
+    JNIEnv *env, jclass clazz, jlong handle)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_add_separator(tray);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeAddSubMenuItem(
+    JNIEnv *env, jclass clazz, jlong handle, jint parentId,
+    jstring title, jstring tooltip)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return 0;
+    const char *t = title ? (*env)->GetStringUTFChars(env, title, NULL) : NULL;
+    const char *tt = tooltip ? (*env)->GetStringUTFChars(env, tooltip, NULL) : NULL;
+    uint32_t id = sni_tray_add_sub_menu_item(tray, (uint32_t)parentId, t, tt);
+    if (t) (*env)->ReleaseStringUTFChars(env, title, t);
+    if (tt) (*env)->ReleaseStringUTFChars(env, tooltip, tt);
+    return (jint)id;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeAddSubMenuItemCheckbox(
+    JNIEnv *env, jclass clazz, jlong handle, jint parentId,
+    jstring title, jstring tooltip, jboolean checked)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return 0;
+    const char *t = title ? (*env)->GetStringUTFChars(env, title, NULL) : NULL;
+    const char *tt = tooltip ? (*env)->GetStringUTFChars(env, tooltip, NULL) : NULL;
+    uint32_t id = sni_tray_add_sub_menu_item_checkbox(tray, (uint32_t)parentId, t, tt, checked ? 1 : 0);
+    if (t) (*env)->ReleaseStringUTFChars(env, title, t);
+    if (tt) (*env)->ReleaseStringUTFChars(env, tooltip, tt);
+    return (jint)id;
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeAddSubSeparator(
+    JNIEnv *env, jclass clazz, jlong handle, jint parentId)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_add_sub_separator(tray, (uint32_t)parentId);
+}
+
+/* ── Per-item operations ────────────────────────────────────────────── */
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemSetTitle(
+    JNIEnv *env, jclass clazz, jlong handle, jint id, jstring title)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return 0;
+    const char *t = title ? (*env)->GetStringUTFChars(env, title, NULL) : NULL;
+    int ok = sni_tray_item_set_title(tray, (uint32_t)id, t);
+    if (t) (*env)->ReleaseStringUTFChars(env, title, t);
+    return (jint)ok;
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemEnable(
+    JNIEnv *env, jclass clazz, jlong handle, jint id)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_item_enable(tray, (uint32_t)id);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemDisable(
+    JNIEnv *env, jclass clazz, jlong handle, jint id)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_item_disable(tray, (uint32_t)id);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemShow(
+    JNIEnv *env, jclass clazz, jlong handle, jint id)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_item_show(tray, (uint32_t)id);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemHide(
+    JNIEnv *env, jclass clazz, jlong handle, jint id)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_item_hide(tray, (uint32_t)id);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemCheck(
+    JNIEnv *env, jclass clazz, jlong handle, jint id)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_item_check(tray, (uint32_t)id);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemUncheck(
+    JNIEnv *env, jclass clazz, jlong handle, jint id)
+{
+    (void)env; (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (tray) sni_tray_item_uncheck(tray, (uint32_t)id);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemSetIcon(
+    JNIEnv *env, jclass clazz, jlong handle, jint id, jbyteArray iconBytes)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray || !iconBytes) return;
+    jsize len = (*env)->GetArrayLength(env, iconBytes);
+    jbyte *buf = (*env)->GetByteArrayElements(env, iconBytes, NULL);
+    sni_tray_item_set_icon(tray, (uint32_t)id, (const uint8_t *)buf, (size_t)len);
+    (*env)->ReleaseByteArrayElements(env, iconBytes, buf, JNI_ABORT);
+}

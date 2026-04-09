@@ -14,10 +14,10 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * Go-based Linux tray manager using the linuxlibnew JNA bridge.
+ * C/sd-bus-based Linux tray manager using JNI bridge.
  *
- * Intentionally mirrors the public surface used by LinuxSNITrayInitializer and LinuxTrayMenuBuilderImpl,
- * while delegating to GoSystray under the hood.
+ * Replaces the previous Go/JNA implementation with a direct C + sd-bus approach.
+ * Follows the same handle-based pattern as macOS (MacTrayManager).
  */
 internal class LinuxTrayManager(
     private val instanceId: String,
@@ -25,17 +25,11 @@ internal class LinuxTrayManager(
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null
 ) {
-    // Keep strong references to JNA callbacks to prevent GC from dropping them (which would stop events)
-    private var cbReady: LinuxLibTray.VoidCallback? = null
-    private var cbExit: LinuxLibTray.VoidCallback? = null
-    private var cbOnClick: LinuxLibTray.VoidCallback? = null
-    private var cbOnRClick: LinuxLibTray.VoidCallback? = null
-    private var cbOnMenuItem: LinuxLibTray.MenuItemCallback? = null
     companion object {
-        // Ensures only one systray runtime is active at a time; allows release from any thread
+        // Ensures only one systray runtime is active at a time
         private val lifecyclePermit = java.util.concurrent.Semaphore(1, true)
     }
-    // We reuse the existing MenuItem model from LinuxTrayManager to avoid touching menu builder code
+
     data class MenuItem(
         val text: String,
         val isEnabled: Boolean = true,
@@ -43,31 +37,32 @@ internal class LinuxTrayManager(
         val isChecked: Boolean = false,
         val iconPath: String? = null,
         val onClick: (() -> Unit)? = null,
-        val subMenuItems: List<LinuxTrayManager.MenuItem> = emptyList()
+        val subMenuItems: List<MenuItem> = emptyList()
     )
 
-    private val go = LinuxLibTray
+    private val native = LinuxNativeBridge
 
     private val lock = ReentrantLock()
     private val running = AtomicBoolean(false)
     private val permitHeld = AtomicBoolean(false)
 
     // Menu state built by builder
-    private val menuItems: MutableList<LinuxTrayManager.MenuItem> = mutableListOf()
+    private val menuItems: MutableList<MenuItem> = mutableListOf()
 
-    // Mapping from menu item title to Go-assigned IDs (best-effort; titles should be unique)
+    // Mapping from menu item title to native IDs
     private val idByTitle: MutableMap<String, Int> = mutableMapOf()
     private val actionById: MutableMap<Int, () -> Unit> = mutableMapOf()
 
-    // KDE environment detection to mirror C++ backend behavior
     private fun isKDEDesktop(): Boolean = detectLinuxDesktopEnvironment() == LinuxDesktopEnvironment.KDE
+
+    // Native handle
+    private var trayHandle: Long = 0L
 
     // Thread / lifecycle
     private var shutdownHook: Thread? = null
     private var loopThread: Thread? = null
-    private var exitLatch: CountDownLatch? = null
 
-    fun addMenuItem(menuItem: LinuxTrayManager.MenuItem) {
+    fun addMenuItem(menuItem: MenuItem) {
         lock.withLock { menuItems.add(menuItem) }
     }
 
@@ -80,9 +75,10 @@ internal class LinuxTrayManager(
                 menuItems[idx] = current.copy(isChecked = isChecked)
             }
             val id = idByTitle[label]
-            if (id != null) {
+            if (id != null && trayHandle != 0L) {
                 try {
-                    if (isChecked) go.Systray_MenuItem_Check(id) else go.Systray_MenuItem_Uncheck(id)
+                    if (isChecked) native.nativeItemCheck(trayHandle, id)
+                    else native.nativeItemUncheck(trayHandle, id)
                 } catch (_: Throwable) { fallback = true }
             } else {
                 fallback = true
@@ -95,7 +91,7 @@ internal class LinuxTrayManager(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
-        newMenuItems: List<LinuxTrayManager.MenuItem>?
+        newMenuItems: List<MenuItem>?
     ) {
         val iconChanged: Boolean
         val tooltipChanged: Boolean
@@ -113,93 +109,88 @@ internal class LinuxTrayManager(
         }
 
         if (iconChanged) setIconFromFileSafe(iconPath)
-        if (tooltipChanged) runCatching { go.Systray_SetTooltip(tooltip) }
-            .onFailure { e -> warnln { "[LinuxGoTrayManager] Failed to set tooltip: ${e.message}" } }
+        if (tooltipChanged) runCatching { native.nativeSetTooltip(trayHandle, tooltip) }
+            .onFailure { e -> warnln { "[LinuxTrayManager] Failed to set tooltip: ${e.message}" } }
 
         if (newMenuItems != null) rebuildMenu()
     }
 
     fun startTray() {
-        // Acquire global lifecycle permit to prevent overlap with a previous instance teardown
         try {
             lifecyclePermit.acquire()
             permitHeld.set(true)
         } catch (t: Throwable) {
-            warnln { "[LinuxGoTrayManager] Failed to acquire lifecycle permit: ${t.message}" }
+            warnln { "[LinuxTrayManager] Failed to acquire lifecycle permit: ${t.message}" }
             return
         }
 
         var started = false
         try {
             if (!running.compareAndSet(false, true)) {
-                // Already running for this instance; release permit we just acquired
                 lifecyclePermit.release()
                 permitHeld.set(false)
                 return
             }
 
-            // Shutdown hook
             shutdownHook = Thread { stopTray() }.also { Runtime.getRuntime().addShutdownHook(it) }
 
             val readyLatch = CountDownLatch(1)
-            exitLatch = CountDownLatch(1)
 
-            // Register callbacks (keep strong references to avoid GC)
-            cbReady = object : LinuxLibTray.VoidCallback { override fun invoke() {
-                infoln { "[LinuxGoTrayManager] systray ready" }
-                readyLatch.countDown()
-            } }
-            cbExit = object : LinuxLibTray.VoidCallback { override fun invoke() {
-                infoln { "[LinuxGoTrayManager] systray exit" }
-                try { exitLatch?.countDown() } catch (_: Throwable) {}
-            } }
-            cbOnClick = object : LinuxLibTray.VoidCallback { override fun invoke() {
-                // Try to fetch the last click xy from native Go layer and store it for positioning
+            // Read initial icon bytes
+            val iconBytes = runCatching { File(iconPath).takeIf { it.isFile }?.readBytes() }
+                .getOrNull()
+
+            // Create native tray
+            trayHandle = native.nativeCreate(iconBytes, tooltip)
+            if (trayHandle == 0L) {
+                errorln { "[LinuxTrayManager] Failed to create native tray" }
+                return
+            }
+
+            // Set title
+            runCatching { native.nativeSetTitle(trayHandle, tooltip) }
+
+            // Set click callback
+            native.nativeSetClickCallback(trayHandle, JniRunnable {
                 try {
-                    val xRef = com.sun.jna.ptr.IntByReference()
-                    val yRef = com.sun.jna.ptr.IntByReference()
-                    go.Systray_GetLastClickXY(xRef, yRef)
-                    val x = xRef.value
-                    val y = yRef.value
-                    // Use multi-monitor aware position tracking that resolves the correct screen bounds
-                    TrayClickTracker.updateClickPosition(x, y)
-                } catch (_: Throwable) {
-                    // ignore, still invoke user callback
-                }
+                    val xy = IntArray(2)
+                    native.nativeGetLastClickXY(trayHandle, xy)
+                    TrayClickTracker.updateClickPosition(xy[0], xy[1])
+                } catch (_: Throwable) { }
                 onLeftClick?.invoke()
-            } }
-            cbOnRClick = object : LinuxLibTray.VoidCallback { override fun invoke() { /* right click unhandled for now */ } }
-            cbOnMenuItem = object : LinuxLibTray.MenuItemCallback { override fun invoke(menuId: Int) { actionById[menuId]?.invoke() } }
+            })
 
-            go.Systray_InitCallbacks(cbReady, cbExit, cbOnClick, cbOnRClick, cbOnMenuItem)
+            // Build menu before starting the loop
+            rebuildMenu()
 
-            // Prepare external loop and start it in a daemon thread
-            go.Systray_PrepareExternalLoop()
+            // Start event loop in daemon thread
             loopThread = Thread({
-                try { go.Systray_NativeStart() } catch (t: Throwable) { errorln { "[LinuxGoTrayManager] loop error: $t" } }
-            }, "LinuxGoTray-Loop").apply {
+                try {
+                    readyLatch.countDown()
+                    native.nativeRun(trayHandle)
+                } catch (t: Throwable) {
+                    errorln { "[LinuxTrayManager] loop error: $t" }
+                }
+            }, "LinuxTray-Loop").apply {
                 isDaemon = true
                 start()
             }
 
-            // Wait until ready then set properties and build menu
             try { readyLatch.await() } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
 
-            runCatching { go.Systray_SetTitle("Compose Tray") }
-            setIconFromFileSafe(iconPath)
-            runCatching { go.Systray_SetTooltip(tooltip) }
-            rebuildMenu()
             started = true
         } catch (t: Throwable) {
-            errorln { "[LinuxGoTrayManager] startTray failed: $t" }
+            errorln { "[LinuxTrayManager] startTray failed: $t" }
         } finally {
             if (!started) {
-                // cleanup partial start and release permit
                 running.set(false)
-                try { go.Systray_NativeEnd() } catch (_: Throwable) {}
-                try { loopThread?.join(500) } catch (_: Throwable) {}
+                if (trayHandle != 0L) {
+                    try { native.nativeQuit(trayHandle) } catch (_: Throwable) {}
+                    try { loopThread?.join(500) } catch (_: Throwable) {}
+                    try { native.nativeDestroy(trayHandle) } catch (_: Throwable) {}
+                    trayHandle = 0L
+                }
                 loopThread = null
-                exitLatch = null
                 try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
                 shutdownHook = null
                 if (permitHeld.compareAndSet(true, false)) {
@@ -211,36 +202,25 @@ internal class LinuxTrayManager(
 
     fun stopTray() {
         if (!running.compareAndSet(true, false)) return
-        val latch = exitLatch
         try {
-            // 1) Ask Go to quit its loop
-            go.Systray_Quit()
+            if (trayHandle != 0L) native.nativeQuit(trayHandle)
         } catch (_: Throwable) {}
 
         try {
-            // 2) End native side immediately so Go can invoke systrayExit (exit callback)
-            go.Systray_NativeEnd()
-        } catch (_: Throwable) {}
-
-        try {
-            // 3) Wait a short time for the exit callback to arrive (it will countDown the latch)
-            //    No need to wait seconds — 150–300ms is enough on healthy paths.
-            latch?.await(150, MILLISECONDS)
-        } catch (_: Throwable) {}
-
-        try {
-            // 4) Join the loop thread briefly; it's a daemon anyway
             loopThread?.join(500)
             if (loopThread?.isAlive == true) {
-                // We can't interrupt native waits; just log and move on
-                warnln { "[LinuxGoTrayManager] loop thread still alive after join timeout" }
+                warnln { "[LinuxTrayManager] loop thread still alive after join timeout" }
             }
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
         }
 
+        try {
+            if (trayHandle != 0L) native.nativeDestroy(trayHandle)
+        } catch (_: Throwable) {}
+
+        trayHandle = 0L
         loopThread = null
-        exitLatch = null
         idByTitle.clear()
         actionById.clear()
         try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
@@ -250,66 +230,68 @@ internal class LinuxTrayManager(
         }
     }
 
-
     // ----------------------------------------------------------------------------------------
     private fun setIconFromFileSafe(path: String) {
         runCatching {
             val file = File(path)
-            if (file.isFile) {
-                val bytes = file.readBytes()
-                go.Systray_SetIcon(bytes, bytes.size)
+            if (file.isFile && trayHandle != 0L) {
+                native.nativeSetIcon(trayHandle, file.readBytes())
             } else {
-                warnln { "[LinuxGoTrayManager] Icon file not found: $path" }
+                warnln { "[LinuxTrayManager] Icon file not found: $path" }
             }
-        }.onFailure { e -> warnln { "[LinuxGoTrayManager] Failed to set icon from $path: ${e.message}" } }
+        }.onFailure { e -> warnln { "[LinuxTrayManager] Failed to set icon from $path: ${e.message}" } }
     }
 
     private fun rebuildMenu() {
-        infoln { "[LinuxGoTrayManager] Rebuilding menu" }
+        if (trayHandle == 0L) return
+        infoln { "[LinuxTrayManager] Rebuilding menu" }
         idByTitle.clear()
         actionById.clear()
-        runCatching { go.Systray_ResetMenu() }
+        runCatching { native.nativeResetMenu(trayHandle) }
         val items = lock.withLock { menuItems.toList() }
-        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(LinuxTrayManager.MenuItem("-")) else items
+        // KDE quirk: empty menu causes issues, add dummy separator
+        val effectiveItems = if (items.isEmpty() && isKDEDesktop()) listOf(MenuItem("-")) else items
         effectiveItems.forEach { addMenuItemRecursive(null, it) }
     }
 
-    private fun addMenuItemRecursive(parentId: Int?, item: LinuxTrayManager.MenuItem) {
+    private fun addMenuItemRecursive(parentId: Int?, item: MenuItem) {
         try {
             if (item.text == "-") {
                 if (parentId == null) {
-                    go.Systray_AddSeparator()
+                    native.nativeAddSeparator(trayHandle)
                 } else {
-                    // Proper submenu separator through native bridge
-                    runCatching { go.Systray_AddSubMenuSeparator(parentId) }
-                        .onFailure { _ ->
-                            // Fallback (should not happen if bridge supports it): disabled dash item
-                            val id = go.Systray_AddSubMenuItem(parentId, "-", null)
-                            go.Systray_MenuItem_Disable(id)
+                    runCatching { native.nativeAddSubSeparator(trayHandle, parentId) }
+                        .onFailure {
+                            val id = native.nativeAddSubMenuItem(trayHandle, parentId, "-", null)
+                            native.nativeItemDisable(trayHandle, id)
                         }
                 }
                 return
             }
 
             val id = if (parentId == null) {
-                if (item.isCheckable) go.Systray_AddMenuItemCheckbox(item.text, null, if (item.isChecked) 1 else 0)
-                else go.Systray_AddMenuItem(item.text, null)
+                if (item.isCheckable) native.nativeAddMenuItemCheckbox(trayHandle, item.text, null, item.isChecked)
+                else native.nativeAddMenuItem(trayHandle, item.text, null)
             } else {
-                if (item.isCheckable) go.Systray_AddSubMenuItemCheckbox(parentId, item.text, null, if (item.isChecked) 1 else 0)
-                else go.Systray_AddSubMenuItem(parentId, item.text, null)
+                if (item.isCheckable) native.nativeAddSubMenuItemCheckbox(trayHandle, parentId, item.text, null, item.isChecked)
+                else native.nativeAddSubMenuItem(trayHandle, parentId, item.text, null)
             }
             idByTitle[item.text] = id
-            item.onClick?.let { actionById[id] = it }
+            item.onClick?.let { action ->
+                actionById[id] = action
+                native.nativeSetMenuItemCallback(trayHandle, id, JniRunnable { action() })
+            }
 
             // Enable/Disable
-            if (item.isEnabled) go.Systray_MenuItem_Enable(id) else go.Systray_MenuItem_Disable(id)
+            if (item.isEnabled) native.nativeItemEnable(trayHandle, id)
+            else native.nativeItemDisable(trayHandle, id)
 
             // Icon
             item.iconPath?.let { iconPath ->
                 runCatching {
                     val bytes = File(iconPath).takeIf { it.isFile }?.readBytes()
-                    if (bytes != null) go.Systray_SetMenuItemIcon(bytes, bytes.size, id)
-                }.onFailure { e -> warnln { "[LinuxGoTrayManager] Failed to set menu item icon: ${e.message}" } }
+                    if (bytes != null) native.nativeItemSetIcon(trayHandle, id, bytes)
+                }.onFailure { e -> warnln { "[LinuxTrayManager] Failed to set menu item icon: ${e.message}" } }
             }
 
             // Submenu
@@ -317,7 +299,7 @@ internal class LinuxTrayManager(
                 item.subMenuItems.forEach { sub -> addMenuItemRecursive(id, sub) }
             }
         } catch (t: Throwable) {
-            errorln { "[LinuxGoTrayManager] Error adding menu item '${item.text}': $t" }
+            errorln { "[LinuxTrayManager] Error adding menu item '${item.text}': $t" }
         }
     }
 }
