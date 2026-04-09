@@ -17,20 +17,20 @@ import java.util.concurrent.TimeUnit
  */
 class MacOutsideClickWatcher(
     private val windowSupplier: () -> Window?,
-    private val onOutsideClick: () -> Unit
+    private val onOutsideClick: () -> Unit,
 ) : AutoCloseable {
-
     private var scheduler: ScheduledExecutorService? = null
     private var prevLeft = false
 
     fun start() {
         if (getOperatingSystem() != OperatingSystem.MACOS) return
         if (scheduler != null) return
-        scheduler = Executors.newSingleThreadScheduledExecutor { r ->
-            Thread(r, "MacOutsideClickWatcher").apply { isDaemon = true }
-        }.also { exec ->
-            exec.scheduleAtFixedRate({ pollOnce() }, 0, 16, TimeUnit.MILLISECONDS)
-        }
+        scheduler =
+            Executors.newSingleThreadScheduledExecutor { r ->
+                Thread(r, "MacOutsideClickWatcher").apply { isDaemon = true }
+            }.also { exec ->
+                exec.scheduleAtFixedRate({ pollOnce() }, 0, 16, TimeUnit.MILLISECONDS)
+            }
     }
 
     private fun pollOnce() {
@@ -40,12 +40,22 @@ class MacOutsideClickWatcher(
             if (left && left != prevLeft) {
                 val win = windowSupplier.invoke()
                 if (win != null && win.isShowing) {
-                    val pointer = try { MouseInfo.getPointerInfo() } catch (_: Throwable) { null }
+                    val pointer =
+                        try {
+                            MouseInfo.getPointerInfo()
+                        } catch (_: Throwable) {
+                            null
+                        }
                     val loc = pointer?.location
                     if (loc != null) {
                         val px = loc.x
                         val py = loc.y
-                        val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
+                        val winLoc =
+                            try {
+                                win.locationOnScreen
+                            } catch (_: Throwable) {
+                                null
+                            }
                         if (winLoc != null) {
                             val wx = winLoc.x
                             val wy = winLoc.y
@@ -69,7 +79,10 @@ class MacOutsideClickWatcher(
     fun stop() = close()
 
     override fun close() {
-        try { scheduler?.shutdownNow() } catch (_: Throwable) {}
+        try {
+            scheduler?.shutdownNow()
+        } catch (_: Throwable) {
+        }
         scheduler = null
     }
 }

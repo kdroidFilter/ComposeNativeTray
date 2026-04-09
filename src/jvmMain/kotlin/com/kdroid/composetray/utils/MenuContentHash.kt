@@ -1,12 +1,10 @@
 package com.kdroid.composetray.utils
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.currentComposer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
-import com.kdroid.composetray.utils.IconRenderProperties
 import org.jetbrains.compose.resources.DrawableResource
 import java.security.MessageDigest
 
@@ -14,7 +12,6 @@ import java.security.MessageDigest
  * Utility class for calculating a hash of menu content to detect changes
  */
 object MenuContentHash {
-
     /**
      * Calculates a hash of the menu content by capturing the menu structure
      * This function should be called from a @Composable context to track state changes
@@ -41,37 +38,41 @@ object MenuContentHash {
     private class CapturingMenuBuilder : TrayMenuBuilder {
         private val operations = mutableListOf<String>()
 
-        override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
+        override fun Item(
+            label: String,
+            isEnabled: Boolean,
+            onClick: () -> Unit,
+        ) {
             operations.add("Item:$label:$isEnabled")
         }
-        
+
         override fun Item(
             label: String,
             iconContent: @Composable () -> Unit,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            onClick: () -> Unit
+            onClick: () -> Unit,
         ) {
             operations.add("ItemWithComposableIcon:$label:$isEnabled")
         }
-        
+
         override fun Item(
             label: String,
             icon: ImageVector,
             iconTint: Color?,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            onClick: () -> Unit
+            onClick: () -> Unit,
         ) {
             operations.add("ItemWithImageVectorIcon:$label:${iconTint != null}:$isEnabled:${icon.hashCode()}")
         }
-        
+
         override fun Item(
             label: String,
             icon: Painter,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            onClick: () -> Unit
+            onClick: () -> Unit,
         ) {
             operations.add("ItemWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
         }
@@ -81,7 +82,7 @@ object MenuContentHash {
             icon: DrawableResource,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            onClick: () -> Unit
+            onClick: () -> Unit,
         ) {
             operations.add("ItemWithDrawableIcon:$label:$isEnabled:${icon.hashCode()}")
         }
@@ -90,22 +91,22 @@ object MenuContentHash {
             label: String,
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
-            isEnabled: Boolean
+            isEnabled: Boolean,
         ) {
             operations.add("CheckableItem:$label:$checked:$isEnabled")
         }
-        
+
         override fun CheckableItem(
             label: String,
             iconContent: @Composable () -> Unit,
             iconRenderProperties: IconRenderProperties,
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
-            isEnabled: Boolean
+            isEnabled: Boolean,
         ) {
             operations.add("CheckableItemWithComposableIcon:$label:$checked:$isEnabled")
         }
-        
+
         override fun CheckableItem(
             label: String,
             icon: ImageVector,
@@ -113,18 +114,20 @@ object MenuContentHash {
             iconRenderProperties: IconRenderProperties,
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
-            isEnabled: Boolean
+            isEnabled: Boolean,
         ) {
-            operations.add("CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}")
+            operations.add(
+                "CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}",
+            )
         }
-        
+
         override fun CheckableItem(
             label: String,
             icon: Painter,
             iconRenderProperties: IconRenderProperties,
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
-            isEnabled: Boolean
+            isEnabled: Boolean,
         ) {
             operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
         }
@@ -135,7 +138,7 @@ object MenuContentHash {
             iconRenderProperties: IconRenderProperties,
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
-            isEnabled: Boolean
+            isEnabled: Boolean,
         ) {
             operations.add("CheckableItemWithDrawableIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
         }
@@ -143,7 +146,7 @@ object MenuContentHash {
         override fun SubMenu(
             label: String,
             isEnabled: Boolean,
-            submenuContent: (TrayMenuBuilder.() -> Unit)?
+            submenuContent: (TrayMenuBuilder.() -> Unit)?,
         ) {
             operations.add("SubMenu:$label:$isEnabled")
             if (submenuContent != null) {
@@ -152,13 +155,13 @@ object MenuContentHash {
                 operations.add("SubMenuEnd")
             }
         }
-        
+
         override fun SubMenu(
             label: String,
             iconContent: @Composable () -> Unit,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            submenuContent: (TrayMenuBuilder.() -> Unit)?
+            submenuContent: (TrayMenuBuilder.() -> Unit)?,
         ) {
             operations.add("SubMenuWithComposableIcon:$label:$isEnabled")
             if (submenuContent != null) {
@@ -167,14 +170,14 @@ object MenuContentHash {
                 operations.add("SubMenuEnd")
             }
         }
-        
+
         override fun SubMenu(
             label: String,
             icon: ImageVector,
             iconTint: Color?,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            submenuContent: (TrayMenuBuilder.() -> Unit)?
+            submenuContent: (TrayMenuBuilder.() -> Unit)?,
         ) {
             operations.add("SubMenuWithImageVectorIcon:$label:${iconTint != null}:$isEnabled:${icon.hashCode()}")
             if (submenuContent != null) {
@@ -183,13 +186,13 @@ object MenuContentHash {
                 operations.add("SubMenuEnd")
             }
         }
-        
+
         override fun SubMenu(
             label: String,
             icon: Painter,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            submenuContent: (TrayMenuBuilder.() -> Unit)?
+            submenuContent: (TrayMenuBuilder.() -> Unit)?,
         ) {
             operations.add("SubMenuWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
             if (submenuContent != null) {
@@ -204,7 +207,7 @@ object MenuContentHash {
             icon: DrawableResource,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
-            submenuContent: (TrayMenuBuilder.() -> Unit)?
+            submenuContent: (TrayMenuBuilder.() -> Unit)?,
         ) {
             operations.add("SubMenuWithDrawableIcon:$label:$isEnabled:${icon.hashCode()}")
             if (submenuContent != null) {
@@ -226,7 +229,9 @@ object MenuContentHash {
             val content = operations.joinToString("|")
             val md = MessageDigest.getInstance("SHA-256")
             val digest = md.digest(content.toByteArray())
-            return digest.fold("") { str, it -> str + "%02x".format(it) }.take(16) // Use only first 16 chars for performance
+            return digest.fold(
+                "",
+            ) { str, it -> str + "%02x".format(it) }.take(16) // Use only first 16 chars for performance
         }
     }
 }

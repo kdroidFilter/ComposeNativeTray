@@ -5,7 +5,6 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.WindowsTrayMenuBuilderImpl
 
 object WindowsTrayInitializer {
-
     private const val DEFAULT_ID: String = "_default"
 
     // Manage multiple tray managers by ID to allow multiple tray icons
@@ -17,11 +16,12 @@ object WindowsTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
     ) {
-        val menuItems = WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
-            menuContent?.let { it() }
-        }.build()
+        val menuItems =
+            WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
+                menuContent?.let { it() }
+            }.build()
 
         val manager = trayManagers[id]
         if (manager == null) {
@@ -39,7 +39,7 @@ object WindowsTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
     ) {
         // Same as initialize - it will handle both cases per ID
         initialize(id, iconPath, tooltip, onLeftClick, menuContent)
@@ -60,11 +60,19 @@ object WindowsTrayInitializer {
     }
 
     // Backward-compatible API for existing callers (single default tray)
-    fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
-        initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+    fun initialize(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
 
-    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
-        update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+    fun update(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
 
     fun dispose() = dispose(DEFAULT_ID)
 }

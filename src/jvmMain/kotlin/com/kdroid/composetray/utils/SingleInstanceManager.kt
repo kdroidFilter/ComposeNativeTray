@@ -12,7 +12,6 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardWatchEventKinds
 
-
 /**
  * Singleton object to manage the single instance of an application.
  *
@@ -20,7 +19,6 @@ import java.nio.file.StandardWatchEventKinds
  * and provides a mechanism to notify the running instance when another instance attempts to start.
  */
 object SingleInstanceManager {
-
     private const val TAG = "SingleInstanceChecker"
 
     /**
@@ -36,7 +34,7 @@ object SingleInstanceManager {
      */
     data class Configuration(
         val lockFilesDir: Path = Paths.get(System.getProperty("java.io.tmpdir")),
-        val lockIdentifier: String = APP_IDENTIFIER
+        val lockIdentifier: String = APP_IDENTIFIER,
     ) {
         val lockFileName: String = "$lockIdentifier.lock"
         val restoreRequestFileName: String = "$lockIdentifier.restore_request"
@@ -60,7 +58,10 @@ object SingleInstanceManager {
      *
      * @param onRestoreRequest A function to be executed if a restore request is received from another instance.
      */
-    fun isSingleInstance(onRestoreFileCreated: (Path.() -> Unit)? = null, onRestoreRequest: Path.() -> Unit): Boolean {
+    fun isSingleInstance(
+        onRestoreFileCreated: (Path.() -> Unit)? = null,
+        onRestoreRequest: Path.() -> Unit,
+    ): Boolean {
         // If the lock is already acquired by this process, we are the first instance
         if (fileLock != null) {
             debugLog { "The lock is already held by this process" }
@@ -78,12 +79,14 @@ object SingleInstanceManager {
                     isWatching = true
                     watchForRestoreRequests(onRestoreRequest)
                 }
-                Runtime.getRuntime().addShutdownHook(Thread {
-                    releaseLock()
-                    lockFile.delete()
-                    deleteRestoreRequestFile()
-                    debugLog { "Shutdown hook executed" }
-                })
+                Runtime.getRuntime().addShutdownHook(
+                    Thread {
+                        releaseLock()
+                        lockFile.delete()
+                        deleteRestoreRequestFile()
+                        debugLog { "Shutdown hook executed" }
+                    },
+                )
                 true
             } else {
                 // Another instance is already running

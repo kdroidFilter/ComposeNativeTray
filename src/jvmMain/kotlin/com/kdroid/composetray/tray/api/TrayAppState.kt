@@ -1,7 +1,6 @@
 package com.kdroid.composetray.tray.api
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ExperimentalComposeApi
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -61,7 +60,10 @@ class TrayAppState(
     }
 
     /** Updates the window size */
-    fun setWindowSize(width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp) {
+    fun setWindowSize(
+        width: androidx.compose.ui.unit.Dp,
+        height: androidx.compose.ui.unit.Dp,
+    ) {
         _windowSize.value = DpSize(width, height)
     }
 
@@ -96,7 +98,7 @@ fun rememberTrayAppState(
         TrayAppState(
             initialWindowSize = initialWindowSize,
             initiallyVisible = initiallyVisible,
-            initialDismissMode = initialDismissMode
+            initialDismissMode = initialDismissMode,
         )
     }
 }

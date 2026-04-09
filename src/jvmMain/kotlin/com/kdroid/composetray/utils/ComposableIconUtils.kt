@@ -3,7 +3,12 @@ package com.kdroid.composetray.utils
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ImageComposeScene
 import kotlinx.coroutines.Dispatchers
-import org.jetbrains.skia.*
+import org.jetbrains.skia.Bitmap
+import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.FilterMipmap
+import org.jetbrains.skia.FilterMode
+import org.jetbrains.skia.Image
+import org.jetbrains.skia.MipmapMode
 import java.io.File
 import java.util.zip.CRC32
 
@@ -11,7 +16,6 @@ import java.util.zip.CRC32
  * Utility functions for rendering Composable icons to image files for use in system tray.
  */
 object ComposableIconUtils {
-
     /**
      * Renders a Composable to a PNG file and returns the path to the file.
      *
@@ -22,7 +26,7 @@ object ComposableIconUtils {
      */
     fun renderComposableToPngFile(
         iconRenderProperties: IconRenderProperties,
-        content: @Composable () -> Unit
+        content: @Composable () -> Unit,
     ): String {
         val tempFile = createTempFile(suffix = ".png")
         val pngData = renderComposableToPngBytes(iconRenderProperties, content)
@@ -43,7 +47,7 @@ object ComposableIconUtils {
      */
     fun renderComposableToPngBytes(
         iconRenderProperties: IconRenderProperties,
-        content: @Composable () -> Unit
+        content: @Composable () -> Unit,
     ): ByteArray {
         var scene: ImageComposeScene? = null
         var renderedIcon: Image? = null
@@ -53,14 +57,15 @@ object ComposableIconUtils {
         try {
             // Try to create and render the scene
             try {
-                scene = ImageComposeScene(
-                    width = iconRenderProperties.sceneWidth,
-                    height = iconRenderProperties.sceneHeight,
-                    density = iconRenderProperties.sceneDensity,
-                    coroutineContext = Dispatchers.Unconfined
-                ) {
-                    content()
-                }
+                scene =
+                    ImageComposeScene(
+                        width = iconRenderProperties.sceneWidth,
+                        height = iconRenderProperties.sceneHeight,
+                        density = iconRenderProperties.sceneDensity,
+                        coroutineContext = Dispatchers.Unconfined,
+                    ) {
+                        content()
+                    }
 
                 renderedIcon = scene.render()
             } catch (e: Exception) {
@@ -70,7 +75,8 @@ object ComposableIconUtils {
 
                 // Check if it's a DirectX error on Windows
                 if (errorMessage.contains("DirectX12", ignoreCase = true) ||
-                    errorMessage.contains("Failed to choose DirectX12 adapter", ignoreCase = true)) {
+                    errorMessage.contains("Failed to choose DirectX12 adapter", ignoreCase = true)
+                ) {
                     errorln { "[ComposableIconUtils] DirectX12 not available on this system. Scene rendering failed." }
                 }
 
@@ -78,24 +84,26 @@ object ComposableIconUtils {
                 throw e
             }
 
-            val iconData = if (iconRenderProperties.requiresScaling) {
-                scaledBitmap = Bitmap().apply {
-                    allocN32Pixels(iconRenderProperties.targetWidth, iconRenderProperties.targetHeight)
+            val iconData =
+                if (iconRenderProperties.requiresScaling) {
+                    scaledBitmap =
+                        Bitmap().apply {
+                            allocN32Pixels(iconRenderProperties.targetWidth, iconRenderProperties.targetHeight)
+                        }
+
+                    renderedIcon.scalePixels(
+                        scaledBitmap.peekPixels()!!,
+                        FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+                        true,
+                    )
+
+                    scaledImage = Image.makeFromBitmap(scaledBitmap)
+                    scaledImage.encodeToData(EncodedImageFormat.PNG)
+                        ?: throw Exception("Failed to encode scaled image to PNG")
+                } else {
+                    renderedIcon.encodeToData(EncodedImageFormat.PNG)
+                        ?: throw Exception("Failed to encode image to PNG")
                 }
-
-                renderedIcon.scalePixels(
-                    scaledBitmap.peekPixels()!!,
-                    FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
-                    true
-                )
-
-                scaledImage = Image.makeFromBitmap(scaledBitmap)
-                scaledImage.encodeToData(EncodedImageFormat.PNG)
-                    ?: throw Exception("Failed to encode scaled image to PNG")
-            } else {
-                renderedIcon.encodeToData(EncodedImageFormat.PNG)
-                    ?: throw Exception("Failed to encode image to PNG")
-            }
 
             return iconData.bytes
         } finally {
@@ -121,7 +129,7 @@ object ComposableIconUtils {
      */
     fun renderComposableToIcoFile(
         iconRenderProperties: IconRenderProperties,
-        content: @Composable (() -> Unit)
+        content: @Composable (() -> Unit),
     ): String {
         val tempFile = createTempFile(suffix = ".ico")
         val icoData = renderComposableToIcoBytes(iconRenderProperties, content)
@@ -141,7 +149,7 @@ object ComposableIconUtils {
      */
     fun renderComposableToIcoBytes(
         iconRenderProperties: IconRenderProperties,
-        content: @Composable () -> Unit
+        content: @Composable () -> Unit,
     ): ByteArray {
         // First render to PNG format (which is supported)
         val pngBytes = renderComposableToPngBytes(iconRenderProperties, content)
@@ -193,7 +201,10 @@ object ComposableIconUtils {
     /**
      * Creates a temporary file that will be deleted when the JVM exits.
      */
-    private fun createTempFile(prefix: String = "tray_icon_", suffix: String): File {
+    private fun createTempFile(
+        prefix: String = "tray_icon_",
+        suffix: String,
+    ): File {
         val tempFile = File.createTempFile(prefix, suffix)
         tempFile.deleteOnExit()
         return tempFile
@@ -210,7 +221,7 @@ object ComposableIconUtils {
     @Composable
     fun calculateContentHash(
         iconRenderProperties: IconRenderProperties,
-        content: @Composable () -> Unit
+        content: @Composable () -> Unit,
     ): Long {
         return try {
             // Render the composable to PNG bytes

@@ -1,16 +1,16 @@
 package com.kdroid.composetray.lib.mac
 
-import java.util.function.Consumer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.function.Consumer
 
 object MacOSMenuBarThemeDetector {
-
     private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashMap.newKeySet()
 
-    private val callbackExecutor = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "MacOS MenuBar Theme Detector Thread").apply { isDaemon = true }
-    }
+    private val callbackExecutor =
+        Executors.newSingleThreadExecutor { r ->
+            Thread(r, "MacOS MenuBar Theme Detector Thread").apply { isDaemon = true }
+        }
 
     private class ThemeCallback : MacNativeBridge.ThemeChangeCallback {
         override fun onThemeChanged(isDark: Int) {

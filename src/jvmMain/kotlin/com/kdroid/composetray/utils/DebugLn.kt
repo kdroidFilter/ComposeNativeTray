@@ -18,16 +18,19 @@ var composeNativeTrayLoggingLevel: ComposeNativeTrayLoggingLevel = VERBOSE
 class ComposeNativeTrayLoggingLevel private constructor(
     private val priority: Int,
 ) : Comparable<ComposeNativeTrayLoggingLevel> {
-
     override fun compareTo(other: ComposeNativeTrayLoggingLevel): Int {
         return priority.compareTo(other.priority)
     }
 
     companion object {
         @JvmField val VERBOSE = ComposeNativeTrayLoggingLevel(0)
+
         @JvmField val DEBUG = ComposeNativeTrayLoggingLevel(1)
+
         @JvmField val INFO = ComposeNativeTrayLoggingLevel(2)
+
         @JvmField val WARN = ComposeNativeTrayLoggingLevel(3)
+
         @JvmField val ERROR = ComposeNativeTrayLoggingLevel(4)
     }
 }
@@ -75,6 +78,9 @@ internal fun errorln(message: () -> String) {
     }
 }
 
-private fun println(message: String, color: String) {
+private fun println(
+    message: String,
+    color: String,
+) {
     println(color + message + COLOR_RESET)
 }

@@ -7,7 +7,6 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 object LinuxTrayInitializer {
-
     private const val DEFAULT_ID: String = "_default"
 
     private val trayMenuImpls: MutableMap<String, LinuxTrayMenuBuilderImpl> = mutableMapOf()
@@ -20,7 +19,7 @@ object LinuxTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
     ) {
         lock.withLock {
             val existing = linuxTrayManagers[id]
@@ -28,11 +27,14 @@ object LinuxTrayInitializer {
                 val manager = LinuxTrayManager(id, iconPath, tooltip, onLeftClick)
                 linuxTrayManagers[id] = manager
 
-                val menuImpl = if (menuContent != null) {
-                    LinuxTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick, trayManager = manager).apply {
-                        menuContent()
+                val menuImpl =
+                    if (menuContent != null) {
+                        LinuxTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick, trayManager = manager).apply {
+                            menuContent()
+                        }
+                    } else {
+                        null
                     }
-                } else null
                 menuImpl?.let { impl ->
                     trayMenuImpls[id]?.dispose()
                     trayMenuImpls[id] = impl
@@ -52,7 +54,7 @@ object LinuxTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
     ) {
         lock.withLock {
             val manager = linuxTrayManagers[id]
@@ -61,14 +63,18 @@ object LinuxTrayInitializer {
                 return
             }
 
-            val newMenuItems = if (menuContent != null) {
-                val newImpl = LinuxTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick, trayManager = manager).apply {
-                    menuContent()
+            val newMenuItems =
+                if (menuContent != null) {
+                    val newImpl =
+                        LinuxTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick, trayManager = manager).apply {
+                            menuContent()
+                        }
+                    trayMenuImpls[id]?.dispose()
+                    trayMenuImpls[id] = newImpl
+                    newImpl.build()
+                } else {
+                    null
                 }
-                trayMenuImpls[id]?.dispose()
-                trayMenuImpls[id] = newImpl
-                newImpl.build()
-            } else null
 
             manager.update(iconPath, tooltip, onLeftClick, newMenuItems)
         }
@@ -84,11 +90,17 @@ object LinuxTrayInitializer {
             menuImpl = trayMenuImpls.remove(id)
         }
         // Dispose menu builder immediately (cheap)
-        try { menuImpl?.dispose() } catch (_: Throwable) {}
+        try {
+            menuImpl?.dispose()
+        } catch (_: Throwable) {
+        }
         // Stop tray asynchronously to avoid freezing the UI thread and avoid holding the lock
         manager?.let { m ->
             Thread({
-                try { m.stopTray() } catch (_: Throwable) {}
+                try {
+                    m.stopTray()
+                } catch (_: Throwable) {
+                }
             }, "LinuxTray-Dispose-$id").apply {
                 isDaemon = true
                 start()
@@ -97,11 +109,19 @@ object LinuxTrayInitializer {
     }
 
     // Backward-compatible single-tray API
-    fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
-        initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+    fun initialize(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
 
-    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
-        update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+    fun update(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
 
     fun dispose() = dispose(DEFAULT_ID)
 }

@@ -10,11 +10,11 @@ enum class TrayWindowDismissMode {
      * This is the traditional behavior for tray popup windows.
      */
     AUTO,
-    
+
     /**
      * The window remains visible until explicitly hidden via TrayAppState.hide()
      * or by clicking the tray icon again.
      * Focus loss and outside clicks do not dismiss the window.
      */
-    MANUAL
+    MANUAL,
 }

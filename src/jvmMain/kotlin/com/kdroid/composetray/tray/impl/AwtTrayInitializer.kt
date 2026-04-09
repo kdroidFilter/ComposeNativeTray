@@ -30,7 +30,7 @@ object AwtTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)?,
-        menuContent: (TrayMenuBuilder.() -> Unit)?
+        menuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         if (!isSupported()) {
             throw IllegalStateException("System tray is not supported.")
@@ -45,33 +45,36 @@ object AwtTrayInitializer {
         // Create the tray icon
         val trayImage = Toolkit.getDefaultToolkit().getImage(iconPath)
 
-        val newTrayIcon = TrayIcon(trayImage, tooltip, popupMenu).apply {
-            isImageAutoSize = true
+        val newTrayIcon =
+            TrayIcon(trayImage, tooltip, popupMenu).apply {
+                isImageAutoSize = true
 
-            // On macOS, we cannot easily override the default left-click behavior
-            // when a popup menu is attached. We have two options:
-            // 1. Accept that left-click opens the menu (macOS convention)
-            // 2. Use a more complex native implementation via JNA
+                // On macOS, we cannot easily override the default left-click behavior
+                // when a popup menu is attached. We have two options:
+                // 1. Accept that left-click opens the menu (macOS convention)
+                // 2. Use a more complex native implementation via JNA
 
-            if (getOperatingSystem() == OperatingSystem.MACOS) {
-                // For macOS, add primary action as the first menu item if both menu and action exist
-                if (onLeftClick != null && menuContent != null) {
-                    // The primary action will be added as the first menu item
-                    // This is handled in the menu building phase
-                }
-            } else {
-                // For other platforms, handle left-click normally
-                onLeftClick?.let { clickAction ->
-                    addMouseListener(object : MouseAdapter() {
-                        override fun mouseClicked(e: MouseEvent) {
-                            if (e.button == MouseEvent.BUTTON1) {
-                                clickAction()
-                            }
-                        }
-                    })
+                if (getOperatingSystem() == OperatingSystem.MACOS) {
+                    // For macOS, add primary action as the first menu item if both menu and action exist
+                    if (onLeftClick != null && menuContent != null) {
+                        // The primary action will be added as the first menu item
+                        // This is handled in the menu building phase
+                    }
+                } else {
+                    // For other platforms, handle left-click normally
+                    onLeftClick?.let { clickAction ->
+                        addMouseListener(
+                            object : MouseAdapter() {
+                                override fun mouseClicked(e: MouseEvent) {
+                                    if (e.button == MouseEvent.BUTTON1) {
+                                        clickAction()
+                                    }
+                                }
+                            },
+                        )
+                    }
                 }
             }
-        }
 
         // Add the menu content if specified
         menuContent?.let {
@@ -97,7 +100,7 @@ object AwtTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)?,
-        menuContent: (TrayMenuBuilder.() -> Unit)?
+        menuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         dispose()
         initialize(iconPath, tooltip, onLeftClick, menuContent)

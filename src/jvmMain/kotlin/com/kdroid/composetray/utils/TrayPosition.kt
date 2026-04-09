@@ -1,9 +1,9 @@
 package com.kdroid.composetray.utils
 
-import com.kdroid.composetray.lib.windows.WindowsNativeBridge
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.kdroid.composetray.lib.mac.MacNativeBridge
+import com.kdroid.composetray.lib.windows.WindowsNativeBridge
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
@@ -13,7 +13,8 @@ import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import java.awt.Toolkit
 import java.io.File
-import java.util.*
+import java.util.Collections
+import java.util.Properties
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 
@@ -22,7 +23,7 @@ enum class TrayPosition { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
 data class TrayClickPosition(
     val x: Int,
     val y: Int,
-    val position: TrayPosition
+    val position: TrayPosition,
 )
 
 internal object TrayClickTracker {
@@ -30,7 +31,10 @@ internal object TrayClickTracker {
     private val perInstancePositions: MutableMap<String, TrayClickPosition> =
         Collections.synchronizedMap(mutableMapOf())
 
-    fun updateClickPosition(x: Int, y: Int) {
+    fun updateClickPosition(
+        x: Int,
+        y: Int,
+    ) {
         val bounds = getScreenBoundsAt(x, y)
         val position = convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
         val pos = TrayClickPosition(x, y, position)
@@ -38,7 +42,11 @@ internal object TrayClickTracker {
         runCatching { saveTrayClickPosition(x, y, position) }
     }
 
-    fun updateClickPosition(instanceId: String, x: Int, y: Int) {
+    fun updateClickPosition(
+        instanceId: String,
+        x: Int,
+        y: Int,
+    ) {
         val bounds = getScreenBoundsAt(x, y)
         val position = convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
         val pos = TrayClickPosition(x, y, position)
@@ -47,13 +55,22 @@ internal object TrayClickTracker {
         runCatching { saveTrayClickPosition(x, y, position) }
     }
 
-    fun setClickPosition(x: Int, y: Int, position: TrayPosition) {
+    fun setClickPosition(
+        x: Int,
+        y: Int,
+        position: TrayPosition,
+    ) {
         val pos = TrayClickPosition(x, y, position)
         lastClickPosition.set(pos)
         runCatching { saveTrayClickPosition(x, y, position) }
     }
 
-    fun setClickPosition(instanceId: String, x: Int, y: Int, position: TrayPosition) {
+    fun setClickPosition(
+        instanceId: String,
+        x: Int,
+        y: Int,
+        position: TrayPosition,
+    ) {
         val pos = TrayClickPosition(x, y, position)
         perInstancePositions[instanceId] = pos
         lastClickPosition.set(pos)
@@ -61,6 +78,7 @@ internal object TrayClickTracker {
     }
 
     fun getLastClickPosition(): TrayClickPosition? = lastClickPosition.get()
+
     fun getLastClickPosition(instanceId: String): TrayClickPosition? = perInstancePositions[instanceId]
 }
 
@@ -76,7 +94,10 @@ private fun getLogicalScreenSize(): java.awt.Dimension {
  * Returns the bounds of the screen that contains the given point.
  * Falls back to the primary screen if the point is not on any screen.
  */
-private fun getScreenBoundsAt(x: Int, y: Int): Rectangle {
+private fun getScreenBoundsAt(
+    x: Int,
+    y: Int,
+): Rectangle {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment()
     for (gd in ge.screenDevices) {
         val bounds = gd.defaultConfiguration.bounds
@@ -86,7 +107,12 @@ private fun getScreenBoundsAt(x: Int, y: Int): Rectangle {
     return Rectangle(0, 0, primary.width, primary.height)
 }
 
-internal fun convertPositionToCorner(x: Int, y: Int, width: Int, height: Int): TrayPosition {
+internal fun convertPositionToCorner(
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+): TrayPosition {
     // Use smarter margins based on typical taskbar/panel size
     // 100px from edge = probably within taskbar/panel area
     val edgeThreshold = 100
@@ -100,10 +126,10 @@ internal fun convertPositionToCorner(x: Int, y: Int, width: Int, height: Int): T
         // Strong edge detection first
         isNearTop && isNearLeft -> TrayPosition.TOP_LEFT
         isNearTop && isNearRight -> TrayPosition.TOP_RIGHT
-        isNearTop -> TrayPosition.TOP_RIGHT  // Default top to right
+        isNearTop -> TrayPosition.TOP_RIGHT // Default top to right
         isNearBottom && isNearLeft -> TrayPosition.BOTTOM_LEFT
         isNearBottom && isNearRight -> TrayPosition.BOTTOM_RIGHT
-        isNearBottom -> TrayPosition.BOTTOM_RIGHT  // Default bottom to right
+        isNearBottom -> TrayPosition.BOTTOM_RIGHT // Default bottom to right
         // Fallback: use quadrant-based detection
         x >= width / 2 && y < height / 2 -> TrayPosition.TOP_RIGHT
         x < width / 2 && y < height / 2 -> TrayPosition.TOP_LEFT
@@ -156,29 +182,38 @@ private fun loadPropertiesFrom(file: File): Properties? {
     }.getOrNull()
 }
 
-private fun storePropertiesTo(file: File, props: Properties) {
+private fun storePropertiesTo(
+    file: File,
+    props: Properties,
+) {
     file.parentFile?.let { runCatching { if (!it.exists()) it.mkdirs() } }
     runCatching { file.outputStream().use { props.store(it, null) } }
 }
 
 internal fun saveTrayPosition(position: TrayPosition) {
     val preferredFile = trayPropertiesFile()
-    val properties = loadPropertiesFrom(preferredFile)
-        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
-        ?: loadPropertiesFrom(oldTmpPropertiesFile())
-        ?: loadPropertiesFrom(legacyPropertiesFile())
-        ?: Properties()
+    val properties =
+        loadPropertiesFrom(preferredFile)
+            ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
+            ?: loadPropertiesFrom(oldTmpPropertiesFile())
+            ?: loadPropertiesFrom(legacyPropertiesFile())
+            ?: Properties()
     properties.setProperty(POSITION_KEY, position.name)
     storePropertiesTo(preferredFile, properties)
 }
 
-internal fun saveTrayClickPosition(x: Int, y: Int, position: TrayPosition) {
+internal fun saveTrayClickPosition(
+    x: Int,
+    y: Int,
+    position: TrayPosition,
+) {
     val preferredFile = trayPropertiesFile()
-    val properties = loadPropertiesFrom(preferredFile)
-        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
-        ?: loadPropertiesFrom(oldTmpPropertiesFile())
-        ?: loadPropertiesFrom(legacyPropertiesFile())
-        ?: Properties()
+    val properties =
+        loadPropertiesFrom(preferredFile)
+            ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
+            ?: loadPropertiesFrom(oldTmpPropertiesFile())
+            ?: loadPropertiesFrom(legacyPropertiesFile())
+            ?: Properties()
     properties.setProperty(POSITION_KEY, position.name)
     properties.setProperty(X_KEY, x.toString())
     properties.setProperty(Y_KEY, y.toString())
@@ -186,10 +221,11 @@ internal fun saveTrayClickPosition(x: Int, y: Int, position: TrayPosition) {
 }
 
 internal fun loadTrayClickPosition(): TrayClickPosition? {
-    val props = loadPropertiesFrom(trayPropertiesFile())
-        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
-        ?: loadPropertiesFrom(oldTmpPropertiesFile())
-        ?: loadPropertiesFrom(legacyPropertiesFile()) ?: return null
+    val props =
+        loadPropertiesFrom(trayPropertiesFile())
+            ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
+            ?: loadPropertiesFrom(oldTmpPropertiesFile())
+            ?: loadPropertiesFrom(legacyPropertiesFile()) ?: return null
 
     val positionStr = props.getProperty(POSITION_KEY) ?: return null
     val x = props.getProperty(X_KEY)?.toIntOrNull() ?: return null
@@ -202,14 +238,15 @@ internal fun loadTrayClickPosition(): TrayClickPosition? {
     }
 }
 
-internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition = when (nativeResult) {
-    null -> throw IllegalArgumentException("Returned value is null")
-    "top-left" -> TrayPosition.TOP_LEFT
-    "top-right" -> TrayPosition.TOP_RIGHT
-    "bottom-left" -> TrayPosition.BOTTOM_LEFT
-    "bottom-right" -> TrayPosition.BOTTOM_RIGHT
-    else -> throw IllegalArgumentException("Unknown value: $nativeResult")
-}
+internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition =
+    when (nativeResult) {
+        null -> throw IllegalArgumentException("Returned value is null")
+        "top-left" -> TrayPosition.TOP_LEFT
+        "top-right" -> TrayPosition.TOP_RIGHT
+        "bottom-left" -> TrayPosition.BOTTOM_LEFT
+        "bottom-right" -> TrayPosition.BOTTOM_RIGHT
+        else -> throw IllegalArgumentException("Unknown value: $nativeResult")
+    }
 
 /** OS → Tray corner heuristics */
 fun getTrayPosition(): TrayPosition {
@@ -220,21 +257,22 @@ fun getTrayPosition(): TrayPosition {
             TrayClickTracker.getLastClickPosition()?.position
                 ?: loadTrayClickPosition()?.position
                 ?: run {
-                    val props = loadPropertiesFrom(trayPropertiesFile())
-                        ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
-                        ?: loadPropertiesFrom(oldTmpPropertiesFile())
-                        ?: loadPropertiesFrom(legacyPropertiesFile())
+                    val props =
+                        loadPropertiesFrom(trayPropertiesFile())
+                            ?: macCachePropertiesFile()?.let { loadPropertiesFrom(it) }
+                            ?: loadPropertiesFrom(oldTmpPropertiesFile())
+                            ?: loadPropertiesFrom(legacyPropertiesFile())
                     props?.getProperty(POSITION_KEY)?.let {
                         runCatching { TrayPosition.valueOf(it) }.getOrNull()
                     }
                 }
                 ?: when (detectLinuxDesktopEnvironment()) {
-                    LinuxDesktopEnvironment.KDE      -> TrayPosition.BOTTOM_RIGHT
+                    LinuxDesktopEnvironment.KDE -> TrayPosition.BOTTOM_RIGHT
                     LinuxDesktopEnvironment.CINNAMON -> TrayPosition.BOTTOM_RIGHT
-                    LinuxDesktopEnvironment.GNOME    -> TrayPosition.TOP_RIGHT
-                    LinuxDesktopEnvironment.MATE     -> TrayPosition.TOP_RIGHT
-                    LinuxDesktopEnvironment.XFCE     -> TrayPosition.TOP_RIGHT
-                    else                             -> TrayPosition.TOP_RIGHT
+                    LinuxDesktopEnvironment.GNOME -> TrayPosition.TOP_RIGHT
+                    LinuxDesktopEnvironment.MATE -> TrayPosition.TOP_RIGHT
+                    LinuxDesktopEnvironment.XFCE -> TrayPosition.TOP_RIGHT
+                    else -> TrayPosition.TOP_RIGHT
                 }
         }
         OperatingSystem.UNKNOWN -> TrayPosition.TOP_RIGHT
@@ -247,29 +285,35 @@ fun getTrayWindowPosition(
     windowWidth: Int,
     windowHeight: Int,
     horizontalOffset: Int = 0,
-    verticalOffset: Int = 0
+    verticalOffset: Int = 0,
 ): WindowPosition {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
 
     if (getOperatingSystem() == OperatingSystem.WINDOWS) {
-        val freshPos = TrayClickTracker.getLastClickPosition()
-            ?: loadTrayClickPosition()
+        val freshPos =
+            TrayClickTracker.getLastClickPosition()
+                ?: loadTrayClickPosition()
 
-        val posToUse = freshPos ?: run {
-            // No click yet (e.g., initiallyVisible = true). Synthesize one near the tray corner
-            val corner = getTrayPosition()
-            val (sx, sy) = syntheticClickFromCorner(corner, screenSize.width, screenSize.height)
-            return calculateWindowPositionFromClick(
-                sx, sy, corner,
-                windowWidth, windowHeight,
-                horizontalOffset, verticalOffset
-            )
-        }
+        val posToUse =
+            freshPos ?: run {
+                // No click yet (e.g., initiallyVisible = true). Synthesize one near the tray corner
+                val corner = getTrayPosition()
+                val (sx, sy) = syntheticClickFromCorner(corner, screenSize.width, screenSize.height)
+                return calculateWindowPositionFromClick(
+                    sx, sy, corner,
+                    windowWidth, windowHeight,
+                    horizontalOffset, verticalOffset,
+                )
+            }
 
         return calculateWindowPositionFromClick(
-            posToUse.x, posToUse.y, posToUse.position,
-            windowWidth, windowHeight,
-            horizontalOffset, verticalOffset
+            posToUse.x,
+            posToUse.y,
+            posToUse.position,
+            windowWidth,
+            windowHeight,
+            horizontalOffset,
+            verticalOffset,
         )
     }
 
@@ -281,9 +325,13 @@ fun getTrayWindowPosition(
         val pos = TrayClickTracker.getLastClickPosition()
         if (pos != null) {
             return calculateWindowPositionFromClick(
-                pos.x, pos.y, pos.position,
-                windowWidth, windowHeight,
-                horizontalOffset, verticalOffset
+                pos.x,
+                pos.y,
+                pos.position,
+                windowWidth,
+                windowHeight,
+                horizontalOffset,
+                verticalOffset,
             )
         }
     }
@@ -292,27 +340,34 @@ fun getTrayWindowPosition(
         val clickPos = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition()
         if (clickPos != null) {
             return calculateWindowPositionFromClick(
-                clickPos.x, clickPos.y, clickPos.position,
-                windowWidth, windowHeight,
-                horizontalOffset, verticalOffset
+                clickPos.x,
+                clickPos.y,
+                clickPos.position,
+                windowWidth,
+                windowHeight,
+                horizontalOffset,
+                verticalOffset,
             )
         }
     }
 
     return when (getTrayPosition()) {
         TrayPosition.TOP_LEFT -> WindowPosition(x = (0 + horizontalOffset).dp, y = (0 + verticalOffset).dp)
-        TrayPosition.TOP_RIGHT -> WindowPosition(
-            x = (screenSize.width - windowWidth + horizontalOffset).dp,
-            y = (0 + verticalOffset).dp
-        )
-        TrayPosition.BOTTOM_LEFT -> WindowPosition(
-            x = (0 + horizontalOffset).dp,
-            y = (screenSize.height - windowHeight + verticalOffset).dp
-        )
-        TrayPosition.BOTTOM_RIGHT -> WindowPosition(
-            x = (screenSize.width - windowWidth + horizontalOffset).dp,
-            y = (screenSize.height - windowHeight + verticalOffset).dp
-        )
+        TrayPosition.TOP_RIGHT ->
+            WindowPosition(
+                x = (screenSize.width - windowWidth + horizontalOffset).dp,
+                y = (0 + verticalOffset).dp,
+            )
+        TrayPosition.BOTTOM_LEFT ->
+            WindowPosition(
+                x = (0 + horizontalOffset).dp,
+                y = (screenSize.height - windowHeight + verticalOffset).dp,
+            )
+        TrayPosition.BOTTOM_RIGHT ->
+            WindowPosition(
+                x = (screenSize.width - windowWidth + horizontalOffset).dp,
+                y = (screenSize.height - windowHeight + verticalOffset).dp,
+            )
     }
 }
 
@@ -322,7 +377,7 @@ fun getTrayWindowPositionForInstance(
     windowWidth: Int,
     windowHeight: Int,
     horizontalOffset: Int = 0,
-    verticalOffset: Int = 0
+    verticalOffset: Int = 0,
 ): WindowPosition {
     val os = getOperatingSystem()
 
@@ -330,36 +385,52 @@ fun getTrayWindowPositionForInstance(
         OperatingSystem.WINDOWS -> {
             val pos = TrayClickTracker.getLastClickPosition(instanceId)
             if (pos == null) {
-                debugln { "[TrayPosition] getTrayWindowPositionForInstance: no position for $instanceId, using fallback" }
+                debugln {
+                    "[TrayPosition] getTrayWindowPositionForInstance: " +
+                        "no position for $instanceId, using fallback"
+                }
                 return fallbackCornerPosition(windowWidth, windowHeight, horizontalOffset, verticalOffset)
             }
             calculateWindowPositionFromClick(
-                pos.x, pos.y, pos.position,
-                windowWidth, windowHeight,
-                horizontalOffset, verticalOffset
+                pos.x,
+                pos.y,
+                pos.position,
+                windowWidth,
+                windowHeight,
+                horizontalOffset,
+                verticalOffset,
             )
         }
         OperatingSystem.MACOS -> {
             val trayHandle = MacTrayInitializer.getNativeTrayHandle(instanceId)
             if (trayHandle != 0L) {
                 val outXY = IntArray(2)
-                val precise = try {
-                    MacNativeBridge.nativeGetStatusItemPositionFor(trayHandle, outXY) != 0
-                } catch (_: Throwable) { false }
+                val precise =
+                    try {
+                        MacNativeBridge.nativeGetStatusItemPositionFor(trayHandle, outXY) != 0
+                    } catch (_: Throwable) {
+                        false
+                    }
                 val x = outXY[0]
                 val y = outXY[1]
                 if (precise) {
                     val regionStr = runCatching { MacNativeBridge.nativeGetStatusItemRegionFor(trayHandle) }.getOrNull()
-                    val trayPos = if (regionStr != null) getMacTrayPosition(regionStr)
-                    else {
-                        val bounds = getScreenBoundsAt(x, y)
-                        convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
-                    }
+                    val trayPos =
+                        if (regionStr != null) {
+                            getMacTrayPosition(regionStr)
+                        } else {
+                            val bounds = getScreenBoundsAt(x, y)
+                            convertPositionToCorner(x - bounds.x, y - bounds.y, bounds.width, bounds.height)
+                        }
                     TrayClickTracker.setClickPosition(instanceId, x, y, trayPos)
                     return calculateWindowPositionFromClick(
-                        x, y, trayPos,
-                        windowWidth, windowHeight,
-                        horizontalOffset, verticalOffset
+                        x,
+                        y,
+                        trayPos,
+                        windowWidth,
+                        windowHeight,
+                        horizontalOffset,
+                        verticalOffset,
                     )
                 }
             }
@@ -375,17 +446,24 @@ fun getTrayWindowPositionForInstance(
  * Uses the screen containing the click point for correct multi-monitor support.
  */
 private fun calculateWindowPositionFromClick(
-    clickX: Int, clickY: Int, trayPosition: TrayPosition,
-    windowWidth: Int, windowHeight: Int,
+    clickX: Int,
+    clickY: Int,
+    trayPosition: TrayPosition,
+    windowWidth: Int,
+    windowHeight: Int,
     horizontalOffset: Int,
-    verticalOffset: Int
+    verticalOffset: Int,
 ): WindowPosition {
     val os = getOperatingSystem()
     val isTop = trayPosition == TrayPosition.TOP_LEFT || trayPosition == TrayPosition.TOP_RIGHT
     val isRight = trayPosition == TrayPosition.TOP_RIGHT || trayPosition == TrayPosition.BOTTOM_RIGHT
 
     val sb = getScreenBoundsAt(clickX, clickY)
-    debugln { "[TrayPosition] calculateWindowPositionFromClick: clickX=$clickX, clickY=$clickY, trayPos=$trayPosition, winW=$windowWidth, winH=$windowHeight, screenBounds=$sb" }
+    debugln {
+        "[TrayPosition] calculateWindowPositionFromClick: " +
+            "clickX=$clickX, clickY=$clickY, trayPos=$trayPosition, " +
+            "winW=$windowWidth, winH=$windowHeight, screenBounds=$sb"
+    }
 
     return if (os == OperatingSystem.WINDOWS) {
         var x = clickX - (windowWidth / 2)
@@ -395,8 +473,16 @@ private fun calculateWindowPositionFromClick(
         x += horizontalOffset
         y += verticalOffset
 
-        if (x < sb.x) x = sb.x else if (x + windowWidth > sb.x + sb.width) x = sb.x + sb.width - windowWidth
-        if (y < sb.y) y = sb.y else if (y + windowHeight > sb.y + sb.height) y = sb.y + sb.height - windowHeight
+        if (x < sb.x) {
+            x = sb.x
+        } else if (x + windowWidth > sb.x + sb.width) {
+            x = sb.x + sb.width - windowWidth
+        }
+        if (y < sb.y) {
+            y = sb.y
+        } else if (y + windowHeight > sb.y + sb.height) {
+            y = sb.y + sb.height - windowHeight
+        }
         debugln { "[TrayPosition] Windows: final x=$x, y=$y" }
         WindowPosition(x = x.dp, y = y.dp)
     } else {
@@ -407,39 +493,48 @@ private fun calculateWindowPositionFromClick(
         var y = if (isTop) anchorY else anchorY - windowHeight
 
         x += if (isRight) -horizontalOffset else horizontalOffset
-        y += if (isTop)  verticalOffset   else -verticalOffset
+        y += if (isTop) verticalOffset else -verticalOffset
 
-        if (x < sb.x) x = sb.x else if (x + windowWidth > sb.x + sb.width) x = sb.x + sb.width - windowWidth
-        if (y < sb.y) y = sb.y else if (y + windowHeight > sb.y + sb.height) y = sb.y + sb.height - windowHeight
+        if (x < sb.x) {
+            x = sb.x
+        } else if (x + windowWidth > sb.x + sb.width) {
+            x = sb.x + sb.width - windowWidth
+        }
+        if (y < sb.y) {
+            y = sb.y
+        } else if (y + windowHeight > sb.y + sb.height) {
+            y = sb.y + sb.height - windowHeight
+        }
         WindowPosition(x = x.dp, y = y.dp)
     }
 }
 
-
-
 /** Position de repli coin + offsets */
 private fun fallbackCornerPosition(
-    w: Int, h: Int,
+    w: Int,
+    h: Int,
     horizontalOffset: Int,
-    verticalOffset: Int
+    verticalOffset: Int,
 ): WindowPosition {
     val screen = Toolkit.getDefaultToolkit().screenSize
     return when (getTrayPosition()) {
         TrayPosition.TOP_LEFT -> WindowPosition((0 + horizontalOffset).dp, (0 + verticalOffset).dp)
         TrayPosition.TOP_RIGHT -> WindowPosition((screen.width - w + horizontalOffset).dp, (0 + verticalOffset).dp)
         TrayPosition.BOTTOM_LEFT -> WindowPosition((0 + horizontalOffset).dp, (screen.height - h + verticalOffset).dp)
-        TrayPosition.BOTTOM_RIGHT -> WindowPosition(
-            (screen.width - w + horizontalOffset).dp,
-            (screen.height - h + verticalOffset).dp
-        )
+        TrayPosition.BOTTOM_RIGHT ->
+            WindowPosition(
+                (screen.width - w + horizontalOffset).dp,
+                (screen.height - h + verticalOffset).dp,
+            )
     }
 }
 
-internal fun getMacTrayPosition(nativeResult: String?): TrayPosition = when (nativeResult) {
-    "top-left"  -> TrayPosition.TOP_LEFT
-    "top-right" -> TrayPosition.TOP_RIGHT
-    else        -> TrayPosition.TOP_RIGHT
-}
+internal fun getMacTrayPosition(nativeResult: String?): TrayPosition =
+    when (nativeResult) {
+        "top-left" -> TrayPosition.TOP_LEFT
+        "top-right" -> TrayPosition.TOP_RIGHT
+        else -> TrayPosition.TOP_RIGHT
+    }
 
 internal fun getStatusItemXYForMac(): Pair<Int, Int> {
     val outXY = IntArray(2)
@@ -448,12 +543,13 @@ internal fun getStatusItemXYForMac(): Pair<Int, Int> {
 }
 
 fun debugDeleteTrayPropertiesFiles() {
-    val files = setOfNotNull(
-        trayPropertiesFile(),
-        legacyPropertiesFile(),
-        oldTmpPropertiesFile(),
-        macCachePropertiesFile()
-    )
+    val files =
+        setOfNotNull(
+            trayPropertiesFile(),
+            legacyPropertiesFile(),
+            oldTmpPropertiesFile(),
+            macCachePropertiesFile(),
+        )
     files.filter(File::exists).forEach { runCatching { it.delete() } }
 }
 
@@ -489,12 +585,15 @@ private fun getWindowsTaskbarHeight(): Int {
 private fun getSystemBarSize(): Int {
     return when (getOperatingSystem()) {
         OperatingSystem.WINDOWS -> getWindowsTaskbarHeight()
-        OperatingSystem.MACOS -> 25  // macOS menu bar
-        else -> 28  // Linux panel (GNOME/KDE average)
+        OperatingSystem.MACOS -> 25 // macOS menu bar
+        else -> 28 // Linux panel (GNOME/KDE average)
     }
 }
 
-internal fun isPointWithinMacStatusItem(px: Int, py: Int): Boolean {
+internal fun isPointWithinMacStatusItem(
+    px: Int,
+    py: Int,
+): Boolean {
     if (getOperatingSystem() != OperatingSystem.MACOS) return false
     val (ix, iy) = getStatusItemXYForMac()
     if (ix == 0 && iy == 0) return false
@@ -508,25 +607,29 @@ internal fun isPointWithinMacStatusItem(px: Int, py: Int): Boolean {
     return px in left..right && py in top..bottom
 }
 
-internal fun isPointWithinLinuxStatusItem(px: Int, py: Int): Boolean {
+internal fun isPointWithinLinuxStatusItem(
+    px: Int,
+    py: Int,
+): Boolean {
     if (getOperatingSystem() != OperatingSystem.LINUX) return false
     val click = TrayClickTracker.getLastClickPosition() ?: loadTrayClickPosition() ?: return false
     val (ix, iy) = click.x to click.y
-    val baseIconSizeAt1x = when (detectLinuxDesktopEnvironment()) {
-        LinuxDesktopEnvironment.KDE      -> 22
-        LinuxDesktopEnvironment.GNOME    -> 24
-        LinuxDesktopEnvironment.CINNAMON -> 24
-        LinuxDesktopEnvironment.MATE     -> 24
-        LinuxDesktopEnvironment.XFCE     -> 24
-        else                             -> 24
-    }
+    val baseIconSizeAt1x =
+        when (detectLinuxDesktopEnvironment()) {
+            LinuxDesktopEnvironment.KDE -> 22
+            LinuxDesktopEnvironment.GNOME -> 24
+            LinuxDesktopEnvironment.CINNAMON -> 24
+            LinuxDesktopEnvironment.MATE -> 24
+            LinuxDesktopEnvironment.XFCE -> 24
+            else -> 24
+        }
     val dpi = runCatching { Toolkit.getDefaultToolkit().screenResolution }.getOrDefault(96)
     val scale = (dpi / 96.0).coerceAtLeast(0.5)
     val half = (baseIconSizeAt1x * 0.5 * scale).toInt().coerceAtLeast(8)
     val fudge = (4 * scale).toInt().coerceAtLeast(2)
-    val left   = ix - half - fudge
-    val right  = ix + half + fudge
-    val top    = iy - half - fudge
+    val left = ix - half - fudge
+    val right = ix + half + fudge
+    val top = iy - half - fudge
     val bottom = iy + half + fudge
     return px in left..right && py in top..bottom
 }
@@ -536,12 +639,20 @@ internal fun isPointWithinLinuxStatusItem(px: Int, py: Int): Boolean {
 private fun syntheticClickFromCorner(
     corner: TrayPosition,
     screenW: Int,
-    screenH: Int
+    screenH: Int,
 ): Pair<Int, Int> {
     val half = dpiAwareHalfIconOffset() // ~half icon in px, DPI-aware
-    val x = if (corner == TrayPosition.TOP_RIGHT || corner == TrayPosition.BOTTOM_RIGHT)
-        screenW - half else half
-    val y = if (corner == TrayPosition.BOTTOM_LEFT || corner == TrayPosition.BOTTOM_RIGHT)
-        screenH - half else half
+    val x =
+        if (corner == TrayPosition.TOP_RIGHT || corner == TrayPosition.BOTTOM_RIGHT) {
+            screenW - half
+        } else {
+            half
+        }
+    val y =
+        if (corner == TrayPosition.BOTTOM_LEFT || corner == TrayPosition.BOTTOM_RIGHT) {
+            screenH - half
+        } else {
+            half
+        }
     return x to y
 }

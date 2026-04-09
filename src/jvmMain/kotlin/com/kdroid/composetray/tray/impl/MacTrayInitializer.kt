@@ -5,7 +5,6 @@ import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.menu.impl.MacTrayMenuBuilderImpl
 
 object MacTrayInitializer {
-
     private const val DEFAULT_ID: String = "_default"
 
     // Manage multiple tray managers and builders by ID
@@ -25,7 +24,7 @@ object MacTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
     ) {
         var manager = trayManagers[id]
         if (manager == null) {
@@ -34,14 +33,15 @@ object MacTrayInitializer {
             trayManagers[id] = manager
 
             // Build menu for this manager
-            val builder = MacTrayMenuBuilderImpl(
-                iconPath,
-                tooltip,
-                onLeftClick,
-                trayManager = manager
-            ).apply {
-                menuContent?.invoke(this)
-            }
+            val builder =
+                MacTrayMenuBuilderImpl(
+                    iconPath,
+                    tooltip,
+                    onLeftClick,
+                    trayManager = manager,
+                ).apply {
+                    menuContent?.invoke(this)
+                }
             // Replace old builder for this ID if any
             trayMenuBuilders.remove(id)?.dispose()
             trayMenuBuilders[id] = builder
@@ -64,7 +64,7 @@ object MacTrayInitializer {
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
-        menuContent: (TrayMenuBuilder.() -> Unit)? = null
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
     ) {
         val manager = trayManagers[id]
         if (manager == null) {
@@ -74,25 +74,33 @@ object MacTrayInitializer {
         }
 
         // Rebuild menu if content provided
-        val newMenuItems = if (menuContent != null) {
-            val builder = MacTrayMenuBuilderImpl(
-                iconPath,
-                tooltip,
-                onLeftClick,
-                trayManager = manager
-            ).apply {
-                menuContent()
+        val newMenuItems =
+            if (menuContent != null) {
+                val builder =
+                    MacTrayMenuBuilderImpl(
+                        iconPath,
+                        tooltip,
+                        onLeftClick,
+                        trayManager = manager,
+                    ).apply {
+                        menuContent()
+                    }
+                trayMenuBuilders.remove(id)?.dispose()
+                trayMenuBuilders[id] = builder
+                builder.build()
+            } else {
+                null
             }
-            trayMenuBuilders.remove(id)?.dispose()
-            trayMenuBuilders[id] = builder
-            builder.build()
-        } else null
 
         manager.update(iconPath, tooltip, onLeftClick, newMenuItems)
     }
 
     @Synchronized
-    fun setAppearanceIcons(id: String, lightIconPath: String, darkIconPath: String) {
+    fun setAppearanceIcons(
+        id: String,
+        lightIconPath: String,
+        darkIconPath: String,
+    ) {
         trayManagers[id]?.setAppearanceIcons(lightIconPath, darkIconPath)
     }
 
@@ -103,11 +111,19 @@ object MacTrayInitializer {
     }
 
     // Backward-compatible API for existing callers (single default tray)
-    fun initialize(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
-        initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+    fun initialize(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
 
-    fun update(iconPath: String, tooltip: String, onLeftClick: (() -> Unit)? = null, menuContent: (TrayMenuBuilder.() -> Unit)? = null) =
-        update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+    fun update(
+        iconPath: String,
+        tooltip: String,
+        onLeftClick: (() -> Unit)? = null,
+        menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
 
     fun dispose() = dispose(DEFAULT_ID)
 }

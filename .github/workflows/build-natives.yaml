@@ -44,20 +44,28 @@ jobs:
           retention-days: 1
 
   build-native-linux:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86-64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Set up JDK
+        uses: actions/setup-java@v4
         with:
-          go-version: 'stable'
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libappindicator3-dev
+          sudo apt-get install -y libsystemd-dev
 
       - name: Build Linux native library
         working-directory: src/native/linux
@@ -67,14 +75,14 @@ jobs:
 
       - name: Verify Linux natives
         run: |
-          test -f build/nativeLibs/linux-x86-64/libsystray.so
-          ls -la build/nativeLibs/linux-x86-64/
+          test -f build/nativeLibs/linux-${{ matrix.arch }}/libLinuxTray.so
+          ls -la build/nativeLibs/linux-${{ matrix.arch }}/
 
-      - name: Upload Linux x86_64 library
+      - name: Upload Linux library
         uses: actions/upload-artifact@v4
         with:
-          name: native-linux-x86-64
-          path: build/nativeLibs/linux-x86-64/libsystray.so
+          name: native-linux-${{ matrix.arch }}
+          path: build/nativeLibs/linux-${{ matrix.arch }}/libLinuxTray.so
           retention-days: 1
 
   build-native-windows:

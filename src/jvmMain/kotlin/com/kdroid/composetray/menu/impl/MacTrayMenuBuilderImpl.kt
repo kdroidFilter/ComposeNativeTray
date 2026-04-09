@@ -12,7 +12,6 @@ import com.kdroid.composetray.lib.mac.MacTrayManager
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
-import com.kdroid.composetray.utils.isMenuBarInDarkMode
 import io.github.kdroidfilter.nucleus.darkmodedetector.isSystemInDarkMode
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -23,7 +22,7 @@ internal class MacTrayMenuBuilderImpl(
     private val iconPath: String,
     private val tooltip: String = "",
     private val onLeftClick: (() -> Unit)?,
-    private val trayManager: MacTrayManager? = null
+    private val trayManager: MacTrayManager? = null,
 ) : TrayMenuBuilder {
     private val menuItems = mutableListOf<MacTrayManager.MenuItem>()
     private val lock = ReentrantLock()
@@ -32,14 +31,19 @@ internal class MacTrayMenuBuilderImpl(
     private val persistentMenuItems = mutableListOf<MacTrayManager.MenuItem>()
 
     // Item without icon (existing method)
-    override fun Item(label: String, isEnabled: Boolean, onClick: () -> Unit) {
+    override fun Item(
+        label: String,
+        isEnabled: Boolean,
+        onClick: () -> Unit,
+    ) {
         lock.withLock {
-            val menuItem = MacTrayManager.MenuItem(
-                text = label,
-                icon = null,
-                isEnabled = isEnabled,
-                onClick = onClick
-            )
+            val menuItem =
+                MacTrayManager.MenuItem(
+                    text = label,
+                    icon = null,
+                    isEnabled = isEnabled,
+                    onClick = onClick,
+                )
             menuItems.add(menuItem)
             persistentMenuItems.add(menuItem)
         }
@@ -51,18 +55,19 @@ internal class MacTrayMenuBuilderImpl(
         iconContent: @Composable () -> Unit,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        onClick: () -> Unit
+        onClick: () -> Unit,
     ) {
         lock.withLock {
             // Render the composable icon to a PNG file
             val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
 
-            val menuItem = MacTrayManager.MenuItem(
-                text = label,
-                icon = iconPath,
-                isEnabled = isEnabled,
-                onClick = onClick
-            )
+            val menuItem =
+                MacTrayManager.MenuItem(
+                    text = label,
+                    icon = iconPath,
+                    isEnabled = isEnabled,
+                    onClick = onClick,
+                )
             menuItems.add(menuItem)
             persistentMenuItems.add(menuItem)
         }
@@ -75,10 +80,8 @@ internal class MacTrayMenuBuilderImpl(
         iconTint: Color?,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        onClick: () -> Unit
+        onClick: () -> Unit,
     ) {
-
-
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
             // Get the current menu bar theme
@@ -87,9 +90,13 @@ internal class MacTrayMenuBuilderImpl(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                colorFilter = iconTint?.let { ColorFilter.tint(it) }
-                    ?: if (isDark) ColorFilter.tint(Color.White)
-                    else ColorFilter.tint(Color.Black)
+                colorFilter =
+                    iconTint?.let { ColorFilter.tint(it) }
+                        ?: if (isDark) {
+                            ColorFilter.tint(Color.White)
+                        } else {
+                            ColorFilter.tint(Color.Black)
+                        },
             )
         }
 
@@ -103,14 +110,14 @@ internal class MacTrayMenuBuilderImpl(
         icon: Painter,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        onClick: () -> Unit
+        onClick: () -> Unit,
     ) {
         // Create a composable that renders the Painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
@@ -124,13 +131,13 @@ internal class MacTrayMenuBuilderImpl(
         icon: DrawableResource,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        onClick: () -> Unit
+        onClick: () -> Unit,
     ) {
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = painterResource(icon),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
         Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
@@ -141,26 +148,27 @@ internal class MacTrayMenuBuilderImpl(
         label: String,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
-        isEnabled: Boolean
+        isEnabled: Boolean,
     ) {
         lock.withLock {
-            val menuItem = MacTrayManager.MenuItem(
-                text = label,
-                icon = null,
-                isEnabled = isEnabled,
-                isCheckable = true,
-                isChecked = checked,
-                onClick = {
-                    lock.withLock {
-                        // Toggle the checked state
-                        val newChecked = !checked
-                        onCheckedChange(newChecked)
+            val menuItem =
+                MacTrayManager.MenuItem(
+                    text = label,
+                    icon = null,
+                    isEnabled = isEnabled,
+                    isCheckable = true,
+                    isChecked = checked,
+                    onClick = {
+                        lock.withLock {
+                            // Toggle the checked state
+                            val newChecked = !checked
+                            onCheckedChange(newChecked)
 
-                        // Note: The actual visual update of the check mark
-                        // will happen when the menu is recreated after the state change
-                    }
-                }
-            )
+                            // Note: The actual visual update of the check mark
+                            // will happen when the menu is recreated after the state change
+                        }
+                    },
+                )
             menuItems.add(menuItem)
             persistentMenuItems.add(menuItem)
         }
@@ -173,25 +181,26 @@ internal class MacTrayMenuBuilderImpl(
         iconRenderProperties: IconRenderProperties,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
-        isEnabled: Boolean
+        isEnabled: Boolean,
     ) {
         lock.withLock {
             // Render the composable icon to a PNG file
             val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
 
-            val menuItem = MacTrayManager.MenuItem(
-                text = label,
-                icon = iconPath,
-                isEnabled = isEnabled,
-                isCheckable = true,
-                isChecked = checked,
-                onClick = {
-                    lock.withLock {
-                        val newChecked = !checked
-                        onCheckedChange(newChecked)
-                    }
-                }
-            )
+            val menuItem =
+                MacTrayManager.MenuItem(
+                    text = label,
+                    icon = iconPath,
+                    isEnabled = isEnabled,
+                    isCheckable = true,
+                    isChecked = checked,
+                    onClick = {
+                        lock.withLock {
+                            val newChecked = !checked
+                            onCheckedChange(newChecked)
+                        }
+                    },
+                )
             menuItems.add(menuItem)
             persistentMenuItems.add(menuItem)
         }
@@ -205,7 +214,7 @@ internal class MacTrayMenuBuilderImpl(
         iconRenderProperties: IconRenderProperties,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
-        isEnabled: Boolean
+        isEnabled: Boolean,
     ) {
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
@@ -215,9 +224,13 @@ internal class MacTrayMenuBuilderImpl(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                colorFilter = iconTint?.let { ColorFilter.tint(it) }
-                    ?: if (isDark) ColorFilter.tint(Color.White)
-                    else ColorFilter.tint(Color.Black)
+                colorFilter =
+                    iconTint?.let { ColorFilter.tint(it) }
+                        ?: if (isDark) {
+                            ColorFilter.tint(Color.White)
+                        } else {
+                            ColorFilter.tint(Color.Black)
+                        },
             )
         }
 
@@ -232,14 +245,14 @@ internal class MacTrayMenuBuilderImpl(
         iconRenderProperties: IconRenderProperties,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
-        isEnabled: Boolean
+        isEnabled: Boolean,
     ) {
         // Create a composable that renders the Painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
@@ -254,20 +267,24 @@ internal class MacTrayMenuBuilderImpl(
         iconRenderProperties: IconRenderProperties,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
-        isEnabled: Boolean
+        isEnabled: Boolean,
     ) {
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = painterResource(icon),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
         CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
     }
 
     // SubMenu without icon (existing method)
-    override fun SubMenu(label: String, isEnabled: Boolean, submenuContent: (TrayMenuBuilder.() -> Unit)?) {
+    override fun SubMenu(
+        label: String,
+        isEnabled: Boolean,
+        submenuContent: (TrayMenuBuilder.() -> Unit)?,
+    ) {
         createSubMenu(label, null, isEnabled, submenuContent)
     }
 
@@ -277,7 +294,7 @@ internal class MacTrayMenuBuilderImpl(
         iconContent: @Composable () -> Unit,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        submenuContent: (TrayMenuBuilder.() -> Unit)?
+        submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         // Render the composable icon to a PNG file
         val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
@@ -291,7 +308,7 @@ internal class MacTrayMenuBuilderImpl(
         iconTint: Color?,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        submenuContent: (TrayMenuBuilder.() -> Unit)?
+        submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
@@ -301,9 +318,13 @@ internal class MacTrayMenuBuilderImpl(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                colorFilter = iconTint?.let { ColorFilter.tint(it) }
-                    ?: if (isDark) ColorFilter.tint(Color.White)
-                    else ColorFilter.tint(Color.Black)
+                colorFilter =
+                    iconTint?.let { ColorFilter.tint(it) }
+                        ?: if (isDark) {
+                            ColorFilter.tint(Color.White)
+                        } else {
+                            ColorFilter.tint(Color.Black)
+                        },
             )
         }
 
@@ -317,14 +338,14 @@ internal class MacTrayMenuBuilderImpl(
         icon: Painter,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        submenuContent: (TrayMenuBuilder.() -> Unit)?
+        submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         // Create a composable that renders the Painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
@@ -338,13 +359,13 @@ internal class MacTrayMenuBuilderImpl(
         icon: DrawableResource,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
-        submenuContent: (TrayMenuBuilder.() -> Unit)?
+        submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = painterResource(icon),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         }
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
@@ -355,25 +376,27 @@ internal class MacTrayMenuBuilderImpl(
         label: String,
         iconPath: String?,
         isEnabled: Boolean,
-        submenuContent: (TrayMenuBuilder.() -> Unit)?
+        submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
         val subMenuItems = mutableListOf<MacTrayManager.MenuItem>()
         if (submenuContent != null) {
-            val subMenuImpl = MacTrayMenuBuilderImpl(
-                iconPath = this.iconPath,
-                tooltip = tooltip,
-                onLeftClick = onLeftClick,
-                trayManager = trayManager
-            ).apply(submenuContent)
+            val subMenuImpl =
+                MacTrayMenuBuilderImpl(
+                    iconPath = this.iconPath,
+                    tooltip = tooltip,
+                    onLeftClick = onLeftClick,
+                    trayManager = trayManager,
+                ).apply(submenuContent)
             subMenuItems.addAll(subMenuImpl.menuItems)
         }
         lock.withLock {
-            val subMenu = MacTrayManager.MenuItem(
-                text = label,
-                icon = iconPath,
-                isEnabled = isEnabled,
-                subMenuItems = subMenuItems
-            )
+            val subMenu =
+                MacTrayManager.MenuItem(
+                    text = label,
+                    icon = iconPath,
+                    isEnabled = isEnabled,
+                    subMenuItems = subMenuItems,
+                )
             menuItems.add(subMenu)
             persistentMenuItems.add(subMenu)
         }

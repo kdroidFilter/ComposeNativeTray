@@ -21,7 +21,6 @@ if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64" OR CMAKE_GENERATOR_PLATFORM STREQUAL 
 elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
     set(TARGET_ARCH "ARM64")
     set(OUTPUT_DIR "${BASE_OUTPUT_DIR}/win32-arm64")
-    add_compile_options("/arch:arm64")
 else()
     message(FATAL_ERROR "Unsupported architecture: ${CMAKE_GENERATOR_PLATFORM}")
 endif()
@@ -50,7 +49,7 @@ target_compile_definitions(WinTray PRIVATE TRAY_WINAPI=1 WIN32_LEAN_AND_MEAN NOM
 
 # Link to Shell32.lib for Windows platform
 if(WIN32)
-    target_link_libraries(WinTray PRIVATE shell32)
+    target_link_libraries(WinTray PRIVATE shell32 user32 gdi32)
 endif()
 
 # Define the installation path

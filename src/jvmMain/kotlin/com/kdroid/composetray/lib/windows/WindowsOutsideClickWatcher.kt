@@ -19,8 +19,8 @@ class WindowsOutsideClickWatcher(
     private val onOutsideClick: () -> Unit,
     private val ignorePointPredicate: ((x: Int, y: Int) -> Boolean)? = null,
 ) : AutoCloseable {
-
     @Volatile private var hookThread: Thread? = null
+
     @Volatile private var hookId: Long = 0L
     private val stopping = AtomicBoolean(false)
 
@@ -31,52 +31,62 @@ class WindowsOutsideClickWatcher(
             if (hookThread != null) return
             stopping.set(false)
 
-            hookThread = Thread({
-                val callback = Runnable {
-                    try {
-                        val xy = IntArray(2)
-                        WindowsNativeBridge.nativeGetLastMouseHookClick(xy)
-                        val px = xy[0]
-                        val py = xy[1]
+            hookThread =
+                Thread({
+                    val callback =
+                        Runnable {
+                            try {
+                                val xy = IntArray(2)
+                                WindowsNativeBridge.nativeGetLastMouseHookClick(xy)
+                                val px = xy[0]
+                                val py = xy[1]
 
-                        val win = windowSupplier()
-                        if (win != null && win.isShowing) {
-                            val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
-                            if (winLoc != null) {
-                                // Get the graphics configuration to determine the DPI scale
-                                val scale = try {
-                                    win.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
-                                } catch (_: Throwable) { 1.0 }
+                                val win = windowSupplier()
+                                if (win != null && win.isShowing) {
+                                    val winLoc =
+                                        try {
+                                            win.locationOnScreen
+                                        } catch (_: Throwable) {
+                                            null
+                                        }
+                                    if (winLoc != null) {
+                                        // Get the graphics configuration to determine the DPI scale
+                                        val scale =
+                                            try {
+                                                win.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
+                                            } catch (_: Throwable) {
+                                                1.0
+                                            }
 
-                                // Convert window bounds from logical to physical pixels
-                                val wx = (winLoc.x * scale).toInt()
-                                val wy = (winLoc.y * scale).toInt()
-                                val ww = (win.width * scale).toInt()
-                                val wh = (win.height * scale).toInt()
+                                        // Convert window bounds from logical to physical pixels
+                                        val wx = (winLoc.x * scale).toInt()
+                                        val wy = (winLoc.y * scale).toInt()
+                                        val ww = (win.width * scale).toInt()
+                                        val wh = (win.height * scale).toInt()
 
-                                val insideWindow = px in wx until (wx + ww) && py in wy until (wy + wh)
-                                val ignored = ignorePointPredicate?.invoke(px, py) == true
+                                        val insideWindow = px in wx until (wx + ww) && py in wy until (wy + wh)
+                                        val ignored = ignorePointPredicate?.invoke(px, py) == true
 
-                                if (!insideWindow && !ignored) {
-                                    // Let caller decide EDT marshaling.
-                                    onOutsideClick()
+                                        if (!insideWindow && !ignored) {
+                                            // Let caller decide EDT marshaling.
+                                            onOutsideClick()
+                                        }
+                                    }
                                 }
+                            } catch (_: Throwable) {
+                                // Never crash the hook callback
                             }
                         }
-                    } catch (_: Throwable) {
-                        // Never crash the hook callback
-                    }
+
+                    hookId = WindowsNativeBridge.nativeInstallMouseHook(callback)
+                    if (hookId == 0L) return@Thread
+
+                    // Block on message loop until stopped
+                    WindowsNativeBridge.nativeRunMouseHookLoop(hookId)
+                }, "WindowsOutsideClickWatcher-LL").apply {
+                    isDaemon = true
+                    start()
                 }
-
-                hookId = WindowsNativeBridge.nativeInstallMouseHook(callback)
-                if (hookId == 0L) return@Thread
-
-                // Block on message loop until stopped
-                WindowsNativeBridge.nativeRunMouseHookLoop(hookId)
-            }, "WindowsOutsideClickWatcher-LL").apply {
-                isDaemon = true
-                start()
-            }
         }
     }
 
@@ -92,7 +102,8 @@ class WindowsOutsideClickWatcher(
             if (id != 0L) {
                 try {
                     WindowsNativeBridge.nativeStopMouseHook(id)
-                } catch (_: Throwable) { }
+                } catch (_: Throwable) {
+                }
                 hookId = 0L
             }
 

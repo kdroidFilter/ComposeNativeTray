@@ -1,9 +1,78 @@
 name: PR Build Check
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-natives:
     uses: ./.github/workflows/build-natives.yaml
+
+  gradle:
+    needs: [build-natives]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS ARM64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-darwin-aarch64
+          path: src/jvmMain/resources/composetray/native/darwin-aarch64/
+
+      - name: Download macOS x86_64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-darwin-x86-64
+          path: src/jvmMain/resources/composetray/native/darwin-x86-64/
+
+      - name: Download Linux x86_64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x86-64
+          path: src/jvmMain/resources/composetray/native/linux-x86-64/
+
+      - name: Download Linux aarch64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-aarch64
+          path: src/jvmMain/resources/composetray/native/linux-aarch64/
+
+      - name: Download Windows x64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-win32-x86-64
+          path: src/jvmMain/resources/composetray/native/win32-x86-64/
+
+      - name: Download Windows ARM64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-win32-arm64
+          path: src/jvmMain/resources/composetray/native/win32-arm64/
+
+      - name: Verify native libraries
+        run: |
+          echo "=== Verifying native libraries ==="
+          test -f src/jvmMain/resources/composetray/native/darwin-aarch64/libMacTray.dylib
+          test -f src/jvmMain/resources/composetray/native/darwin-x86-64/libMacTray.dylib
+          test -f src/jvmMain/resources/composetray/native/linux-x86-64/libLinuxTray.so
+          test -f src/jvmMain/resources/composetray/native/linux-aarch64/libLinuxTray.so
+          test -f src/jvmMain/resources/composetray/native/win32-x86-64/WinTray.dll
+          test -f src/jvmMain/resources/composetray/native/win32-arm64/WinTray.dll
+          echo "All native libraries present."
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build
+        run: ./gradlew build --continue

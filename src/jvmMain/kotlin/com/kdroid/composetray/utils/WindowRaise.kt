@@ -18,15 +18,21 @@ object WindowRaise {
     }
 
     fun unraise(window: Window) {
-        try { window.isAlwaysOnTop = false } catch (_: Throwable) {}
+        try {
+            window.isAlwaysOnTop = false
+        } catch (_: Throwable) {
+        }
     }
 
     /**
      * Convenience helper to raise a window, give the window manager a brief moment,
      * then revert the temporary always-on-top flag. Useful especially on Windows.
      */
-    suspend fun forceFront(window: Window, windowState: WindowState, delayMs: Long = 250) {
-
+    suspend fun forceFront(
+        window: Window,
+        windowState: WindowState,
+        delayMs: Long = 250,
+    ) {
         // Ensure it’s not minimized
         windowState.isMinimized = false
 

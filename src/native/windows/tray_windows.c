@@ -1,7 +1,11 @@
 /* tray.c - Windows implementation with full Unicode support */
 #define COBJMACROS
+#ifndef UNICODE
 #define UNICODE
+#endif
+#ifndef _UNICODE
 #define _UNICODE
+#endif
 #include <windows.h>
 #include <shellapi.h>
 #include <stddef.h>

@@ -11,13 +11,13 @@ package com.kdroid.composetray.tray.api
  */
 @RequiresOptIn(
     message = "TrayApp is experimental and may change or be removed without notice.",
-    level = RequiresOptIn.Level.WARNING
+    level = RequiresOptIn.Level.WARNING,
 )
 @Retention(AnnotationRetention.BINARY)
 @Target(
     AnnotationTarget.CLASS,
     AnnotationTarget.FUNCTION,
     AnnotationTarget.PROPERTY,
-    AnnotationTarget.TYPEALIAS
+    AnnotationTarget.TYPEALIAS,
 )
 annotation class ExperimentalTrayAppApi

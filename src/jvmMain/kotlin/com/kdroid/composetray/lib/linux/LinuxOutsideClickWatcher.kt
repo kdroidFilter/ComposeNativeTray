@@ -20,9 +20,8 @@ import java.util.concurrent.TimeUnit
  */
 class LinuxOutsideClickWatcher(
     private val windowSupplier: () -> Window?,
-    private val onOutsideClick: () -> Unit
+    private val onOutsideClick: () -> Unit,
 ) : AutoCloseable {
-
     private var scheduler: ScheduledExecutorService? = null
     private var prevLeft = false
 
@@ -43,11 +42,12 @@ class LinuxOutsideClickWatcher(
             return
         }
 
-        scheduler = Executors.newSingleThreadScheduledExecutor { r ->
-            Thread(r, "LinuxOutsideClickWatcher").apply { isDaemon = true }
-        }.also { exec ->
-            exec.scheduleAtFixedRate({ pollOnce() }, 0, 16, TimeUnit.MILLISECONDS)
-        }
+        scheduler =
+            Executors.newSingleThreadScheduledExecutor { r ->
+                Thread(r, "LinuxOutsideClickWatcher").apply { isDaemon = true }
+            }.also { exec ->
+                exec.scheduleAtFixedRate({ pollOnce() }, 0, 16, TimeUnit.MILLISECONDS)
+            }
     }
 
     private fun pollOnce() {
@@ -66,7 +66,12 @@ class LinuxOutsideClickWatcher(
             if (left && left != prevLeft) {
                 val win = windowSupplier.invoke()
                 if (win != null && win.isShowing) {
-                    val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
+                    val winLoc =
+                        try {
+                            win.locationOnScreen
+                        } catch (_: Throwable) {
+                            null
+                        }
                     if (winLoc != null) {
                         val wx = winLoc.x
                         val wy = winLoc.y
@@ -74,7 +79,12 @@ class LinuxOutsideClickWatcher(
                         val wh = win.height
 
                         val insideWindow = px >= wx && px < wx + ww && py >= wy && py < wy + wh
-                        val onTrayIcon = try { isPointWithinLinuxStatusItem(px, py) } catch (_: Throwable) { false }
+                        val onTrayIcon =
+                            try {
+                                isPointWithinLinuxStatusItem(px, py)
+                            } catch (_: Throwable) {
+                                false
+                            }
 
                         if (!insideWindow && !onTrayIcon) {
                             onOutsideClick.invoke()
@@ -92,7 +102,10 @@ class LinuxOutsideClickWatcher(
     fun stop() = close()
 
     override fun close() {
-        try { scheduler?.shutdownNow() } catch (_: Throwable) {}
+        try {
+            scheduler?.shutdownNow()
+        } catch (_: Throwable) {
+        }
         scheduler = null
 
         try {

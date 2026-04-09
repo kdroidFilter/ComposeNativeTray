@@ -34,7 +34,6 @@ import androidx.compose.ui.util.fastMap
 import androidx.compose.ui.util.fastMaxOfOrDefault
 import kotlin.math.max
 
-
 @Composable
 internal fun PersistentAnimatedVisibility(
     visibleState: MutableTransitionState<Boolean>,
@@ -48,21 +47,23 @@ internal fun PersistentAnimatedVisibility(
     val transition = rememberTransition(visibleState, label)
     AnimatedVisibilityImplPersistent(
         transition = transition,
-        visible = { it }, // Boolean target in MutableTransitionState<Boolean>
-        modifier = modifier.layout { measurable, constraints ->
-            // Report 0 size only during lookahead when target is "not visible"
-            val placeable = measurable.measure(constraints)
-            val (w, h) =
-                if (isLookingAhead && !transition.targetState) {
-                    IntSize.Zero
-                } else {
-                    IntSize(placeable.width, placeable.height)
-                }
-            layout(w, h) { placeable.place(0, 0) }
-        },
+        // Boolean target in MutableTransitionState<Boolean>
+        visible = { it },
+        modifier =
+            modifier.layout { measurable, constraints ->
+                // Report 0 size only during lookahead when target is "not visible"
+                val placeable = measurable.measure(constraints)
+                val (w, h) =
+                    if (isLookingAhead && !transition.targetState) {
+                        IntSize.Zero
+                    } else {
+                        IntSize(placeable.width, placeable.height)
+                    }
+                layout(w, h) { placeable.place(0, 0) }
+            },
         enter = enter,
         exit = exit,
-        content = content
+        content = content,
     )
 }
 
@@ -83,13 +84,13 @@ private fun <T> AnimatedVisibilityImplPersistent(
         exit = exit,
         // <-- never dispose content; it stays composed after exit finishes
         shouldDisposeBlock = { _, _ -> false },
-        content = content
+        content = content,
     )
 }
 
 // --- Scope "maison" (public API only) ---
 private class AVScopeImpl(
-    override var transition: Transition<EnterExitState>
+    override var transition: Transition<EnterExitState>,
 ) : AnimatedVisibilityScope {
     val targetSize = mutableStateOf(IntSize.Zero)
 }
@@ -98,15 +99,18 @@ private class AVMeasurePolicy(private val scope: AVScopeImpl) : MeasurePolicy {
     private var hasLookaheadOccurred = false
 
     override fun MeasureScope.measure(
-        measurables: List<Measurable>, constraints: Constraints
+        measurables: List<Measurable>,
+        constraints: Constraints,
     ): MeasureResult {
-        var maxW = 0; var maxH = 0
-        val placeables = measurables.map {
-            it.measure(constraints).also { p ->
-                if (p.width > maxW) maxW = p.width
-                if (p.height > maxH) maxH = p.height
+        var maxW = 0
+        var maxH = 0
+        val placeables =
+            measurables.map {
+                it.measure(constraints).also { p ->
+                    if (p.width > maxW) maxW = p.width
+                    if (p.height > maxH) maxH = p.height
+                }
             }
-        }
         if (isLookingAhead) {
             hasLookaheadOccurred = true
             scope.targetSize.value = IntSize(maxW, maxH)
@@ -116,16 +120,26 @@ private class AVMeasurePolicy(private val scope: AVScopeImpl) : MeasurePolicy {
         return layout(maxW, maxH) { placeables.forEach { it.place(0, 0) } }
     }
 
-    override fun IntrinsicMeasureScope.minIntrinsicWidth(m: List<IntrinsicMeasurable>, h: Int) =
-        m.maxOfOrNull { it.minIntrinsicWidth(h) } ?: 0
-    override fun IntrinsicMeasureScope.minIntrinsicHeight(m: List<IntrinsicMeasurable>, w: Int) =
-        m.maxOfOrNull { it.minIntrinsicHeight(w) } ?: 0
-    override fun IntrinsicMeasureScope.maxIntrinsicWidth(m: List<IntrinsicMeasurable>, h: Int) =
-        m.maxOfOrNull { it.maxIntrinsicWidth(h) } ?: 0
-    override fun IntrinsicMeasureScope.maxIntrinsicHeight(m: List<IntrinsicMeasurable>, w: Int) =
-        m.maxOfOrNull { it.maxIntrinsicHeight(w) } ?: 0
-}
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        m: List<IntrinsicMeasurable>,
+        h: Int,
+    ) = m.maxOfOrNull { it.minIntrinsicWidth(h) } ?: 0
 
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        m: List<IntrinsicMeasurable>,
+        w: Int,
+    ) = m.maxOfOrNull { it.minIntrinsicHeight(w) } ?: 0
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        m: List<IntrinsicMeasurable>,
+        h: Int,
+    ) = m.maxOfOrNull { it.maxIntrinsicWidth(h) } ?: 0
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        m: List<IntrinsicMeasurable>,
+        w: Int,
+    ) = m.maxOfOrNull { it.maxIntrinsicHeight(w) } ?: 0
+}
 
 @OptIn(ExperimentalTransitionApi::class, InternalAnimationApi::class)
 @Composable
@@ -135,38 +149,41 @@ private fun <T> AnimatedEnterExitImplPersistent(
     modifier: Modifier,
     enter: EnterTransition,
     exit: ExitTransition,
-    shouldDisposeBlock: (EnterExitState, EnterExitState) -> Boolean, // kept for API symmetry
+    // kept for API symmetry
+    shouldDisposeBlock: (EnterExitState, EnterExitState) -> Boolean,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
-
-    val child = transition.createChildTransition(label = "EnterExitTransition") { parent ->
-        transition.targetEnterExit(visible, parent)
-    }
+    val child =
+        transition.createChildTransition(label = "EnterExitTransition") { parent ->
+            transition.targetEnterExit(visible, parent)
+        }
 
     // Scope is a plain object -> it's fine to remember it keyed by the child transition
     val scope = remember(child) { AVScopeImpl(child) }
 
     // Built-in animateEnterExit (public API) to attach enter/exit effects
-    val containerModifier = with(scope) {
-        Modifier.animateEnterExit(enter = enter, exit = exit, label = "Built-in")
-    }
+    val containerModifier =
+        with(scope) {
+            Modifier.animateEnterExit(enter = enter, exit = exit, label = "Built-in")
+        }
 
     // Keep the subtree always composed; collapse to 0x0 when fully hidden & idle
-    val collapseModifier = Modifier.layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints)
+    val collapseModifier =
+        Modifier.layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
 
-        val isActiveOrAnimating =
-            visible(transition.currentState) ||
+            val isActiveOrAnimating =
+                visible(transition.currentState) ||
                     visible(transition.targetState) ||
                     transition.isSeeking ||
                     transition.hasInitialValueAnimations
 
-        if (!isActiveOrAnimating) {
-            layout(0, 0) { /* keep composed, take no space */ }
-        } else {
-            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            if (!isActiveOrAnimating) {
+                layout(0, 0) { /* keep composed, take no space */ }
+            } else {
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
         }
-    }
 
     Layout(
         content = { scope.content() },
@@ -174,7 +191,6 @@ private fun <T> AnimatedEnterExitImplPersistent(
         measurePolicy = remember(scope) { AVMeasurePolicy(scope) },
     )
 }
-
 
 private val Transition<EnterExitState>.exitFinished: Boolean
     get() = currentState == EnterExitState.PostExit && targetState == EnterExitState.PostExit
@@ -236,20 +252,21 @@ private class AnimatedEnterExitMeasurePolicy(val scope: AnimatedVisibilityScopeI
 private fun <T> Transition<T>.targetEnterExit(
     visible: (T) -> Boolean,
     targetState: T,
-): EnterExitState = key(this) {
-    if (this.isSeeking) {
-        if (visible(targetState)) {
-            EnterExitState.Visible
+): EnterExitState =
+    key(this) {
+        if (this.isSeeking) {
+            if (visible(targetState)) {
+                EnterExitState.Visible
+            } else {
+                if (visible(this.currentState)) EnterExitState.PostExit else EnterExitState.PreEnter
+            }
         } else {
-            if (visible(this.currentState)) EnterExitState.PostExit else EnterExitState.PreEnter
-        }
-    } else {
-        val hasBeenVisible = remember { mutableStateOf(false) }
-        if (visible(currentState)) hasBeenVisible.value = true
-        if (visible(targetState)) {
-            EnterExitState.Visible
-        } else {
-            if (hasBeenVisible.value) EnterExitState.PostExit else EnterExitState.PreEnter
+            val hasBeenVisible = remember { mutableStateOf(false) }
+            if (visible(currentState)) hasBeenVisible.value = true
+            if (visible(targetState)) {
+                EnterExitState.Visible
+            } else {
+                if (hasBeenVisible.value) EnterExitState.PostExit else EnterExitState.PreEnter
+            }
         }
     }
-}

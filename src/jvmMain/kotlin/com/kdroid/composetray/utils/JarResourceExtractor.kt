@@ -11,7 +11,6 @@ import java.security.MessageDigest
 import java.util.jar.JarFile
 import kotlin.io.path.createTempFile
 
-
 /**
  * Extracts a specified file or entry from a JAR archive to a temporary file.
  * If the specified file or entry is already extracted and matches the content, the existing temporary file is returned.
@@ -31,11 +30,12 @@ internal fun extractToTempIfDifferent(jarPath: String): File? {
     val encodedJarFilePath = correctedJarFilePath.replace(" ", "%20")
 
     // Convert the path to File via URI
-    val jarFile = try {
-        File(URI(encodedJarFilePath))
-    } catch (e: IllegalArgumentException) {
-        File(correctedJarFilePath.removePrefix("file:"))
-    }
+    val jarFile =
+        try {
+            File(URI(encodedJarFilePath))
+        } catch (e: IllegalArgumentException) {
+            File(correctedJarFilePath.removePrefix("file:"))
+        }
 
     // Check if the file exists
     if (!jarFile.exists()) {
@@ -46,9 +46,10 @@ internal fun extractToTempIfDifferent(jarPath: String): File? {
 
     // If the file is not a JAR, handle it differently
     if (!correctedJarFilePath.endsWith(".jar")) {
-        val tempFile = createTempFile("extracted_", ".tmp").toFile().apply {
-            deleteOnExit()
-        }
+        val tempFile =
+            createTempFile("extracted_", ".tmp").toFile().apply {
+                deleteOnExit()
+            }
 
         // Copy the file directly if it is not a JAR
         Files.copy(jarFile.toPath(), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
@@ -60,9 +61,10 @@ internal fun extractToTempIfDifferent(jarPath: String): File? {
         val entry = jar.getJarEntry(entryPath) ?: return null
 
         // Create a temporary file to store the extracted resource
-        val tempFile = createTempFile("extracted_", ".tmp").toFile().apply {
-            deleteOnExit()
-        }
+        val tempFile =
+            createTempFile("extracted_", ".tmp").toFile().apply {
+                deleteOnExit()
+            }
 
         // Check if the temporary file already exists and compare the hash
         if (tempFile.exists()) {
@@ -84,7 +86,6 @@ internal fun extractToTempIfDifferent(jarPath: String): File? {
         return tempFile
     }
 }
-
 
 // Extension to calculate SHA-256 of a file
 private fun File.sha256(): String = inputStream().use { it.sha256() }

@@ -35,6 +35,12 @@ jobs:
           name: native-linux-x86-64
           path: src/jvmMain/resources/composetray/native/linux-x86-64/
 
+      - name: Download Linux aarch64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-aarch64
+          path: src/jvmMain/resources/composetray/native/linux-aarch64/
+
       - name: Download Windows x64 library
         uses: actions/download-artifact@v4
         with:
@@ -53,6 +59,7 @@ jobs:
           ls -la src/jvmMain/resources/composetray/native/darwin-aarch64/
           ls -la src/jvmMain/resources/composetray/native/darwin-x86-64/
           ls -la src/jvmMain/resources/composetray/native/linux-x86-64/
+          ls -la src/jvmMain/resources/composetray/native/linux-aarch64/
           ls -la src/jvmMain/resources/composetray/native/win32-x86-64/
           ls -la src/jvmMain/resources/composetray/native/win32-arm64/
 

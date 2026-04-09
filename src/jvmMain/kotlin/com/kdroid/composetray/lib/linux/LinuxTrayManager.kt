@@ -1,14 +1,13 @@
 package com.kdroid.composetray.lib.linux
 
+import com.kdroid.composetray.utils.TrayClickTracker
 import com.kdroid.composetray.utils.errorln
 import com.kdroid.composetray.utils.infoln
 import com.kdroid.composetray.utils.warnln
-import com.kdroid.composetray.utils.TrayClickTracker
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import java.io.File
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -23,7 +22,7 @@ internal class LinuxTrayManager(
     private val instanceId: String,
     private var iconPath: String,
     private var tooltip: String = "",
-    private var onLeftClick: (() -> Unit)? = null
+    private var onLeftClick: (() -> Unit)? = null,
 ) {
     companion object {
         // Ensures only one systray runtime is active at a time
@@ -37,7 +36,7 @@ internal class LinuxTrayManager(
         val isChecked: Boolean = false,
         val iconPath: String? = null,
         val onClick: (() -> Unit)? = null,
-        val subMenuItems: List<MenuItem> = emptyList()
+        val subMenuItems: List<MenuItem> = emptyList(),
     )
 
     private val native = LinuxNativeBridge
@@ -66,7 +65,10 @@ internal class LinuxTrayManager(
         lock.withLock { menuItems.add(menuItem) }
     }
 
-    fun updateMenuItemCheckedState(label: String, isChecked: Boolean) {
+    fun updateMenuItemCheckedState(
+        label: String,
+        isChecked: Boolean,
+    ) {
         var fallback = false
         lock.withLock {
             val idx = menuItems.indexOfFirst { it.text == label }
@@ -77,9 +79,14 @@ internal class LinuxTrayManager(
             val id = idByTitle[label]
             if (id != null && trayHandle != 0L) {
                 try {
-                    if (isChecked) native.nativeItemCheck(trayHandle, id)
-                    else native.nativeItemUncheck(trayHandle, id)
-                } catch (_: Throwable) { fallback = true }
+                    if (isChecked) {
+                        native.nativeItemCheck(trayHandle, id)
+                    } else {
+                        native.nativeItemUncheck(trayHandle, id)
+                    }
+                } catch (_: Throwable) {
+                    fallback = true
+                }
             } else {
                 fallback = true
             }
@@ -91,7 +98,7 @@ internal class LinuxTrayManager(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
-        newMenuItems: List<MenuItem>?
+        newMenuItems: List<MenuItem>?,
     ) {
         val iconChanged: Boolean
         val tooltipChanged: Boolean
@@ -109,8 +116,10 @@ internal class LinuxTrayManager(
         }
 
         if (iconChanged) setIconFromFileSafe(iconPath)
-        if (tooltipChanged) runCatching { native.nativeSetTooltip(trayHandle, tooltip) }
-            .onFailure { e -> warnln { "[LinuxTrayManager] Failed to set tooltip: ${e.message}" } }
+        if (tooltipChanged) {
+            runCatching { native.nativeSetTooltip(trayHandle, tooltip) }
+                .onFailure { e -> warnln { "[LinuxTrayManager] Failed to set tooltip: ${e.message}" } }
+        }
 
         if (newMenuItems != null) rebuildMenu()
     }
@@ -137,8 +146,9 @@ internal class LinuxTrayManager(
             val readyLatch = CountDownLatch(1)
 
             // Read initial icon bytes
-            val iconBytes = runCatching { File(iconPath).takeIf { it.isFile }?.readBytes() }
-                .getOrNull()
+            val iconBytes =
+                runCatching { File(iconPath).takeIf { it.isFile }?.readBytes() }
+                    .getOrNull()
 
             // Create native tray
             trayHandle = native.nativeCreate(iconBytes, tooltip)
@@ -151,32 +161,41 @@ internal class LinuxTrayManager(
             runCatching { native.nativeSetTitle(trayHandle, tooltip) }
 
             // Set click callback
-            native.nativeSetClickCallback(trayHandle, JniRunnable {
-                try {
-                    val xy = IntArray(2)
-                    native.nativeGetLastClickXY(trayHandle, xy)
-                    TrayClickTracker.updateClickPosition(xy[0], xy[1])
-                } catch (_: Throwable) { }
-                onLeftClick?.invoke()
-            })
+            native.nativeSetClickCallback(
+                trayHandle,
+                JniRunnable {
+                    try {
+                        val xy = IntArray(2)
+                        native.nativeGetLastClickXY(trayHandle, xy)
+                        TrayClickTracker.updateClickPosition(xy[0], xy[1])
+                    } catch (_: Throwable) {
+                    }
+                    onLeftClick?.invoke()
+                },
+            )
 
             // Build menu before starting the loop
             rebuildMenu()
 
             // Start event loop in daemon thread
-            loopThread = Thread({
-                try {
-                    readyLatch.countDown()
-                    native.nativeRun(trayHandle)
-                } catch (t: Throwable) {
-                    errorln { "[LinuxTrayManager] loop error: $t" }
+            loopThread =
+                Thread({
+                    try {
+                        readyLatch.countDown()
+                        native.nativeRun(trayHandle)
+                    } catch (t: Throwable) {
+                        errorln { "[LinuxTrayManager] loop error: $t" }
+                    }
+                }, "LinuxTray-Loop").apply {
+                    isDaemon = true
+                    start()
                 }
-            }, "LinuxTray-Loop").apply {
-                isDaemon = true
-                start()
-            }
 
-            try { readyLatch.await() } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+            try {
+                readyLatch.await()
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
 
             started = true
         } catch (t: Throwable) {
@@ -185,16 +204,31 @@ internal class LinuxTrayManager(
             if (!started) {
                 running.set(false)
                 if (trayHandle != 0L) {
-                    try { native.nativeQuit(trayHandle) } catch (_: Throwable) {}
-                    try { loopThread?.join(500) } catch (_: Throwable) {}
-                    try { native.nativeDestroy(trayHandle) } catch (_: Throwable) {}
+                    try {
+                        native.nativeQuit(trayHandle)
+                    } catch (_: Throwable) {
+                    }
+                    try {
+                        loopThread?.join(500)
+                    } catch (_: Throwable) {
+                    }
+                    try {
+                        native.nativeDestroy(trayHandle)
+                    } catch (_: Throwable) {
+                    }
                     trayHandle = 0L
                 }
                 loopThread = null
-                try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
+                try {
+                    shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) }
+                } catch (_: Throwable) {
+                }
                 shutdownHook = null
                 if (permitHeld.compareAndSet(true, false)) {
-                    try { lifecyclePermit.release() } catch (_: Throwable) {}
+                    try {
+                        lifecyclePermit.release()
+                    } catch (_: Throwable) {
+                    }
                 }
             }
         }
@@ -204,7 +238,8 @@ internal class LinuxTrayManager(
         if (!running.compareAndSet(true, false)) return
         try {
             if (trayHandle != 0L) native.nativeQuit(trayHandle)
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
 
         try {
             loopThread?.join(500)
@@ -217,16 +252,23 @@ internal class LinuxTrayManager(
 
         try {
             if (trayHandle != 0L) native.nativeDestroy(trayHandle)
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
 
         trayHandle = 0L
         loopThread = null
         idByTitle.clear()
         actionById.clear()
-        try { shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) } } catch (_: Throwable) {}
+        try {
+            shutdownHook?.let { Runtime.getRuntime().removeShutdownHook(it) }
+        } catch (_: Throwable) {
+        }
         shutdownHook = null
         if (permitHeld.compareAndSet(true, false)) {
-            try { lifecyclePermit.release() } catch (_: Throwable) {}
+            try {
+                lifecyclePermit.release()
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -254,7 +296,10 @@ internal class LinuxTrayManager(
         effectiveItems.forEach { addMenuItemRecursive(null, it) }
     }
 
-    private fun addMenuItemRecursive(parentId: Int?, item: MenuItem) {
+    private fun addMenuItemRecursive(
+        parentId: Int?,
+        item: MenuItem,
+    ) {
         try {
             if (item.text == "-") {
                 if (parentId == null) {
@@ -269,13 +314,20 @@ internal class LinuxTrayManager(
                 return
             }
 
-            val id = if (parentId == null) {
-                if (item.isCheckable) native.nativeAddMenuItemCheckbox(trayHandle, item.text, null, item.isChecked)
-                else native.nativeAddMenuItem(trayHandle, item.text, null)
-            } else {
-                if (item.isCheckable) native.nativeAddSubMenuItemCheckbox(trayHandle, parentId, item.text, null, item.isChecked)
-                else native.nativeAddSubMenuItem(trayHandle, parentId, item.text, null)
-            }
+            val id =
+                if (parentId == null) {
+                    if (item.isCheckable) {
+                        native.nativeAddMenuItemCheckbox(trayHandle, item.text, null, item.isChecked)
+                    } else {
+                        native.nativeAddMenuItem(trayHandle, item.text, null)
+                    }
+                } else {
+                    if (item.isCheckable) {
+                        native.nativeAddSubMenuItemCheckbox(trayHandle, parentId, item.text, null, item.isChecked)
+                    } else {
+                        native.nativeAddSubMenuItem(trayHandle, parentId, item.text, null)
+                    }
+                }
             idByTitle[item.text] = id
             item.onClick?.let { action ->
                 actionById[id] = action
@@ -283,8 +335,11 @@ internal class LinuxTrayManager(
             }
 
             // Enable/Disable
-            if (item.isEnabled) native.nativeItemEnable(trayHandle, id)
-            else native.nativeItemDisable(trayHandle, id)
+            if (item.isEnabled) {
+                native.nativeItemEnable(trayHandle, id)
+            } else {
+                native.nativeItemDisable(trayHandle, id)
+            }
 
             // Icon
             item.iconPath?.let { iconPath ->

@@ -39,7 +39,17 @@ fi
 SDBUS_CFLAGS=$(pkg-config --cflags libsystemd)
 SDBUS_LIBS=$(pkg-config --libs libsystemd)
 
-mkdir -p "$OUTPUT_DIR/linux-x86-64"
+# Detect host architecture
+UNAME_ARCH="$(uname -m)"
+case "$UNAME_ARCH" in
+    x86_64)  ARCH="x86-64" ;;
+    aarch64) ARCH="aarch64" ;;
+    *)       echo "ERROR: Unsupported architecture: $UNAME_ARCH"; exit 1 ;;
+esac
+PLATFORM_DIR="linux-$ARCH"
+echo "Detected platform: $PLATFORM_DIR"
+
+mkdir -p "$OUTPUT_DIR/$PLATFORM_DIR"
 
 # Compile sni.c (includes stb_image implementation)
 echo "Compiling sni.c..."
@@ -60,17 +70,17 @@ gcc -c -o "$SCRIPT_DIR/jni_bridge.o" \
 
 # Link into shared library
 echo "Linking libLinuxTray.so..."
-gcc -shared -o "$OUTPUT_DIR/linux-x86-64/libLinuxTray.so" \
+gcc -shared -o "$OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so" \
     "$SCRIPT_DIR/sni.o" \
     "$SCRIPT_DIR/jni_bridge.o" \
     $SDBUS_LIBS \
     -lpthread -lm -ldl
 
 # Strip debug symbols for smaller binary
-strip --strip-unneeded "$OUTPUT_DIR/linux-x86-64/libLinuxTray.so"
+strip --strip-unneeded "$OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so"
 
 # Clean up object files
 rm -f "$SCRIPT_DIR/sni.o" "$SCRIPT_DIR/jni_bridge.o"
 
-echo "Build completed: $OUTPUT_DIR/linux-x86-64/libLinuxTray.so"
-ls -lh "$OUTPUT_DIR/linux-x86-64/libLinuxTray.so"
+echo "Build completed: $OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so"
+ls -lh "$OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so"

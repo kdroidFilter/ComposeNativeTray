@@ -4,7 +4,6 @@ import androidx.compose.ui.unit.Density
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 
-
 /**
  * Properties for rendering a Composable icon.
  *
@@ -19,12 +18,11 @@ data class IconRenderProperties(
     val sceneHeight: Int = 192,
     val sceneDensity: Density = Density(2f),
     val targetWidth: Int = 192,
-    val targetHeight: Int = 192
+    val targetHeight: Int = 192,
 ) {
     val requiresScaling = sceneWidth != targetWidth || sceneHeight != targetHeight
 
     companion object {
-
         /**
          * Provides an [IconRenderProperties] configured for the current operating system.
          *
@@ -41,21 +39,22 @@ data class IconRenderProperties(
         fun forCurrentOperatingSystem(
             sceneWidth: Int = 192,
             sceneHeight: Int = 192,
-            density: Density = Density(2f)
+            density: Density = Density(2f),
         ): IconRenderProperties {
-            val (targetWidth, targetHeight) = when (getOperatingSystem()) {
-                OperatingSystem.WINDOWS -> 32 to 32
-                OperatingSystem.MACOS -> 44 to 44
-                OperatingSystem.LINUX -> 24 to 24
-                else -> sceneWidth to sceneHeight
-            }
+            val (targetWidth, targetHeight) =
+                when (getOperatingSystem()) {
+                    OperatingSystem.WINDOWS -> 32 to 32
+                    OperatingSystem.MACOS -> 44 to 44
+                    OperatingSystem.LINUX -> 24 to 24
+                    else -> sceneWidth to sceneHeight
+                }
 
             return IconRenderProperties(
                 sceneWidth = sceneWidth,
                 sceneHeight = sceneHeight,
                 sceneDensity = density,
                 targetWidth = targetWidth,
-                targetHeight = targetHeight
+                targetHeight = targetHeight,
             )
         }
 
@@ -70,13 +69,13 @@ data class IconRenderProperties(
         fun withoutScalingAndAliasing(
             sceneWidth: Int = 192,
             sceneHeight: Int = 192,
-            density: Density = Density(2f)
+            density: Density = Density(2f),
         ) = IconRenderProperties(
             sceneWidth = sceneWidth,
             sceneHeight = sceneHeight,
             sceneDensity = density,
             targetWidth = sceneWidth,
-            targetHeight = sceneHeight
+            targetHeight = sceneHeight,
         )
 
         /**
@@ -96,21 +95,22 @@ data class IconRenderProperties(
         fun forMenuItem(
             sceneWidth: Int = 64,
             sceneHeight: Int = 64,
-            density: Density = Density(2f)
+            density: Density = Density(2f),
         ): IconRenderProperties {
-            val (targetWidth, targetHeight) = when (getOperatingSystem()) {
-                OperatingSystem.WINDOWS -> 16 to 16
-                OperatingSystem.MACOS -> 16 to 16
-                OperatingSystem.LINUX -> 16 to 16
-                else -> 16 to 16
-            }
+            val (targetWidth, targetHeight) =
+                when (getOperatingSystem()) {
+                    OperatingSystem.WINDOWS -> 16 to 16
+                    OperatingSystem.MACOS -> 16 to 16
+                    OperatingSystem.LINUX -> 16 to 16
+                    else -> 16 to 16
+                }
 
             return IconRenderProperties(
                 sceneWidth = sceneWidth,
                 sceneHeight = sceneHeight,
                 sceneDensity = density,
                 targetWidth = targetWidth,
-                targetHeight = targetHeight
+                targetHeight = targetHeight,
             )
         }
     }

@@ -5,7 +5,6 @@ import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 
 class MacOSWindowManager {
-
     // Detect platform once
     private val isMacOs: Boolean = getOperatingSystem() == OperatingSystem.MACOS
 

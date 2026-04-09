@@ -13,7 +13,6 @@ import java.nio.file.StandardCopyOption
  *    and load from there.
  */
 internal object NativeLibraryLoader {
-
     private const val RESOURCE_PREFIX = "composetray/native"
     private val loadedLibraries = mutableSetOf<String>()
 
@@ -22,7 +21,10 @@ internal object NativeLibraryLoader {
      * Returns `true` if the library was loaded successfully.
      */
     @Synchronized
-    fun load(libraryName: String, callerClass: Class<*>): Boolean {
+    fun load(
+        libraryName: String,
+        callerClass: Class<*>,
+    ): Boolean {
         if (libraryName in loadedLibraries) return true
 
         // 1. Try system library path (packaged app / GraalVM native-image)
@@ -43,7 +45,10 @@ internal object NativeLibraryLoader {
 
     // ── Shared extraction logic ─────────────────────────────────────────
 
-    private fun extractToCache(libraryName: String, callerClass: Class<*>): File? {
+    private fun extractToCache(
+        libraryName: String,
+        callerClass: Class<*>,
+    ): File? {
         val platform = detectPlatform()
         val fileName = mapLibraryName(libraryName)
         val resourcePath = "$RESOURCE_PREFIX/$platform/$fileName"
@@ -77,10 +82,11 @@ internal object NativeLibraryLoader {
 
     private fun resolveCacheDir(platform: String): File {
         val os = System.getProperty("os.name")?.lowercase() ?: ""
-        val base = when {
-            os.contains("win") -> File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"))
-            else -> File(System.getProperty("user.home"), ".cache")
-        }
+        val base =
+            when {
+                os.contains("win") -> File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"))
+                else -> File(System.getProperty("user.home"), ".cache")
+            }
         return File(base, "composetray/native/$platform")
     }
 
@@ -88,9 +94,15 @@ internal object NativeLibraryLoader {
         val os = System.getProperty("os.name")?.lowercase() ?: ""
         val arch = System.getProperty("os.arch") ?: ""
         return when {
-            os.contains("win") -> if (arch.contains("aarch64") || arch.contains("arm")) "win32-arm64" else "win32-x86-64"
-            os.contains("linux") -> if (arch.contains("aarch64") || arch.contains("arm")) "linux-aarch64" else "linux-x86-64"
-            os.contains("mac") -> if (arch.contains("aarch64") || arch.contains("arm")) "darwin-aarch64" else "darwin-x86-64"
+            os.contains(
+                "win",
+            ) -> if (arch.contains("aarch64") || arch.contains("arm")) "win32-arm64" else "win32-x86-64"
+            os.contains(
+                "linux",
+            ) -> if (arch.contains("aarch64") || arch.contains("arm")) "linux-aarch64" else "linux-x86-64"
+            os.contains(
+                "mac",
+            ) -> if (arch.contains("aarch64") || arch.contains("arm")) "darwin-aarch64" else "darwin-x86-64"
             else -> "unknown"
         }
     }
