@@ -2,6 +2,8 @@ package com.kdroid.composetray.lib.mac
 
 import com.kdroid.composetray.utils.extractToTempIfDifferent
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * JNI bridge to the native macOS tray library (libMacTray.dylib).
@@ -22,22 +24,32 @@ internal object MacNativeBridge {
         }
         val resourcePath = "composetray/native/$resourceDir/libMacTray.dylib"
 
-        // Try to find the dylib on the classpath (inside a JAR or on disk)
+        // Try to find the dylib on the classpath (inside a JAR, on disk, or embedded in native-image)
         val url = MacNativeBridge::class.java.classLoader?.getResource(resourcePath)
         if (url != null) {
-            val protocol = url.protocol
-            if (protocol == "jar") {
-                // Extract from JAR to a temp file
-                val tempFile = extractToTempIfDifferent(url.toString())
-                if (tempFile != null) {
-                    System.load(tempFile.absolutePath)
-                    return
+            when (url.protocol) {
+                "jar" -> {
+                    val tempFile = extractToTempIfDifferent(url.toString())
+                    if (tempFile != null) {
+                        System.load(tempFile.absolutePath)
+                        return
+                    }
                 }
-            } else if (protocol == "file") {
-                // Direct file on disk (development mode)
-                val file = File(url.toURI())
-                if (file.exists()) {
-                    System.load(file.absolutePath)
+                "file" -> {
+                    val file = File(url.toURI())
+                    if (file.exists()) {
+                        System.load(file.absolutePath)
+                        return
+                    }
+                }
+                else -> {
+                    // GraalVM native-image or other embedded resource: extract via stream
+                    val tempFile = Files.createTempFile("libMacTray", ".dylib").toFile()
+                    tempFile.deleteOnExit()
+                    url.openStream().use { input ->
+                        Files.copy(input, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    }
+                    System.load(tempFile.absolutePath)
                     return
                 }
             }
