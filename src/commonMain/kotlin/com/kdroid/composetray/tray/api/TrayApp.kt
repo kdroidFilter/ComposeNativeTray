@@ -26,7 +26,7 @@ import com.kdroid.composetray.lib.linux.LinuxOutsideClickWatcher
 import com.kdroid.composetray.utils.debugln
 import com.kdroid.composetray.lib.mac.MacOSWindowManager
 import com.kdroid.composetray.lib.mac.MacOutsideClickWatcher
-import com.kdroid.composetray.lib.mac.MacTrayLoader
+import com.kdroid.composetray.lib.mac.MacNativeBridge
 import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
@@ -719,10 +719,10 @@ private fun ApplicationScope.TrayAppImplOriginal(
                 // Move the popup to the current Space before bringing it to front (macOS)
                 if (getOperatingSystem() == MACOS) {
                     debugln { "[TrayApp] Setting up macOS Space behavior on window..." }
-                    val nativeResult = runCatching { MacTrayLoader.lib.tray_set_windows_move_to_active_space() }
-                    debugln { "[TrayApp] tray_set_windows_move_to_active_space: ${nativeResult.exceptionOrNull()?.message ?: "OK"}" }
-                    val jnaResult = runCatching { MacOSWindowManager().setMoveToActiveSpace(window) }
-                    debugln { "[TrayApp] setMoveToActiveSpace result=${jnaResult.getOrNull()}, error=${jnaResult.exceptionOrNull()?.message}" }
+                    val nativeResult = runCatching { MacNativeBridge.nativeSetMoveToActiveSpace() }
+                    debugln { "[TrayApp] nativeSetMoveToActiveSpace: ${nativeResult.exceptionOrNull()?.message ?: "OK"}" }
+                    val moveResult = runCatching { MacOSWindowManager().setMoveToActiveSpace(window) }
+                    debugln { "[TrayApp] setMoveToActiveSpace result=${moveResult.getOrNull()}, error=${moveResult.exceptionOrNull()?.message}" }
                 }
                 debugln { "[TrayApp] After invokeLater: window at x=${window.x}, y=${window.y}" }
                 runCatching {

@@ -17,7 +17,7 @@ object MacTrayInitializer {
     internal fun getManager(id: String): MacTrayManager? = trayManagers[id]
 
     @Synchronized
-    internal fun getNativeTrayStruct(id: String): MacTrayManager.MacTray? = trayManagers[id]?.getNativeTrayStruct()
+    internal fun getNativeTrayHandle(id: String): Long = trayManagers[id]?.getNativeTrayHandle() ?: 0L
 
     @Synchronized
     fun initialize(

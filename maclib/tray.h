@@ -82,6 +82,22 @@ TRAY_API const char *tray_get_status_item_region_for(struct tray *tray);
 /* macOS: pre-rendered appearance icons for instant light/dark switching       */
 TRAY_API void tray_set_icons_for_appearance(struct tray *tray, const char *light_icon, const char *dark_icon);
 
+/* macOS: space behavior for all windows                                       */
+TRAY_API void tray_set_windows_move_to_active_space(void);
+
+/* macOS: dock visibility                                                      */
+TRAY_API int tray_show_in_dock(void);
+TRAY_API int tray_hide_from_dock(void);
+
+/* macOS: floating window / Space management                                   */
+TRAY_API int tray_is_floating_window_on_active_space(void);
+TRAY_API int tray_bring_floating_window_to_front(void);
+TRAY_API int tray_set_move_to_active_space_for_view(void *nsViewPtr);
+TRAY_API int tray_is_on_active_space_for_view(void *nsViewPtr);
+
+/* macOS: mouse button state                                                   */
+TRAY_API int tray_get_mouse_button_state(int button);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

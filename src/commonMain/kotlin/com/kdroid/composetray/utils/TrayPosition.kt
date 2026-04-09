@@ -3,9 +3,8 @@ package com.kdroid.composetray.utils
 import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
-import com.kdroid.composetray.lib.mac.MacTrayLoader
+import com.kdroid.composetray.lib.mac.MacNativeBridge
 import com.kdroid.composetray.tray.impl.MacTrayInitializer
-import com.sun.jna.ptr.IntByReference
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
@@ -216,7 +215,7 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition = when 
 fun getTrayPosition(): TrayPosition {
     return when (getOperatingSystem()) {
         OperatingSystem.WINDOWS -> getWindowsTrayPosition(WindowsNativeTrayLibrary.tray_get_notification_icons_region())
-        OperatingSystem.MACOS -> getMacTrayPosition(MacTrayLoader.lib.tray_get_status_item_region())
+        OperatingSystem.MACOS -> getMacTrayPosition(MacNativeBridge.nativeGetStatusItemRegion())
         OperatingSystem.LINUX -> {
             TrayClickTracker.getLastClickPosition()?.position
                 ?: loadTrayClickPosition()?.position
@@ -341,18 +340,16 @@ fun getTrayWindowPositionForInstance(
             )
         }
         OperatingSystem.MACOS -> {
-            val trayStruct = MacTrayInitializer.getNativeTrayStruct(instanceId)
-            if (trayStruct != null) {
-                val xRef = IntByReference()
-                val yRef = IntByReference()
-                val lib = MacTrayLoader.lib
+            val trayHandle = MacTrayInitializer.getNativeTrayHandle(instanceId)
+            if (trayHandle != 0L) {
+                val outXY = IntArray(2)
                 val precise = try {
-                    lib.tray_get_status_item_position_for(trayStruct, xRef, yRef) != 0
+                    MacNativeBridge.nativeGetStatusItemPositionFor(trayHandle, outXY) != 0
                 } catch (_: Throwable) { false }
-                val x = xRef.value
-                val y = yRef.value
+                val x = outXY[0]
+                val y = outXY[1]
                 if (precise) {
-                    val regionStr = runCatching { lib.tray_get_status_item_region_for(trayStruct) }.getOrNull()
+                    val regionStr = runCatching { MacNativeBridge.nativeGetStatusItemRegionFor(trayHandle) }.getOrNull()
                     val trayPos = if (regionStr != null) getMacTrayPosition(regionStr)
                     else {
                         val bounds = getScreenBoundsAt(x, y)
@@ -445,11 +442,9 @@ internal fun getMacTrayPosition(nativeResult: String?): TrayPosition = when (nat
 }
 
 internal fun getStatusItemXYForMac(): Pair<Int, Int> {
-    val xRef = IntByReference()
-    val yRef = IntByReference()
-    val lib = MacTrayLoader.lib
-    lib.tray_get_status_item_position(xRef, yRef) // if not precise, returns (0,0)
-    return xRef.value to yRef.value
+    val outXY = IntArray(2)
+    MacNativeBridge.nativeGetStatusItemPosition(outXY) // if not precise, returns (0,0)
+    return outXY[0] to outXY[1]
 }
 
 fun debugDeleteTrayPropertiesFiles() {

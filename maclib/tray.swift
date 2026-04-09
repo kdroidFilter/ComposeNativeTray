@@ -560,7 +560,102 @@ public func tray_set_icons_for_appearance(
 /// switching back to the Space where it was originally created.
 @_cdecl("tray_set_windows_move_to_active_space")
 public func tray_set_windows_move_to_active_space() {
-    for window in NSApp.windows {
-        window.collectionBehavior.insert(.moveToActiveSpace)
+    let doWork = {
+        for window in NSApp.windows {
+            window.collectionBehavior.insert(.moveToActiveSpace)
+        }
     }
+    if Thread.isMainThread { doWork() }
+    else { DispatchQueue.main.sync { doWork() } }
+}
+
+// MARK: - Dock visibility
+
+@_cdecl("tray_show_in_dock")
+public func tray_show_in_dock() -> Int32 {
+    let doWork = { () -> Int32 in
+        NSApp.setActivationPolicy(.regular)
+        return 0
+    }
+    if Thread.isMainThread { return doWork() }
+    return DispatchQueue.main.sync { doWork() }
+}
+
+@_cdecl("tray_hide_from_dock")
+public func tray_hide_from_dock() -> Int32 {
+    let doWork = { () -> Int32 in
+        NSApp.setActivationPolicy(.accessory)
+        return 0
+    }
+    if Thread.isMainThread { return doWork() }
+    return DispatchQueue.main.sync { doWork() }
+}
+
+// MARK: - Floating window / Space management
+
+@_cdecl("tray_is_floating_window_on_active_space")
+public func tray_is_floating_window_on_active_space() -> Int32 {
+    let doWork = { () -> Int32 in
+        for window in NSApp.windows {
+            if window.level.rawValue > 0 {
+                return window.isOnActiveSpace ? 1 : 0
+            }
+        }
+        return 1 // No floating window found, assume on active Space
+    }
+    if Thread.isMainThread { return doWork() }
+    return DispatchQueue.main.sync { doWork() }
+}
+
+@_cdecl("tray_bring_floating_window_to_front")
+public func tray_bring_floating_window_to_front() -> Int32 {
+    let doWork = { () -> Int32 in
+        NSApp.activate(ignoringOtherApps: true)
+        for window in NSApp.windows {
+            if window.level.rawValue > 0 {
+                window.makeKeyAndOrderFront(nil)
+                return 0
+            }
+        }
+        return -1 // No floating window found
+    }
+    if Thread.isMainThread { return doWork() }
+    return DispatchQueue.main.sync { doWork() }
+}
+
+@_cdecl("tray_set_move_to_active_space_for_view")
+public func tray_set_move_to_active_space_for_view(_ nsViewPtr: UnsafeMutableRawPointer?) -> Int32 {
+    let doWork = { () -> Int32 in
+        guard let viewPtr = nsViewPtr else { return -1 }
+        let nsView = Unmanaged<NSView>.fromOpaque(viewPtr).takeUnretainedValue()
+        guard let nsWindow = nsView.window else { return -1 }
+        var behavior = nsWindow.collectionBehavior
+        behavior.remove(.canJoinAllSpaces)
+        behavior.insert(.moveToActiveSpace)
+        nsWindow.collectionBehavior = behavior
+        return 0
+    }
+    if Thread.isMainThread { return doWork() }
+    return DispatchQueue.main.sync { doWork() }
+}
+
+@_cdecl("tray_is_on_active_space_for_view")
+public func tray_is_on_active_space_for_view(_ nsViewPtr: UnsafeMutableRawPointer?) -> Int32 {
+    let doWork = { () -> Int32 in
+        guard let viewPtr = nsViewPtr else { return 1 } // fail-open
+        let nsView = Unmanaged<NSView>.fromOpaque(viewPtr).takeUnretainedValue()
+        guard let nsWindow = nsView.window else { return 1 }
+        return nsWindow.isOnActiveSpace ? 1 : 0
+    }
+    if Thread.isMainThread { return doWork() }
+    return DispatchQueue.main.sync { doWork() }
+}
+
+// MARK: - Mouse button state
+
+@_cdecl("tray_get_mouse_button_state")
+public func tray_get_mouse_button_state(_ button: Int32) -> Int32 {
+    let cgButton = CGMouseButton(rawValue: UInt32(button))!
+    let state = CGEventSource.buttonState(.combinedSessionState, button: cgButton)
+    return state ? 1 : 0
 }
