@@ -44,7 +44,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.platformtools.core)
-            implementation(libs.platformtools.darkmodedetector)
+            implementation(libs.nucleus.darkmode.detector)
         }
     }
 }

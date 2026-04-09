@@ -25,16 +25,13 @@ import com.kdroid.composetray.utils.WindowRaise
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
-import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
-import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
-import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
+import io.github.kdroidfilter.nucleus.darkmodedetector.isSystemInDarkMode
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalTrayAppApi::class)
 fun main() {
     allowComposeNativeTrayLogging = true
-    setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
         val coroutineScope = rememberCoroutineScope()
@@ -154,8 +151,6 @@ fun main() {
                 title = "Main App",
                 icon = painterResource(Res.drawable.icon),
             ) {
-                window.setWindowsAdaptiveTitleBar()
-
                 MaterialTheme(
                     colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
                 ) {

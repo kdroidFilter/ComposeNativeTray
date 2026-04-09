@@ -7,61 +7,117 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 /**
- * Extracts a native library from the classpath (composetray/native/<platform>/)
- * to a temporary directory and registers it with JNA.
- *
- * This is needed because JNA's default classpath search doesn't look inside
- * the composetray/native/ namespace prefix.
+ * Loads native libraries following the Nucleus pattern:
+ * 1. Try [System.loadLibrary] (works for packaged apps / GraalVM native-image
+ *    where the lib sits on `java.library.path`).
+ * 2. Fallback: extract from the classpath (`composetray/native/<platform>/`)
+ *    into a persistent cache (`~/.cache/composetray/native/<platform>/`)
+ *    and load from there.
  */
 internal object NativeLibraryLoader {
 
-    private val tempDir: File by lazy {
-        Files.createTempDirectory("composetray-natives").toFile().apply { deleteOnExit() }
+    private const val RESOURCE_PREFIX = "composetray/native"
+    private val loadedLibraries = mutableSetOf<String>()
+
+    // ── JNI loading (macOS) ─────────────────────────────────────────────
+
+    /**
+     * Loads a JNI library via [System.load] / [System.loadLibrary].
+     * Returns `true` if the library was loaded successfully.
+     */
+    @Synchronized
+    fun load(libraryName: String, callerClass: Class<*>): Boolean {
+        if (libraryName in loadedLibraries) return true
+
+        // 1. Try system library path (packaged app / GraalVM native-image)
+        try {
+            System.loadLibrary(libraryName)
+            loadedLibraries += libraryName
+            return true
+        } catch (_: UnsatisfiedLinkError) {
+            // Not on java.library.path, try classpath extraction
+        }
+
+        // 2. Extract from classpath to persistent cache
+        val file = extractToCache(libraryName, callerClass) ?: return false
+        System.load(file.absolutePath)
+        loadedLibraries += libraryName
+        return true
     }
+
+    // ── JNA loading (Linux / Windows) ───────────────────────────────────
 
     /**
      * Extracts the native library from the classpath and registers it with JNA.
-     *
-     * @param libraryName the library name (e.g. "systray" or "tray")
-     * @param caller a class from the same classloader to use for resource lookup
      */
+    @Synchronized
     fun extractAndRegister(libraryName: String, caller: Class<*>) {
-        val platform = detectPlatform()
-        val fileName = mapLibraryName(libraryName)
-        val resourcePath = "composetray/native/$platform/$fileName"
-
-        val url = caller.classLoader?.getResource(resourcePath)
-        if (url != null) {
-            val targetFile = File(tempDir, fileName)
-            if (!targetFile.exists()) {
-                url.openStream().use { input ->
-                    Files.copy(input, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                }
-                targetFile.deleteOnExit()
-            }
-            // Add the temp directory to JNA's search path
-            NativeLibrary.addSearchPath(libraryName, tempDir.absolutePath)
+        // 1. Try JNA's default resolution (system path)
+        try {
+            Native.register(caller, libraryName)
+            return
+        } catch (_: UnsatisfiedLinkError) {
+            // Not on system path, extract first
         }
 
+        // 2. Extract from classpath to persistent cache, then register
+        val file = extractToCache(libraryName, caller)
+        if (file != null) {
+            NativeLibrary.addSearchPath(libraryName, file.parentFile.absolutePath)
+        }
         Native.register(caller, libraryName)
+    }
+
+    // ── Shared extraction logic ─────────────────────────────────────────
+
+    private fun extractToCache(libraryName: String, callerClass: Class<*>): File? {
+        val platform = detectPlatform()
+        val fileName = mapLibraryName(libraryName)
+        val resourcePath = "$RESOURCE_PREFIX/$platform/$fileName"
+
+        val resourceUrl = callerClass.classLoader?.getResource(resourcePath) ?: return null
+
+        val cacheDir = resolveCacheDir(platform)
+        cacheDir.mkdirs()
+        val cachedFile = File(cacheDir, fileName)
+
+        // Validate cache: re-extract if size differs or file is missing
+        val resourceSize = resourceUrl.openConnection().contentLengthLong
+        if (cachedFile.exists() && cachedFile.length() == resourceSize) {
+            return cachedFile
+        }
+
+        // Atomic extract: write to temp then move
+        val tmpFile = File(cacheDir, "$fileName.tmp")
+        try {
+            resourceUrl.openStream().use { input ->
+                Files.copy(input, tmpFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+            Files.move(tmpFile.toPath(), cachedFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            cachedFile.setExecutable(true)
+        } finally {
+            tmpFile.delete()
+        }
+
+        return cachedFile
+    }
+
+    private fun resolveCacheDir(platform: String): File {
+        val os = System.getProperty("os.name")?.lowercase() ?: ""
+        val base = when {
+            os.contains("win") -> File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"))
+            else -> File(System.getProperty("user.home"), ".cache")
+        }
+        return File(base, "composetray/native/$platform")
     }
 
     private fun detectPlatform(): String {
         val os = System.getProperty("os.name")?.lowercase() ?: ""
         val arch = System.getProperty("os.arch") ?: ""
         return when {
-            os.contains("win") -> when {
-                arch.contains("aarch64") || arch.contains("arm") -> "win32-arm64"
-                else -> "win32-x86-64"
-            }
-            os.contains("linux") -> when {
-                arch.contains("aarch64") || arch.contains("arm") -> "linux-aarch64"
-                else -> "linux-x86-64"
-            }
-            os.contains("mac") -> when {
-                arch.contains("aarch64") || arch.contains("arm") -> "darwin-aarch64"
-                else -> "darwin-x86-64"
-            }
+            os.contains("win") -> if (arch.contains("aarch64") || arch.contains("arm")) "win32-arm64" else "win32-x86-64"
+            os.contains("linux") -> if (arch.contains("aarch64") || arch.contains("arm")) "linux-aarch64" else "linux-x86-64"
+            os.contains("mac") -> if (arch.contains("aarch64") || arch.contains("arm")) "darwin-aarch64" else "darwin-x86-64"
             else -> "unknown"
         }
     }

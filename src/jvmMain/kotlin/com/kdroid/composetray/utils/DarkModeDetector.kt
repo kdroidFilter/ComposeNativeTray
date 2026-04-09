@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import com.kdroid.composetray.lib.mac.MacOSMenuBarThemeDetector
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem.*
-import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
+import io.github.kdroidfilter.nucleus.darkmodedetector.isSystemInDarkMode
 import io.github.kdroidfilter.platformtools.detectLinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.util.function.Consumer

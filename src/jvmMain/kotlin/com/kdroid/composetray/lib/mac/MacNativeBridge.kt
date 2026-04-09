@@ -1,63 +1,16 @@
 package com.kdroid.composetray.lib.mac
 
-import com.kdroid.composetray.utils.extractToTempIfDifferent
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
+import com.kdroid.composetray.utils.NativeLibraryLoader
 
 /**
  * JNI bridge to the native macOS tray library (libMacTray.dylib).
- * Replaces the previous JNA direct-mapping approach.
  * All methods are static JNI calls into MacTrayBridge.m.
  */
 internal object MacNativeBridge {
 
-    init {
-        loadNativeLibrary()
-    }
-
-    private fun loadNativeLibrary() {
-        val arch = System.getProperty("os.arch") ?: "aarch64"
-        val resourceDir = when {
-            arch.contains("aarch64") || arch.contains("arm64") -> "darwin-aarch64"
-            else -> "darwin-x86-64"
-        }
-        val resourcePath = "composetray/native/$resourceDir/libMacTray.dylib"
-
-        // Try to find the dylib on the classpath (inside a JAR, on disk, or embedded in native-image)
-        val url = MacNativeBridge::class.java.classLoader?.getResource(resourcePath)
-        if (url != null) {
-            when (url.protocol) {
-                "jar" -> {
-                    val tempFile = extractToTempIfDifferent(url.toString())
-                    if (tempFile != null) {
-                        System.load(tempFile.absolutePath)
-                        return
-                    }
-                }
-                "file" -> {
-                    val file = File(url.toURI())
-                    if (file.exists()) {
-                        System.load(file.absolutePath)
-                        return
-                    }
-                }
-                else -> {
-                    // GraalVM native-image or other embedded resource: extract via stream
-                    val tempFile = Files.createTempFile("libMacTray", ".dylib").toFile()
-                    tempFile.deleteOnExit()
-                    url.openStream().use { input ->
-                        Files.copy(input, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                    }
-                    System.load(tempFile.absolutePath)
-                    return
-                }
-            }
-        }
-
-        // Fallback: let the JVM find it on java.library.path
-        System.loadLibrary("MacTray")
-    }
+    private const val LIBRARY_NAME = "MacTray"
+    private val loaded = NativeLibraryLoader.load(LIBRARY_NAME, MacNativeBridge::class.java)
+    val isLoaded: Boolean get() = loaded
 
     // ── Tray lifecycle ──────────────────────────────────────────────────
 
