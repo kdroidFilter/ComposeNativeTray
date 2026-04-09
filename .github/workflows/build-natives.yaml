@@ -1,0 +1,126 @@
+name: Build Native Libraries
+
+on:
+  workflow_call:
+
+jobs:
+  build-native-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build macOS native libraries
+        working-directory: src/native/macos
+        run: bash build.sh
+        env:
+          NATIVE_LIBS_OUTPUT_DIR: ${{ github.workspace }}/build/nativeLibs
+
+      - name: Verify macOS natives
+        run: |
+          test -f build/nativeLibs/darwin-aarch64/libMacTray.dylib
+          test -f build/nativeLibs/darwin-x86-64/libMacTray.dylib
+          ls -la build/nativeLibs/darwin-aarch64/
+          ls -la build/nativeLibs/darwin-x86-64/
+
+      - name: Upload macOS ARM64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-darwin-aarch64
+          path: build/nativeLibs/darwin-aarch64/libMacTray.dylib
+          retention-days: 1
+
+      - name: Upload macOS x86_64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-darwin-x86-64
+          path: build/nativeLibs/darwin-x86-64/libMacTray.dylib
+          retention-days: 1
+
+  build-native-linux:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86-64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsystemd-dev
+
+      - name: Build Linux native library
+        working-directory: src/native/linux
+        run: bash build.sh
+        env:
+          NATIVE_LIBS_OUTPUT_DIR: ${{ github.workspace }}/build/nativeLibs
+
+      - name: Verify Linux natives
+        run: |
+          test -f build/nativeLibs/linux-${{ matrix.arch }}/libLinuxTray.so
+          ls -la build/nativeLibs/linux-${{ matrix.arch }}/
+
+      - name: Upload Linux library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-${{ matrix.arch }}
+          path: build/nativeLibs/linux-${{ matrix.arch }}/libLinuxTray.so
+          retention-days: 1
+
+  build-native-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Windows native libraries
+        working-directory: src/native/windows
+        run: cmd /c build.bat
+        env:
+          NATIVE_LIBS_OUTPUT_DIR: ${{ github.workspace }}/build/nativeLibs
+
+      - name: Verify Windows natives
+        shell: bash
+        run: |
+          test -f build/nativeLibs/win32-x86-64/WinTray.dll
+          test -f build/nativeLibs/win32-arm64/WinTray.dll
+          ls -la build/nativeLibs/win32-x86-64/
+          ls -la build/nativeLibs/win32-arm64/
+
+      - name: Upload Windows x64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-win32-x86-64
+          path: build/nativeLibs/win32-x86-64/WinTray.dll
+          retention-days: 1
+
+      - name: Upload Windows ARM64 library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-win32-arm64
+          path: build/nativeLibs/win32-arm64/WinTray.dll
+          retention-days: 1

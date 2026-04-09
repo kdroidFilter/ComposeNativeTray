@@ -1,6 +1,0 @@
-[submodule "winlib"]
-	path = winlib
-	url = https://github.com/kdroidFilter/LibWindowsTray.git
-[submodule "linuxlib"]
-	path = linuxlib
-	url = https://github.com/kdroidFilter/ComposeNativeTrayLinuxLib

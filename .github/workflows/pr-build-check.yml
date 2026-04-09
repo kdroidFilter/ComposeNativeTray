@@ -1,52 +1,78 @@
 name: PR Build Check
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-native-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+  build-natives:
+    uses: ./.github/workflows/build-natives.yaml
 
-      - name: Build macOS native libraries
-        working-directory: maclib
-        run: bash build.sh
-
-  build-native-linux:
+  gradle:
+    needs: [build-natives]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Download macOS ARM64 library
+        uses: actions/download-artifact@v4
         with:
-          go-version: 'stable'
+          name: native-darwin-aarch64
+          path: src/jvmMain/resources/composetray/native/darwin-aarch64/
 
-      - name: Install dependencies
+      - name: Download macOS x86_64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-darwin-x86-64
+          path: src/jvmMain/resources/composetray/native/darwin-x86-64/
+
+      - name: Download Linux x86_64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x86-64
+          path: src/jvmMain/resources/composetray/native/linux-x86-64/
+
+      - name: Download Linux aarch64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-aarch64
+          path: src/jvmMain/resources/composetray/native/linux-aarch64/
+
+      - name: Download Windows x64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-win32-x86-64
+          path: src/jvmMain/resources/composetray/native/win32-x86-64/
+
+      - name: Download Windows ARM64 library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-win32-arm64
+          path: src/jvmMain/resources/composetray/native/win32-arm64/
+
+      - name: Verify native libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libappindicator3-dev
+          echo "=== Verifying native libraries ==="
+          test -f src/jvmMain/resources/composetray/native/darwin-aarch64/libMacTray.dylib
+          test -f src/jvmMain/resources/composetray/native/darwin-x86-64/libMacTray.dylib
+          test -f src/jvmMain/resources/composetray/native/linux-x86-64/libLinuxTray.so
+          test -f src/jvmMain/resources/composetray/native/linux-aarch64/libLinuxTray.so
+          test -f src/jvmMain/resources/composetray/native/win32-x86-64/WinTray.dll
+          test -f src/jvmMain/resources/composetray/native/win32-arm64/WinTray.dll
+          echo "All native libraries present."
 
-      - name: Build Linux native library
-        working-directory: linuxlib
-        run: bash build.sh
-
-  build-native-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
         with:
-          submodules: recursive
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Build Windows native libraries
-        working-directory: winlib
-        run: cmd /c build.bat
+      - name: Build
+        run: ./gradlew build --continue

@@ -25,16 +25,22 @@ import com.kdroid.composetray.utils.WindowRaise
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
 import composenativetray.demo.generated.resources.Res
 import composenativetray.demo.generated.resources.icon
-import io.github.kdroidfilter.platformtools.darkmodedetector.isSystemInDarkMode
-import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
-import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
+import io.github.kdroidfilter.nucleus.darkmodedetector.isSystemInDarkMode
+import io.github.kdroidfilter.nucleus.graalvm.GraalVmInitializer
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
+import java.io.File
 
 @OptIn(ExperimentalTrayAppApi::class)
 fun main() {
+    GraalVmInitializer.initialize()
+    if (System.getProperty("skiko.renderApi") == null) {
+        val os = System.getProperty("os.name")?.lowercase() ?: ""
+        if (os.contains("linux") && isNvidiaGpuPresent()) {
+            System.setProperty("skiko.renderApi", "SOFTWARE")
+        }
+    }
     allowComposeNativeTrayLogging = true
-    setMacOsAdaptiveTitleBar()
     application {
         var isWindowVisible by remember { mutableStateOf(true) }
         val coroutineScope = rememberCoroutineScope()
@@ -154,8 +160,6 @@ fun main() {
                 title = "Main App",
                 icon = painterResource(Res.drawable.icon),
             ) {
-                window.setWindowsAdaptiveTitleBar()
-
                 MaterialTheme(
                     colorScheme = if (isSystemInDarkMode()) darkColorScheme() else lightColorScheme()
                 ) {
@@ -269,5 +273,22 @@ fun main() {
                 }
             }
         }
+    }
+}
+
+private fun isNvidiaGpuPresent(): Boolean {
+    // Check if NVIDIA driver is loaded by looking for the driver version file
+    val nvidiaDriverFile = File("/proc/driver/nvidia/version")
+    if (nvidiaDriverFile.exists()) return true
+
+    // Fallback: try running nvidia-smi
+    return try {
+        val process = ProcessBuilder("nvidia-smi", "-L")
+            .redirectErrorStream(true)
+            .start()
+        val exitCode = process.waitFor()
+        exitCode == 0
+    } catch (_: Exception) {
+        false
     }
 }

@@ -1,11 +1,10 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.gradle.api.tasks.JavaExec
+import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
 
 plugins {
     alias(libs.plugins.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
-    id("io.github.kdroidfilter.compose.linux.packagedeps") version "0.2.2"
+    alias(libs.plugins.nucleus)
 }
 
 kotlin {
@@ -22,48 +21,62 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.materialIconsExtended)
             implementation(libs.kermit)
-            implementation(libs.platformtools.darkmodedetector)
+            implementation(libs.nucleus.core.runtime)
+            implementation(libs.nucleus.darkmode.detector)
+            implementation(libs.nucleus.graalvm.runtime)
         }
     }
 }
 
+nucleus.application {
+    mainClass = "com.kdroid.composetray.demo.TrayAppDemoKt"
 
-compose.desktop {
-    application {
-        mainClass = "com.kdroid.composetray.demo.DynamicTrayMenuKt"
-        nativeDistributions {
-            targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Dmg)
-            packageName = "tray-demo"
-            packageVersion = "1.0.0"
+    buildTypes {
+        release {
+            proguard {
+                isEnabled = true
+                optimize = true
+                obfuscate = false
+                configurationFiles.from(project.file("proguard-rules.pro"))
+            }
         }
-        buildTypes.release.proguard {
-            isEnabled = true
-            obfuscate.set(false)
-            optimize.set(true)
-            configurationFiles.from(project.file("proguard-rules.pro"))
+    }
+
+    graalvm {
+        isEnabled = true
+        javaLanguageVersion = 25
+        jvmVendor = JvmVendorSpec.BELLSOFT
+        imageName = "composetray-demo"
+        march = providers.gradleProperty("nativeMarch").getOrElse("compatibility")
+        buildArgs.addAll(
+            "-H:+AddAllCharsets",
+            "-Djava.awt.headless=false",
+            "-Os",
+            "-H:-IncludeMethodData",
+        )
+    }
+
+    nativeDistributions {
+        targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+        packageName = "tray-demo"
+        packageVersion = "1.0.0"
+
+        macOS {
+            bundleID = "com.kdroid.composetray.demo"
+            appCategory = "public.app-category.utilities"
+            dockName = "TrayDemo"
         }
     }
 }
 
 // Task to build native libraries and run the demo
 tasks.register("buildAndRunDemo") {
-    // Depend on the buildNativeLibraries task from the root project
     dependsOn(rootProject.tasks.named("buildNativeLibraries"))
-    
-    // This task doesn't do anything by itself, it just depends on buildNativeLibraries
-    // and will be followed by the run task
     doLast {
         println("Native libraries built successfully. Starting demo application...")
     }
-    
-    // Make sure the run task is executed after this task
     finalizedBy(tasks.named("run"))
-    
-    // Description for the task
     description = "Builds the native libraries and then runs the demo application"
     group = "application"
 }
 
-linuxDebConfig {
-    startupWMClass.set("com.kdroid.composetray.demo.DynamicTrayMenuKt")
-}

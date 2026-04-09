@@ -1,7 +1,5 @@
 rootProject.name = "ComposeNativeTray"
 
-include(":demo")
-
 pluginManagement {
     repositories {
         google {

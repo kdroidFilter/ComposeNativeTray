@@ -1,0 +1,59 @@
+{
+    "reflection": [
+        {
+            "type": "com.kdroid.composetray.lib.mac.MacNativeBridge",
+            "jniAccessible": true
+        },
+        {
+            "type": "com.kdroid.composetray.lib.mac.MacNativeBridge$ThemeChangeCallback",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "onThemeChanged",
+                    "parameterTypes": ["int"]
+                }
+            ]
+        },
+        {
+            "type": "com.kdroid.composetray.lib.windows.WindowsNativeBridge",
+            "jniAccessible": true
+        },
+        {
+            "type": "com.kdroid.composetray.lib.linux.LinuxNativeBridge",
+            "jniAccessible": true
+        },
+        {
+            "type": "com.kdroid.composetray.lib.linux.JniRunnable",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "run",
+                    "parameterTypes": []
+                }
+            ]
+        },
+        {
+            "type": "sun.awt.X11GraphicsConfig",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "createDCM32",
+                    "parameterTypes": ["int", "int", "int", "int", "boolean"]
+                }
+            ]
+        },
+        {
+            "type": "java.lang.Runnable",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "run",
+                    "parameterTypes": []
+                }
+            ]
+        }
+    ],
+    "resources": [
+        {"glob": "composetray/native/**"}
+    ]
+}

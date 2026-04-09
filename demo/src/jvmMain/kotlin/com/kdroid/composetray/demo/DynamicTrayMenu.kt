@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.kdroid.composetray.tray.api.Tray
+import io.github.kdroidfilter.nucleus.graalvm.GraalVmInitializer
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
 import com.kdroid.composetray.utils.allowComposeNativeTrayLogging
@@ -26,7 +27,9 @@ private enum class ServiceStatus {
     RUNNING, STOPPED
 }
 
-fun main() = application {
+fun main() {
+    GraalVmInitializer.initialize()
+    application {
     val logTag = "NativeTray"
     allowComposeNativeTrayLogging = true
     composeNativeTrayLoggingLevel = ComposeNativeTrayLoggingLevel.DEBUG
@@ -166,4 +169,5 @@ fun main() = application {
             hideOnClose = hideOnCloseState
         }
     }
+}
 }
