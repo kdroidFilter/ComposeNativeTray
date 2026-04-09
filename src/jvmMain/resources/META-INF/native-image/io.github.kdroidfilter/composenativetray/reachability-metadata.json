@@ -1,0 +1,31 @@
+{
+    "reflection": [
+        {
+            "type": "com.kdroid.composetray.lib.mac.MacNativeBridge",
+            "jniAccessible": true
+        },
+        {
+            "type": "com.kdroid.composetray.lib.mac.MacNativeBridge$ThemeChangeCallback",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "onThemeChanged",
+                    "parameterTypes": ["int"]
+                }
+            ]
+        },
+        {
+            "type": "java.lang.Runnable",
+            "jniAccessible": true,
+            "methods": [
+                {
+                    "name": "run",
+                    "parameterTypes": []
+                }
+            ]
+        }
+    ],
+    "resources": [
+        {"glob": "composetray/native/**"}
+    ]
+}

@@ -1,6 +1,6 @@
 package com.kdroid.composetray.lib.windows
 
-import com.sun.jna.Native
+import com.kdroid.composetray.utils.NativeLibraryLoader
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.win32.StdCallLibrary
@@ -16,8 +16,7 @@ internal object WindowsNativeTrayLibrary : StdCallLibrary {
         if (System.getProperty(key).isNullOrBlank()) {
             System.setProperty(key, "UTF-8")
         }
-        // Register the native library "tray" for direct calls
-        Native.register("tray")
+        NativeLibraryLoader.extractAndRegister("tray", WindowsNativeTrayLibrary::class.java)
     }
 
     @JvmStatic external fun tray_get_instance(): Pointer?

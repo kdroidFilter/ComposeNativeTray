@@ -20,7 +20,7 @@ internal object MacNativeBridge {
             arch.contains("aarch64") || arch.contains("arm64") -> "darwin-aarch64"
             else -> "darwin-x86-64"
         }
-        val resourcePath = "$resourceDir/libMacTray.dylib"
+        val resourcePath = "composetray/native/$resourceDir/libMacTray.dylib"
 
         // Try to find the dylib on the classpath (inside a JAR or on disk)
         val url = MacNativeBridge::class.java.classLoader?.getResource(resourcePath)

@@ -6,7 +6,7 @@ set -e
 echo "Building MacTray library (Swift + JNI bridge)..."
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-OUTPUT_DIR="${NATIVE_LIBS_OUTPUT_DIR:-$SCRIPT_DIR/../src/commonMain/resources}"
+OUTPUT_DIR="${NATIVE_LIBS_OUTPUT_DIR:-$SCRIPT_DIR/../../jvmMain/resources/composetray/native}"
 echo "Output dir for mac is: $OUTPUT_DIR"
 
 # Detect JAVA_HOME

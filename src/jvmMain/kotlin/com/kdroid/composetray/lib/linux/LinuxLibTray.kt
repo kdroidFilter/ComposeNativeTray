@@ -1,11 +1,11 @@
 package com.kdroid.composetray.lib.linux
 
+import com.kdroid.composetray.utils.NativeLibraryLoader
 import com.sun.jna.Callback
-import com.sun.jna.Native
 import com.sun.jna.ptr.IntByReference
 
 /**
- * JNA direct mapping to the Go-based systray bridge (linuxlibnew/jna/bridge_linux.go).
+ * JNA direct mapping to the Go-based systray bridge (src/native/linux/).
  */
 internal object LinuxLibTray {
     // Callback types -------------------------------------------------------------
@@ -14,8 +14,7 @@ internal object LinuxLibTray {
 
     // Library registration logic (simple and consistent with Windows/Mac) --------
     init {
-        // Register the native library "systray" for direct calls
-        Native.register("systray")
+        NativeLibraryLoader.extractAndRegister("systray", LinuxLibTray::class.java)
     }
 
     // Helpers to fetch last click xy

@@ -1,5 +1,5 @@
+import org.apache.tools.ant.taskdefs.condition.Os
 import org.jetbrains.dokka.gradle.DokkaTask
-import java.util.Locale
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.compose)
     alias(libs.plugins.vannitktech.maven.publish)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
 }
 
 group = "com.kdroid.composenativetray"
@@ -20,7 +22,6 @@ repositories {
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     google()
-
 }
 
 tasks.withType<DokkaTask>().configureEach {
@@ -28,14 +29,12 @@ tasks.withType<DokkaTask>().configureEach {
     offlineMode.set(true)
 }
 
-
-
 kotlin {
     jvmToolchain(17)
     jvm()
 
     sourceSets {
-        commonMain.dependencies {
+        jvmMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.ui)
@@ -46,39 +45,63 @@ kotlin {
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.platformtools.core)
             implementation(libs.platformtools.darkmodedetector)
-
         }
     }
-
 }
 
-val buildWin: TaskProvider<Exec> = tasks.register<Exec>("buildNativeWin") {
-    onlyIf { System.getProperty("os.name").startsWith("Windows") }
-    workingDir(rootDir.resolve("winlib"))
+// ── Native build tasks ──────────────────────────────────────────────────────────
+
+val buildNativeMacOs by tasks.registering(Exec::class) {
+    workingDir = file("src/native/macos")
+    commandLine("bash", "build.sh")
+    onlyIf { Os.isFamily(Os.FAMILY_MAC) }
+}
+
+val buildNativeWindows by tasks.registering(Exec::class) {
+    workingDir = file("src/native/windows")
     commandLine("cmd", "/c", "build.bat")
+    onlyIf { Os.isFamily(Os.FAMILY_WINDOWS) }
 }
 
-val buildMac: TaskProvider<Exec> = tasks.register<Exec>("buildNativeMac") {
-    onlyIf { System.getProperty("os.name").startsWith("Mac") }
-    workingDir(rootDir.resolve("maclib"))
-    commandLine("sh", "build.sh")
-}
-
-val buildLinux: TaskProvider<Exec> = tasks.register<Exec>("buildNativeLinux") {
-    onlyIf { System.getProperty("os.name").lowercase(Locale.getDefault()).contains("linux") }
-    workingDir(rootDir.resolve("linuxlib"))
-    commandLine("./build.sh")
+val buildNativeLinux by tasks.registering(Exec::class) {
+    workingDir = file("src/native/linux")
+    commandLine("bash", "build.sh")
+    onlyIf { Os.isFamily(Os.FAMILY_UNIX) && !Os.isFamily(Os.FAMILY_MAC) }
 }
 
 tasks.register("buildNativeLibraries") {
-    dependsOn(buildWin, buildLinux, buildMac)
+    dependsOn(buildNativeMacOs, buildNativeWindows, buildNativeLinux)
 }
 
-if (System.getenv("CI") == null) {
-    tasks.named("jvmProcessResources") {
-        dependsOn("buildNativeLibraries")
+tasks.named("jvmProcessResources") {
+    dependsOn(buildNativeMacOs, buildNativeWindows, buildNativeLinux)
+}
+
+// ── Code quality ────────────────────────────────────────────────────────────────
+
+detekt {
+    config.setFrom(files("config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+}
+
+allprojects {
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+
+    ktlint {
+        debug.set(false)
+        verbose.set(true)
+        android.set(false)
+        outputToConsole.set(true)
+        ignoreFailures.set(false)
+        enableExperimentalRules.set(true)
+        filter {
+            exclude("**/generated/**")
+            include("**/kotlin/**")
+        }
     }
 }
+
+// ── Maven publishing ────────────────────────────────────────────────────────────
 
 mavenPublishing {
     coordinates(
@@ -87,7 +110,6 @@ mavenPublishing {
         version = version
     )
 
-    // Configure POM metadata for the published artifact
     pom {
         name.set("Compose Native Tray")
         description.set("ComposeTray is a Kotlin library that provides a simple way to create system tray applications with native support for Linux and Windows. This library allows you to add a system tray icon, tooltip, and menu with various options in a Kotlin DSL-style syntax.")
@@ -101,7 +123,6 @@ mavenPublishing {
             }
         }
 
-        // Specify developers information
         developers {
             developer {
                 id.set("kdroidfilter")
@@ -110,17 +131,11 @@ mavenPublishing {
             }
         }
 
-        // Specify SCM information
         scm {
             url.set("https://github.com/kdroidFilter/ComposeNativeTray")
         }
     }
 
-    // Configure publishing to Maven Central
     publishToMavenCentral()
-
-
-    // Enable GPG signing for all publications
     signAllPublications()
 }
-

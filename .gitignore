@@ -5,10 +5,7 @@ build/
 !**/src/test/**/build/
 
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+.idea
 *.iws
 *.iml
 *.ipr
@@ -44,13 +41,17 @@ bin/
 ### Mac OS ###
 .DS_Store
 
-.idea
+### Runtime ###
 tray_position.properties
 
-linuxlib/build-x86-64
-linuxlibdbus/build-x86-64
+### Native libraries (built on CI via build-natives.yaml) ###
+**/src/jvmMain/resources/composetray/native/
 
-# don't commit compiled native binaries
-src/commonMain/resources/**/*.so
-src/commonMain/resources/**/*.dll
-src/commonMain/resources/**/*.dylib
+### MSVC build artifacts ###
+*.obj
+*.exp
+
+### Native build directories ###
+src/native/windows/build-x64/
+src/native/windows/build-arm64/
+src/native/linux/dist/
