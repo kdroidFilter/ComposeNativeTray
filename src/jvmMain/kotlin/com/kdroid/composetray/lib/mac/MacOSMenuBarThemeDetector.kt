@@ -12,7 +12,7 @@ object MacOSMenuBarThemeDetector {
         Thread(r, "MacOS MenuBar Theme Detector Thread").apply { isDaemon = true }
     }
 
-    private val themeChangedCallback = object : MacNativeBridge.ThemeChangeCallback {
+    private class ThemeCallback : MacNativeBridge.ThemeChangeCallback {
         override fun onThemeChanged(isDark: Int) {
             callbackExecutor.execute {
                 val dark = isDark != 0
@@ -20,6 +20,8 @@ object MacOSMenuBarThemeDetector {
             }
         }
     }
+
+    private val themeChangedCallback = ThemeCallback()
 
     init {
         MacNativeBridge.nativeSetThemeCallback(themeChangedCallback)

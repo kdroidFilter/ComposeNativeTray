@@ -40,6 +40,7 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+local.properties
 
 ### Runtime ###
 tray_position.properties
@@ -47,9 +48,10 @@ tray_position.properties
 ### Native libraries (built on CI via build-natives.yaml) ###
 **/src/jvmMain/resources/composetray/native/
 
-### MSVC build artifacts ###
+### Native compilation artifacts ###
 *.obj
 *.exp
+*.o
 
 ### Native build directories ###
 src/native/windows/build-x64/

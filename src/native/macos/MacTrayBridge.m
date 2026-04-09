@@ -123,14 +123,44 @@ static void clearAllCallbacks(CallbackEntry **list) {
 /*  C callback trampolines                                                    */
 /* ========================================================================== */
 
+/*
+ * Cached method IDs — resolved once via the interface class so that
+ * GraalVM native-image only needs the interface registered for JNI,
+ * not every lambda / anonymous class that implements it.
+ */
+static jmethodID g_runMethodID = NULL;
+static jmethodID g_onThemeChangedMethodID = NULL;
+
+static jmethodID getRunnableRunMethod(JNIEnv *env) {
+    if (g_runMethodID == NULL) {
+        jclass cls = (*env)->FindClass(env, "java/lang/Runnable");
+        if (cls) {
+            g_runMethodID = (*env)->GetMethodID(env, cls, "run", "()V");
+            (*env)->DeleteLocalRef(env, cls);
+        }
+    }
+    return g_runMethodID;
+}
+
+static jmethodID getThemeChangedMethod(JNIEnv *env) {
+    if (g_onThemeChangedMethodID == NULL) {
+        jclass cls = (*env)->FindClass(env, "com/kdroid/composetray/lib/mac/MacNativeBridge$ThemeChangeCallback");
+        if (cls) {
+            g_onThemeChangedMethodID = (*env)->GetMethodID(env, cls, "onThemeChanged", "(I)V");
+            (*env)->DeleteLocalRef(env, cls);
+        }
+    }
+    return g_onThemeChangedMethodID;
+}
+
 /* Called by the Swift tray_callback when the tray icon is left-clicked */
 static void trayCbTrampoline(struct tray *t) {
     JNIEnv *env = getJNIEnv();
     if (!env) return;
     jobject runnable = findCallback(g_trayCallbacks, t);
     if (!runnable) return;
-    jclass cls = (*env)->GetObjectClass(env, runnable);
-    jmethodID run = (*env)->GetMethodID(env, cls, "run", "()V");
+    jmethodID run = getRunnableRunMethod(env);
+    if (!run) return;
     (*env)->CallVoidMethod(env, runnable, run);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
@@ -141,8 +171,8 @@ static void menuItemCbTrampoline(struct tray_menu_item *item) {
     if (!env) return;
     jobject runnable = findCallback(g_menuCallbacks, item);
     if (!runnable) return;
-    jclass cls = (*env)->GetObjectClass(env, runnable);
-    jmethodID run = (*env)->GetMethodID(env, cls, "run", "()V");
+    jmethodID run = getRunnableRunMethod(env);
+    if (!run) return;
     (*env)->CallVoidMethod(env, runnable, run);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
@@ -154,8 +184,8 @@ static void themeCbTrampoline(int isDark) {
     if (!g_themeCallback) return;
     jobject cb = g_themeCallback->globalRef;
     if (!cb) return;
-    jclass cls = (*env)->GetObjectClass(env, cb);
-    jmethodID method = (*env)->GetMethodID(env, cls, "onThemeChanged", "(I)V");
+    jmethodID method = getThemeChangedMethod(env);
+    if (!method) return;
     (*env)->CallVoidMethod(env, cb, method, (jint)isDark);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
