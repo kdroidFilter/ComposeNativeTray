@@ -8,7 +8,6 @@ package com.kdroid.composetray.tray.api
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateEnterExit
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.ExperimentalTransitionApi
 import androidx.compose.animation.core.InternalAnimationApi
@@ -52,17 +51,13 @@ import com.kdroid.composetray.lib.windows.WindowsOutsideClickWatcher
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.tray.impl.WindowsTrayInitializer
 import com.kdroid.composetray.utils.ComposableIconUtils
-import com.kdroid.composetray.utils.ExperimentalTrayAppApi
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.kdroid.composetray.utils.MenuContentHash
 import com.kdroid.composetray.utils.PersistentAnimatedVisibility
-import com.kdroid.composetray.utils.TrayAppState
-import com.kdroid.composetray.utils.TrayWindowDismissMode
 import com.kdroid.composetray.utils.WindowVisibilityMonitor
 import com.kdroid.composetray.utils.debugln
 import com.kdroid.composetray.utils.getTrayWindowPositionForInstance
 import com.kdroid.composetray.utils.isMenuBarInDarkMode
-import com.kdroid.composetray.utils.rememberTrayAppState
 import io.github.kdroidfilter.platformtools.LinuxDesktopEnvironment
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.OperatingSystem.MACOS
