@@ -459,7 +459,7 @@ public func tray_get_status_item_region() -> UnsafeMutablePointer<CChar>? {
     )
     let midX   = screen.frame.midX
     let region = rect.minX < midX ? "top-left" : "top-right"
-    return strdup(region)                   // to be freed on JVM/JNA side
+    return strdup(region)                   // to be freed on JVM/JNI side
 }
 
 // Per-instance geometry exports
