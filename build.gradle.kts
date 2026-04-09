@@ -39,11 +39,10 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.ui)
             implementation(compose.components.resources)
-            implementation(libs.jna)
-            implementation(libs.jna.platform)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.platformtools.core)
+            implementation(libs.nucleus.core.runtime)
             implementation(libs.nucleus.darkmode.detector)
         }
     }

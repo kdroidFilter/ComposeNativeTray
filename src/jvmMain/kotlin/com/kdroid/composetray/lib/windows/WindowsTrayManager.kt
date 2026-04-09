@@ -1,12 +1,15 @@
 package com.kdroid.composetray.lib.windows
 
-import com.kdroid.composetray.utils.debugln
 import com.kdroid.composetray.utils.TrayClickTracker
-import com.sun.jna.ptr.IntByReference
-import kotlinx.coroutines.*
+import com.kdroid.composetray.utils.convertPositionToCorner
+import com.kdroid.composetray.utils.debugln
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -14,20 +17,16 @@ internal class WindowsTrayManager(
     private val instanceId: String,
     private var iconPath: String,
     private var tooltip: String = "",
-    private var onLeftClick: (() -> Unit)? = null
+    private var onLeftClick: (() -> Unit)? = null,
 ) {
-    private var tray: AtomicReference<WindowsNativeTray?> = AtomicReference(null)
+    private var trayHandle: Long = 0L
     private val running = AtomicBoolean(false)
     private val initialized = AtomicBoolean(false)
     private val updateLock = ReentrantLock()
     private val initLatch = CountDownLatch(1)
 
-    // Maintain a reference to all callbacks to avoid GC
-    private val callbackReferences: MutableList<com.sun.jna.win32.StdCallLibrary.StdCallCallback> = mutableListOf()
-    private val nativeMenuItemsReferences: MutableList<WindowsNativeTrayMenuItem> = mutableListOf()
-
-    // Keep a reference to the tray callback
-    private var trayCallback: WindowsNativeTray.TrayCallback? = null
+    // Track allocated menu handles for cleanup
+    private val menuHandles: MutableList<Pair<Long, Int>> = mutableListOf()
 
     // Thread for running the tray (similar to macOS)
     private var trayThread: Thread? = null
@@ -51,18 +50,18 @@ internal class WindowsTrayManager(
         val iconPath: String,
         val tooltip: String,
         val onLeftClick: (() -> Unit)?,
-        val menuItems: List<MenuItem>
+        val menuItems: List<MenuItem>,
     )
 
     // Top level MenuItem class
     data class MenuItem(
         val text: String,
-        val iconPath: String? = null,  // Added icon path support
+        val iconPath: String? = null,
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
         val onClick: (() -> Unit)? = null,
-        val subMenuItems: List<MenuItem> = emptyList()
+        val subMenuItems: List<MenuItem> = emptyList(),
     )
 
     fun initialize(menuItems: List<MenuItem>) {
@@ -85,26 +84,24 @@ internal class WindowsTrayManager(
                 try {
                     log("Tray thread started")
 
-                    // Create tray structure on this thread
-                    val newTray = WindowsNativeTray().apply {
-                        icon_filepath = iconPath
-                        tooltip = this@WindowsTrayManager.tooltip
-                    }
+                    // Create tray via JNI
+                    val handle = WindowsNativeBridge.nativeCreateTray(iconPath, tooltip)
+                    if (handle == 0L) throw RuntimeException("Failed to create tray")
+                    trayHandle = handle
 
                     // Set up callbacks and menu on this thread
-                    setupLeftClickCallback(newTray)
-                    setupMenu(newTray, menuItems)
+                    setupLeftClickCallback(handle)
+                    setupMenu(handle, menuItems)
 
                     // Initialize the tray on this thread
-                    log("Calling tray_init() on tray thread")
-                    val initResult = WindowsNativeTrayLibrary.tray_init(newTray)
-                    log("tray_init() returned: $initResult")
+                    log("Calling nativeInitTray() on tray thread")
+                    val initResult = WindowsNativeBridge.nativeInitTray(handle)
+                    log("nativeInitTray() returned: $initResult")
 
                     if (initResult != 0) {
                         throw RuntimeException("Failed to initialize tray: $initResult")
                     }
 
-                    tray.set(newTray)
                     initialized.set(true)
 
                     // Signal that initialization is complete before entering the loop
@@ -112,7 +109,6 @@ internal class WindowsTrayManager(
 
                     // Run the blocking message loop on this thread
                     runMessageLoop()
-
                 } catch (e: Throwable) {
                     log("Error in tray thread: ${e.message}")
                     e.printStackTrace()
@@ -140,7 +136,12 @@ internal class WindowsTrayManager(
         }
     }
 
-    fun update(newIconPath: String, newTooltip: String, newOnLeftClick: (() -> Unit)?, newMenuItems: List<MenuItem>) {
+    fun update(
+        newIconPath: String,
+        newTooltip: String,
+        newOnLeftClick: (() -> Unit)?,
+        newMenuItems: List<MenuItem>,
+    ) {
         log("update() called - icon: $newIconPath, tooltip: $newTooltip, menuItems: ${newMenuItems.size}")
 
         if (!initialized.get()) {
@@ -165,7 +166,7 @@ internal class WindowsTrayManager(
         var initialPosCaptured = false
         var initialPosAttempts = 0
         var positionErrorCount = 0
-        val maxPositionErrors = 3  // Stop trying after 3 errors to avoid spamming logs
+        val maxPositionErrors = 3
 
         while (running.get()) {
             try {
@@ -181,12 +182,12 @@ internal class WindowsTrayManager(
                 // Check for pending updates
                 processUpdateQueue()
 
-                // Process Windows messages with blocking call for responsiveness
-                val result = WindowsNativeTrayLibrary.tray_loop(0)
+                // Process Windows messages with non-blocking call
+                val result = WindowsNativeBridge.nativeLoopTray(0)
 
                 when (result) {
                     -1 -> {
-                        log("tray_loop returned -1 (error or quit)")
+                        log("nativeLoopTray returned -1 (error or quit)")
                         if (running.get() && initialized.get()) {
                             consecutiveErrors++
                             if (consecutiveErrors > 5) {
@@ -196,11 +197,11 @@ internal class WindowsTrayManager(
                             Thread.sleep(100)
 
                             // Try to recover
-                            val currentTray = tray.get()
-                            if (currentTray != null) {
+                            val handle = trayHandle
+                            if (handle != 0L) {
                                 try {
                                     log("Attempting to recover tray...")
-                                    WindowsNativeTrayLibrary.tray_update(currentTray)
+                                    WindowsNativeBridge.nativeUpdateTray(handle)
                                     consecutiveErrors = 0
                                 } catch (e: Exception) {
                                     log("Failed to recover: ${e.message}")
@@ -216,7 +217,7 @@ internal class WindowsTrayManager(
                         consecutiveErrors = 0
                     }
                     else -> {
-                        log("tray_loop returned unexpected value: $result")
+                        log("nativeLoopTray returned unexpected value: $result")
                         consecutiveErrors = 0
                     }
                 }
@@ -240,21 +241,20 @@ internal class WindowsTrayManager(
      */
     private fun safeGetTrayPosition(instanceId: String): Boolean {
         return try {
-            val xRef = IntByReference()
-            val yRef = IntByReference()
-            val precise = WindowsNativeTrayLibrary.tray_get_notification_icons_position(xRef, yRef) != 0
-            log("tray_get_notification_icons_position: precise=$precise, rawX=${xRef.value}, rawY=${yRef.value}")
+            val outXY = IntArray(2)
+            val precise = WindowsNativeBridge.nativeGetNotificationIconsPosition(outXY) != 0
+            log("nativeGetNotificationIconsPosition: precise=$precise, rawX=${outXY[0]}, rawY=${outXY[1]}")
             if (precise) {
                 // Native coordinates are in physical pixels, but AWT uses logical pixels.
                 // Convert physical to logical by dividing by the DPI scale factor.
-                val scale = getDpiScale(xRef.value, yRef.value)
-                val logicalX = (xRef.value / scale).toInt()
-                val logicalY = (yRef.value / scale).toInt()
+                val scale = getDpiScale(outXY[0], outXY[1])
+                val logicalX = (outXY[0] / scale).toInt()
+                val logicalY = (outXY[1] / scale).toInt()
 
                 val screen = java.awt.Toolkit.getDefaultToolkit().screenSize
                 log("DPI scale=$scale, logicalX=$logicalX, logicalY=$logicalY, screenW=${screen.width}, screenH=${screen.height}")
-                val corner = com.kdroid.composetray.utils.convertPositionToCorner(
-                    logicalX, logicalY, screen.width, screen.height
+                val corner = convertPositionToCorner(
+                    logicalX, logicalY, screen.width, screen.height,
                 )
                 log("Detected corner: $corner")
                 TrayClickTracker.setClickPosition(instanceId, logicalX, logicalY, corner)
@@ -304,7 +304,7 @@ internal class WindowsTrayManager(
                         (bounds.x * scale).toInt(),
                         (bounds.y * scale).toInt(),
                         (bounds.width * scale).toInt(),
-                        (bounds.height * scale).toInt()
+                        (bounds.height * scale).toInt(),
                     )
                     if (physBounds.contains(physicalX, physicalY)) {
                         return scale
@@ -345,27 +345,25 @@ internal class WindowsTrayManager(
         tooltip = update.tooltip
         onLeftClick = update.onLeftClick
 
-        // Clear old references
-        val oldCallbackCount = callbackReferences.size
-        callbackReferences.clear()
-        nativeMenuItemsReferences.clear()
-        log("Cleared $oldCallbackCount old callbacks")
+        val handle = trayHandle
+        if (handle == 0L) return
 
-        // Create a new tray structure
-        val newTray = WindowsNativeTray().apply {
-            icon_filepath = update.iconPath
-            tooltip = update.tooltip
-        }
+        // Free old menu handles
+        freeMenuHandles()
+
+        // Update tray properties
+        WindowsNativeBridge.nativeSetTrayIcon(handle, update.iconPath)
+        WindowsNativeBridge.nativeSetTrayTooltip(handle, update.tooltip)
 
         // Set up new callbacks and menu
-        setupLeftClickCallback(newTray)
-        setupMenu(newTray, update.menuItems)
+        setupLeftClickCallback(handle)
+        setupMenu(handle, update.menuItems)
 
         // Update the native tray
-        log("Calling tray_update()")
+        log("Calling nativeUpdateTray()")
         try {
-            WindowsNativeTrayLibrary.tray_update(newTray)
-            log("tray_update() completed")
+            WindowsNativeBridge.nativeUpdateTray(handle)
+            log("nativeUpdateTray() completed")
         } catch (e: Error) {
             log("Failed to update tray (memory access error): ${e.message}")
             e.printStackTrace()
@@ -373,16 +371,15 @@ internal class WindowsTrayManager(
             log("Failed to update tray: ${e.message}")
             e.printStackTrace()
         }
-
-        // Update the reference
-        tray.set(newTray)
     }
 
-    private fun setupLeftClickCallback(trayObj: WindowsNativeTray) {
-        trayCallback = if (onLeftClick != null) {
+    private fun setupLeftClickCallback(handle: Long) {
+        val leftClick = onLeftClick
+        if (leftClick != null) {
             log("Setting up left click callback")
-            object : WindowsNativeTray.TrayCallback {
-                override fun invoke(tray: WindowsNativeTray) {
+            WindowsNativeBridge.nativeSetTrayCallback(
+                handle,
+                Runnable {
                     log("Left click callback invoked")
                     try {
                         // Capture precise tray position on the tray thread (per-instance)
@@ -391,61 +388,49 @@ internal class WindowsTrayManager(
                         // Execute callback in IO scope (like macOS)
                         mainScope?.launch {
                             ioScope?.launch {
-                                onLeftClick?.invoke()
+                                leftClick()
                             }
                         }
                     } catch (e: Exception) {
                         log("Error in left click callback: ${e.message}")
                         e.printStackTrace()
                     }
-                }
-            }
+                },
+            )
         } else {
             log("No left click callback set")
-            null
-        }
-        trayObj.cb = trayCallback
-        if (trayCallback != null) {
-            callbackReferences.add(trayCallback!!)
+            WindowsNativeBridge.nativeSetTrayCallback(handle, null)
         }
     }
 
-    private fun setupMenu(trayObj: WindowsNativeTray, menuItems: List<MenuItem>) {
+    private fun setupMenu(handle: Long, menuItems: List<MenuItem>) {
         if (menuItems.isEmpty()) {
             log("No menu items to set up")
-            trayObj.menu = null
+            WindowsNativeBridge.nativeClearTrayMenu(handle)
             return
         }
 
         log("Setting up ${menuItems.size} menu items")
-        val menuItemPrototype = WindowsNativeTrayMenuItem()
-        val nativeMenuItems = menuItemPrototype.toArray(menuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
-
-        menuItems.forEachIndexed { index, item ->
-            val nativeItem = nativeMenuItems[index]
-            initializeNativeMenuItem(nativeItem, item)
-            nativeItem.write()
-            nativeMenuItemsReferences.add(nativeItem)
-        }
-
-        // Last element to mark the end of the menu
-        nativeMenuItems[menuItems.size].text = null
-        nativeMenuItems[menuItems.size].write()
-
-        trayObj.menu = nativeMenuItems[0].pointer
+        val menuHandle = buildMenuItems(menuItems)
+        WindowsNativeBridge.nativeSetTrayMenu(handle, menuHandle)
     }
 
-    private fun initializeNativeMenuItem(nativeItem: WindowsNativeTrayMenuItem, menuItem: MenuItem) {
-        nativeItem.text = menuItem.text
-        nativeItem.icon_path = menuItem.iconPath
-        nativeItem.disabled = if (menuItem.isEnabled) 0 else 1
-        nativeItem.checked = if (menuItem.isChecked) 1 else 0
+    private fun buildMenuItems(menuItems: List<MenuItem>): Long {
+        val menuHandle = WindowsNativeBridge.nativeCreateMenuItems(menuItems.size)
+        menuHandles.add(menuHandle to menuItems.size)
 
-        // Create the menu item callback
-        menuItem.onClick?.let { onClick ->
-            val callback = object : StdCallCallback {
-                override fun invoke(item: WindowsNativeTrayMenuItem) {
-                    log("Menu item clicked: ${menuItem.text}")
+        menuItems.forEachIndexed { index, item ->
+            WindowsNativeBridge.nativeSetMenuItem(
+                menuHandle, index,
+                item.text,
+                item.iconPath,
+                if (item.isEnabled) 0 else 1,
+                if (item.isChecked) 1 else 0,
+            )
+
+            item.onClick?.let { onClick ->
+                val callback = Runnable {
+                    log("Menu item clicked: ${item.text}")
                     try {
                         // Capture precise tray position on the tray thread (per-instance)
                         safeGetTrayPosition(instanceId)
@@ -455,14 +440,6 @@ internal class WindowsTrayManager(
                             mainScope?.launch {
                                 ioScope?.launch {
                                     onClick()
-                                    if (menuItem.isCheckable) {
-                                        // Queue an update to refresh the checked state
-                                        synchronized(updateQueueLock) {
-                                            // We need to update the menu with the new checked state
-                                            // This would require keeping track of menu state
-                                            // For now, the update will come from the application
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -471,48 +448,50 @@ internal class WindowsTrayManager(
                         e.printStackTrace()
                     }
                 }
-            }
-            nativeItem.cb = callback
-            callbackReferences.add(callback)
-        }
-
-        // Handle submenus
-        if (menuItem.subMenuItems.isNotEmpty()) {
-            val subMenuPrototype = WindowsNativeTrayMenuItem()
-            val subMenuItemsArray = subMenuPrototype.toArray(menuItem.subMenuItems.size + 1) as Array<WindowsNativeTrayMenuItem>
-
-            menuItem.subMenuItems.forEachIndexed { index, subItem ->
-                initializeNativeMenuItem(subMenuItemsArray[index], subItem)
-                subMenuItemsArray[index].write()
-                nativeMenuItemsReferences.add(subMenuItemsArray[index])
+                WindowsNativeBridge.nativeSetMenuItemCallback(menuHandle, index, callback)
             }
 
-            // End marker
-            subMenuItemsArray[menuItem.subMenuItems.size].text = null
-            subMenuItemsArray[menuItem.subMenuItems.size].write()
-            nativeItem.submenu = subMenuItemsArray[0].pointer
+            if (item.subMenuItems.isNotEmpty()) {
+                val subMenuHandle = buildMenuItems(item.subMenuItems)
+                WindowsNativeBridge.nativeSetMenuItemSubmenu(menuHandle, index, subMenuHandle)
+            }
         }
+
+        return menuHandle
+    }
+
+    private fun freeMenuHandles() {
+        for ((handle, count) in menuHandles) {
+            WindowsNativeBridge.nativeFreeMenuItems(handle, count)
+        }
+        menuHandles.clear()
     }
 
     private fun cleanupTray() {
         if (initialized.get()) {
             try {
-                log("Calling tray_exit()")
-                WindowsNativeTrayLibrary.tray_exit()
+                log("Calling nativeExitTray()")
+                WindowsNativeBridge.nativeExitTray()
             } catch (e: Error) {
-                log("Error in tray_exit() (memory access): ${e.message}")
+                log("Error in nativeExitTray() (memory access): ${e.message}")
                 e.printStackTrace()
             } catch (e: Exception) {
-                log("Error in tray_exit(): ${e.message}")
+                log("Error in nativeExitTray(): ${e.message}")
                 e.printStackTrace()
             }
         }
 
-        // Clear all references
-        callbackReferences.clear()
-        nativeMenuItemsReferences.clear()
-        trayCallback = null
-        tray.set(null)
+        // Free menu handles
+        freeMenuHandles()
+
+        // Free tray struct
+        val handle = trayHandle
+        if (handle != 0L) {
+            try {
+                WindowsNativeBridge.nativeFreeTray(handle)
+            } catch (_: Throwable) { }
+            trayHandle = 0L
+        }
 
         initialized.set(false)
     }

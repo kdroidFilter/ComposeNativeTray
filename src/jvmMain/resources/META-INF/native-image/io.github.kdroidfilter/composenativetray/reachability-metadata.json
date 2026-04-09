@@ -15,6 +15,10 @@
             ]
         },
         {
+            "type": "com.kdroid.composetray.lib.windows.WindowsNativeBridge",
+            "jniAccessible": true
+        },
+        {
             "type": "com.kdroid.composetray.lib.linux.LinuxNativeBridge",
             "jniAccessible": true
         },

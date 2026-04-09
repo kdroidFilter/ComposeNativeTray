@@ -1,7 +1,5 @@
 package com.kdroid.composetray.utils
 
-import com.sun.jna.Native
-import com.sun.jna.NativeLibrary
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -18,8 +16,6 @@ internal object NativeLibraryLoader {
 
     private const val RESOURCE_PREFIX = "composetray/native"
     private val loadedLibraries = mutableSetOf<String>()
-
-    // ── JNI loading (macOS) ─────────────────────────────────────────────
 
     /**
      * Loads a JNI library via [System.load] / [System.loadLibrary].
@@ -43,29 +39,6 @@ internal object NativeLibraryLoader {
         System.load(file.absolutePath)
         loadedLibraries += libraryName
         return true
-    }
-
-    // ── JNA loading (Linux / Windows) ───────────────────────────────────
-
-    /**
-     * Extracts the native library from the classpath and registers it with JNA.
-     */
-    @Synchronized
-    fun extractAndRegister(libraryName: String, caller: Class<*>) {
-        // 1. Try JNA's default resolution (system path)
-        try {
-            Native.register(caller, libraryName)
-            return
-        } catch (_: UnsatisfiedLinkError) {
-            // Not on system path, extract first
-        }
-
-        // 2. Extract from classpath to persistent cache, then register
-        val file = extractToCache(libraryName, caller)
-        if (file != null) {
-            NativeLibrary.addSearchPath(libraryName, file.parentFile.absolutePath)
-        }
-        Native.register(caller, libraryName)
     }
 
     // ── Shared extraction logic ─────────────────────────────────────────

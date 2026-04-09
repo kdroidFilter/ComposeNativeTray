@@ -1,6 +1,6 @@
 package com.kdroid.composetray.utils
 
-import com.kdroid.composetray.lib.windows.WindowsNativeTrayLibrary
+import com.kdroid.composetray.lib.windows.WindowsNativeBridge
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import com.kdroid.composetray.lib.mac.MacNativeBridge
@@ -214,7 +214,7 @@ internal fun getWindowsTrayPosition(nativeResult: String?): TrayPosition = when 
 /** OS → Tray corner heuristics */
 fun getTrayPosition(): TrayPosition {
     return when (getOperatingSystem()) {
-        OperatingSystem.WINDOWS -> getWindowsTrayPosition(WindowsNativeTrayLibrary.tray_get_notification_icons_region())
+        OperatingSystem.WINDOWS -> getWindowsTrayPosition(WindowsNativeBridge.nativeGetNotificationIconsRegion())
         OperatingSystem.MACOS -> getMacTrayPosition(MacNativeBridge.nativeGetStatusItemRegion())
         OperatingSystem.LINUX -> {
             TrayClickTracker.getLastClickPosition()?.position

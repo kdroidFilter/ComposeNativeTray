@@ -1,6 +1,12 @@
 @echo off
 echo === Starting compilation for x64 and ARM64 in MinSizeRel mode ===
 
+:: Detect JAVA_HOME for JNI headers
+if not defined JAVA_HOME (
+    echo WARNING: JAVA_HOME is not set. JNI headers may not be found.
+    echo Set JAVA_HOME to your JDK installation directory.
+)
+
 echo.
 echo === x64 Configuration (MinSizeRel) ===
 cmake -B build-x64 -A x64 -DCMAKE_BUILD_TYPE=MinSizeRel .
@@ -36,5 +42,5 @@ if %ERRORLEVEL% neq 0 (
 echo.
 echo === Compilation completed successfully for both architectures in MinSizeRel mode ===
 echo.
-echo x64 DLL: ..\..\jvmMain\resources\composetray\native\win32-x86-64\tray.dll
-echo ARM64 DLL: ..\..\jvmMain\resources\composetray\native\win32-arm64\tray.dll
+echo x64 DLL: ..\..\jvmMain\resources\composetray\native\win32-x86-64\WinTray.dll
+echo ARM64 DLL: ..\..\jvmMain\resources\composetray\native\win32-arm64\WinTray.dll

@@ -83,6 +83,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Build Windows native libraries
         working-directory: src/native/windows
         run: cmd /c build.bat
@@ -92,8 +98,8 @@ jobs:
       - name: Verify Windows natives
         shell: bash
         run: |
-          test -f build/nativeLibs/win32-x86-64/tray.dll
-          test -f build/nativeLibs/win32-arm64/tray.dll
+          test -f build/nativeLibs/win32-x86-64/WinTray.dll
+          test -f build/nativeLibs/win32-arm64/WinTray.dll
           ls -la build/nativeLibs/win32-x86-64/
           ls -la build/nativeLibs/win32-arm64/
 
@@ -101,12 +107,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: native-win32-x86-64
-          path: build/nativeLibs/win32-x86-64/tray.dll
+          path: build/nativeLibs/win32-x86-64/WinTray.dll
           retention-days: 1
 
       - name: Upload Windows ARM64 library
         uses: actions/upload-artifact@v4
         with:
           name: native-win32-arm64
-          path: build/nativeLibs/win32-arm64/tray.dll
+          path: build/nativeLibs/win32-arm64/WinTray.dll
           retention-days: 1

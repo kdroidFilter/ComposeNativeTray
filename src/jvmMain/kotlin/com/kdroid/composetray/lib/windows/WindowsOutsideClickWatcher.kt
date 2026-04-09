@@ -1,17 +1,12 @@
 package com.kdroid.composetray.lib.windows
 
-import com.sun.jna.Pointer
-import com.sun.jna.platform.win32.Kernel32
-import com.sun.jna.platform.win32.WinDef
-import com.sun.jna.platform.win32.WinUser
-import com.sun.jna.platform.win32.User32
 import io.github.kdroidfilter.platformtools.OperatingSystem
 import io.github.kdroidfilter.platformtools.getOperatingSystem
 import java.awt.Window
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * WindowsOutsideClickWatcher using a low-level mouse hook (WH_MOUSE_LL).
+ * WindowsOutsideClickWatcher using a low-level mouse hook (WH_MOUSE_LL) via JNI.
  *
  * Behavior:
  *  - Listens for global left-button *down* events.
@@ -22,21 +17,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 class WindowsOutsideClickWatcher(
     private val windowSupplier: () -> Window?,
     private val onOutsideClick: () -> Unit,
-    private val ignorePointPredicate: ((x: Int, y: Int) -> Boolean)? = null
+    private val ignorePointPredicate: ((x: Int, y: Int) -> Boolean)? = null,
 ) : AutoCloseable {
 
     @Volatile private var hookThread: Thread? = null
-    @Volatile private var hookHandle: WinUser.HHOOK? = null
-    @Volatile private var hookThreadId: Int = 0
-    @Volatile private var mouseProc: WinUser.LowLevelMouseProc? = null
+    @Volatile private var hookId: Long = 0L
     private val stopping = AtomicBoolean(false)
-
-    private companion object {
-        const val WH_MOUSE_LL = 14
-        const val WM_LBUTTONDOWN = 0x0201
-        const val WM_NCLBUTTONDOWN = 0x00A1
-        const val WM_QUIT = 0x0012
-    }
 
     /** Start the global low-level mouse hook on a dedicated daemon thread. */
     fun start() {
@@ -46,76 +32,47 @@ class WindowsOutsideClickWatcher(
             stopping.set(false)
 
             hookThread = Thread({
-                hookThreadId = Kernel32.INSTANCE.GetCurrentThreadId()
-
-                // Strong reference kept on the field to avoid GC of the callback.
-                mouseProc = WinUser.LowLevelMouseProc { nCode, wParam, lParam ->
+                val callback = Runnable {
                     try {
-                        if (nCode >= 0) {
-                            val msg = wParam.toInt() // For WH_MOUSE_LL this is the WM_* code.
-                            if (msg == WM_LBUTTONDOWN || msg == WM_NCLBUTTONDOWN) {
-                                // lParam is already the populated MSLLHOOKSTRUCT.
-                                val px = lParam.pt.x
-                                val py = lParam.pt.y
+                        val xy = IntArray(2)
+                        WindowsNativeBridge.nativeGetLastMouseHookClick(xy)
+                        val px = xy[0]
+                        val py = xy[1]
 
-                                val win = windowSupplier()
-                                if (win != null && win.isShowing) {
-                                    val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
-                                    if (winLoc != null) {
-                                        // Get the graphics configuration to determine the DPI scale
-                                        val scale = try {
-                                            win.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
-                                        } catch (_: Throwable) { 1.0 }
+                        val win = windowSupplier()
+                        if (win != null && win.isShowing) {
+                            val winLoc = try { win.locationOnScreen } catch (_: Throwable) { null }
+                            if (winLoc != null) {
+                                // Get the graphics configuration to determine the DPI scale
+                                val scale = try {
+                                    win.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
+                                } catch (_: Throwable) { 1.0 }
 
-                                        // Convert window bounds from logical to physical pixels
-                                        val wx = (winLoc.x * scale).toInt()
-                                        val wy = (winLoc.y * scale).toInt()
-                                        val ww = (win.width * scale).toInt()
-                                        val wh = (win.height * scale).toInt()
+                                // Convert window bounds from logical to physical pixels
+                                val wx = (winLoc.x * scale).toInt()
+                                val wy = (winLoc.y * scale).toInt()
+                                val ww = (win.width * scale).toInt()
+                                val wh = (win.height * scale).toInt()
 
-                                        val insideWindow = px in wx until (wx + ww) && py in wy until (wy + wh)
-                                        val ignored = ignorePointPredicate?.invoke(px, py) == true
+                                val insideWindow = px in wx until (wx + ww) && py in wy until (wy + wh)
+                                val ignored = ignorePointPredicate?.invoke(px, py) == true
 
-                                        if (!insideWindow && !ignored) {
-                                            // Let caller decide EDT marshaling.
-                                            onOutsideClick()
-                                        }
-                                    }
+                                if (!insideWindow && !ignored) {
+                                    // Let caller decide EDT marshaling.
+                                    onOutsideClick()
                                 }
                             }
                         }
                     } catch (_: Throwable) {
-                        // Never crash the hook; always fall through to CallNextHookEx.
+                        // Never crash the hook callback
                     }
-
-                    // Pass original WPARAM and a *pointer* to the struct as LPARAM.
-                    val lParamNative = WinDef.LPARAM(Pointer.nativeValue(lParam.pointer))
-                    User32.INSTANCE.CallNextHookEx(hookHandle, nCode, wParam, lParamNative)
                 }
 
-                // Install the hook (global, threadId = 0).
-                val hMod = Kernel32.INSTANCE.GetModuleHandle(null)
-                hookHandle = User32.INSTANCE.SetWindowsHookEx(WH_MOUSE_LL, mouseProc, hMod, 0)
+                hookId = WindowsNativeBridge.nativeInstallMouseHook(callback)
+                if (hookId == 0L) return@Thread
 
-                if (hookHandle == null) {
-                    mouseProc = null
-                    return@Thread
-                }
-
-                // Minimal message loop to keep the hook thread alive.
-                val msg = WinUser.MSG()
-                while (!stopping.get()) {
-                    val r = User32.INSTANCE.GetMessage(msg, null, 0, 0)
-                    if (r == 0 || r == -1) break // WM_QUIT or error
-                }
-
-                // Cleanup before thread exits.
-                try {
-                    hookHandle?.let { User32.INSTANCE.UnhookWindowsHookEx(it) }
-                } finally {
-                    hookHandle = null
-                    mouseProc = null
-                }
+                // Block on message loop until stopped
+                WindowsNativeBridge.nativeRunMouseHookLoop(hookId)
             }, "WindowsOutsideClickWatcher-LL").apply {
                 isDaemon = true
                 start()
@@ -131,30 +88,15 @@ class WindowsOutsideClickWatcher(
         synchronized(this) {
             stopping.set(true)
 
-            // Unhook immediately; also helps release if thread is blocked in GetMessage().
-            try {
-                hookHandle?.let { User32.INSTANCE.UnhookWindowsHookEx(it) }
-            } catch (_: Throwable) {
-            } finally {
-                hookHandle = null
-            }
-
-            // Break GetMessage() with WM_QUIT.
-            if (hookThreadId != 0) {
+            val id = hookId
+            if (id != 0L) {
                 try {
-                    User32.INSTANCE.PostThreadMessage(
-                        hookThreadId,
-                        WM_QUIT,
-                        WinDef.WPARAM(0),
-                        WinDef.LPARAM(0)
-                    )
-                } catch (_: Throwable) {
-                }
+                    WindowsNativeBridge.nativeStopMouseHook(id)
+                } catch (_: Throwable) { }
+                hookId = 0L
             }
 
             hookThread = null
-            hookThreadId = 0
-            mouseProc = null
         }
     }
 }
