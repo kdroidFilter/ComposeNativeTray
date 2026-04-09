@@ -29,7 +29,7 @@ kotlin {
 }
 
 nucleus.application {
-    mainClass = "com.kdroid.composetray.demo.DynamicTrayMenuKt"
+    mainClass = "com.kdroid.composetray.demo.TrayAppDemoKt"
 
     buildTypes {
         release {

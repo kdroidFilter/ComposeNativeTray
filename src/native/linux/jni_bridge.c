@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <dlfcn.h>
 
 #include "sni.h"
 
@@ -488,4 +489,100 @@ Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemSetIcon(
     jbyte *buf = (*env)->GetByteArrayElements(env, iconBytes, NULL);
     sni_tray_item_set_icon(tray, (uint32_t)id, (const uint8_t *)buf, (size_t)len);
     (*env)->ReleaseByteArrayElements(env, iconBytes, buf, JNI_ABORT);
+}
+
+/* ========================================================================== */
+/*  X11 outside-click watcher (dynamically loaded to avoid hard dependency)   */
+/* ========================================================================== */
+
+/* X11 types */
+typedef void *X11Display;
+typedef unsigned long X11Window;
+typedef int X11Bool;
+
+/* X11 function pointers (loaded via dlopen/dlsym) */
+typedef X11Display (*fn_XOpenDisplay)(const char *);
+typedef X11Window  (*fn_XDefaultRootWindow)(X11Display);
+typedef X11Bool    (*fn_XQueryPointer)(X11Display, X11Window,
+                                      X11Window *, X11Window *,
+                                      int *, int *, int *, int *,
+                                      unsigned int *);
+typedef int        (*fn_XCloseDisplay)(X11Display);
+
+static void        *g_x11_lib = NULL;
+static fn_XOpenDisplay       g_XOpenDisplay = NULL;
+static fn_XDefaultRootWindow g_XDefaultRootWindow = NULL;
+static fn_XQueryPointer      g_XQueryPointer = NULL;
+static fn_XCloseDisplay      g_XCloseDisplay = NULL;
+
+static int ensure_x11(void) {
+    if (g_x11_lib) return 1;
+    g_x11_lib = dlopen("libX11.so.6", RTLD_LAZY);
+    if (!g_x11_lib) g_x11_lib = dlopen("libX11.so", RTLD_LAZY);
+    if (!g_x11_lib) return 0;
+    g_XOpenDisplay       = (fn_XOpenDisplay)dlsym(g_x11_lib, "XOpenDisplay");
+    g_XDefaultRootWindow = (fn_XDefaultRootWindow)dlsym(g_x11_lib, "XDefaultRootWindow");
+    g_XQueryPointer      = (fn_XQueryPointer)dlsym(g_x11_lib, "XQueryPointer");
+    g_XCloseDisplay      = (fn_XCloseDisplay)dlsym(g_x11_lib, "XCloseDisplay");
+    if (!g_XOpenDisplay || !g_XDefaultRootWindow || !g_XQueryPointer || !g_XCloseDisplay) {
+        dlclose(g_x11_lib);
+        g_x11_lib = NULL;
+        return 0;
+    }
+    return 1;
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeX11OpenDisplay(
+    JNIEnv *env, jclass clazz)
+{
+    (void)env; (void)clazz;
+    if (!ensure_x11()) return 0;
+    X11Display dpy = g_XOpenDisplay(NULL);
+    return (jlong)(uintptr_t)dpy;
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeX11DefaultRootWindow(
+    JNIEnv *env, jclass clazz, jlong displayHandle)
+{
+    (void)env; (void)clazz;
+    if (!g_XDefaultRootWindow) return 0;
+    X11Display dpy = (X11Display)(uintptr_t)displayHandle;
+    if (!dpy) return 0;
+    return (jlong)g_XDefaultRootWindow(dpy);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeX11QueryPointer(
+    JNIEnv *env, jclass clazz, jlong displayHandle, jlong rootWindow, jintArray outData)
+{
+    (void)clazz;
+    if (!g_XQueryPointer) return 0;
+    X11Display dpy = (X11Display)(uintptr_t)displayHandle;
+    if (!dpy || !outData) return 0;
+
+    X11Window root_ret, child_ret;
+    int root_x, root_y, win_x, win_y;
+    unsigned int mask;
+
+    X11Bool ok = g_XQueryPointer(dpy, (X11Window)(unsigned long)rootWindow,
+                                 &root_ret, &child_ret,
+                                 &root_x, &root_y, &win_x, &win_y, &mask);
+
+    /* outData: [rootX, rootY, mask] */
+    jint buf[3] = {(jint)root_x, (jint)root_y, (jint)mask};
+    (*env)->SetIntArrayRegion(env, outData, 0, 3, buf);
+
+    return (jint)(ok != 0 ? 1 : 0);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeX11CloseDisplay(
+    JNIEnv *env, jclass clazz, jlong displayHandle)
+{
+    (void)env; (void)clazz;
+    if (!g_XCloseDisplay) return;
+    X11Display dpy = (X11Display)(uintptr_t)displayHandle;
+    if (dpy) g_XCloseDisplay(dpy);
 }

@@ -66,4 +66,18 @@ internal object LinuxNativeBridge {
     @JvmStatic external fun nativeItemCheck(handle: Long, id: Int)
     @JvmStatic external fun nativeItemUncheck(handle: Long, id: Int)
     @JvmStatic external fun nativeItemSetIcon(handle: Long, id: Int, iconBytes: ByteArray)
+
+    // -- X11 outside-click watcher -----------------------------------------------
+
+    /** Open X11 display. Returns handle, or 0 if X11 is unavailable. */
+    @JvmStatic external fun nativeX11OpenDisplay(): Long
+
+    /** Get default root window for the display. */
+    @JvmStatic external fun nativeX11DefaultRootWindow(displayHandle: Long): Long
+
+    /** Query pointer. Writes [rootX, rootY, mask] into outData. Returns 1 on success. */
+    @JvmStatic external fun nativeX11QueryPointer(displayHandle: Long, rootWindow: Long, outData: IntArray): Int
+
+    /** Close X11 display. */
+    @JvmStatic external fun nativeX11CloseDisplay(displayHandle: Long)
 }

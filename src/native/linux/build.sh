@@ -64,7 +64,7 @@ gcc -shared -o "$OUTPUT_DIR/linux-x86-64/libLinuxTray.so" \
     "$SCRIPT_DIR/sni.o" \
     "$SCRIPT_DIR/jni_bridge.o" \
     $SDBUS_LIBS \
-    -lpthread -lm
+    -lpthread -lm -ldl
 
 # Strip debug symbols for smaller binary
 strip --strip-unneeded "$OUTPUT_DIR/linux-x86-64/libLinuxTray.so"
