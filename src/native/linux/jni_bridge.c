@@ -54,6 +54,7 @@ typedef struct CallbackEntry {
 static CallbackEntry *g_clickCallback = NULL;
 static CallbackEntry *g_rclickCallback = NULL;
 static CallbackEntry *g_menuCallbacks = NULL;
+static CallbackEntry *g_menuOpenedCallback = NULL;
 
 static void storeCallback(CallbackEntry **list, uintptr_t key, JNIEnv *env, jobject callback) {
     /* Remove existing entry for this key */
@@ -147,6 +148,12 @@ static void menu_item_trampoline(uint32_t id, void *userdata) {
     if (runnable) invokeRunnable(runnable);
 }
 
+static void menu_opened_trampoline(void *userdata) {
+    uintptr_t key = (uintptr_t)userdata;
+    jobject runnable = findCallback(g_menuOpenedCallback, key);
+    if (runnable) invokeRunnable(runnable);
+}
+
 /* ========================================================================== */
 /*  JNI exports                                                               */
 /* ========================================================================== */
@@ -212,6 +219,7 @@ Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeDestroy(
     uintptr_t key = (uintptr_t)tray;
     storeCallback(&g_clickCallback, key, env, NULL);
     storeCallback(&g_rclickCallback, key, env, NULL);
+    storeCallback(&g_menuOpenedCallback, key, env, NULL);
     /* Menu callbacks are keyed by item id, clear all */
     clearAllCallbacks(&g_menuCallbacks);
 
@@ -298,6 +306,20 @@ Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetMenuItemCallbac
     storeCallback(&g_menuCallbacks, (uintptr_t)menuId, env, callback);
     /* Ensure the global menu callback trampoline is installed */
     sni_tray_set_menu_callback(tray, menu_item_trampoline, (void *)(uintptr_t)tray);
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeSetMenuOpenedCallback(
+    JNIEnv *env, jclass clazz, jlong handle, jobject callback)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    uintptr_t key = (uintptr_t)tray;
+    storeCallback(&g_menuOpenedCallback, key, env, callback);
+    sni_tray_set_menu_opened_callback(tray,
+                                       callback ? menu_opened_trampoline : NULL,
+                                       (void *)key);
 }
 
 /* ── Click position ─────────────────────────────────────────────────── */

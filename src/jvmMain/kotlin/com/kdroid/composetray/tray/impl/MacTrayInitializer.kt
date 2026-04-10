@@ -25,6 +25,7 @@ object MacTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        @Suppress("UNUSED_PARAMETER") onMenuOpened: (() -> Unit)? = null,
     ) {
         var manager = trayManagers[id]
         if (manager == null) {
@@ -65,6 +66,7 @@ object MacTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        @Suppress("UNUSED_PARAMETER") onMenuOpened: (() -> Unit)? = null,
     ) {
         val manager = trayManagers[id]
         if (manager == null) {
@@ -116,14 +118,16 @@ object MacTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+        onMenuOpened: (() -> Unit)? = null,
+    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
 
     fun update(
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+        onMenuOpened: (() -> Unit)? = null,
+    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
 
     fun dispose() = dispose(DEFAULT_ID)
 }

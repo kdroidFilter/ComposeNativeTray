@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <errno.h>
 
+#include <time.h>
 #include <systemd/sd-bus.h>
 
 /* stb_image for PNG/JPG decoding */
@@ -155,6 +156,9 @@ struct sni_tray {
     void             *on_rclick_data;
     sni_menu_item_cb  on_menu_item;
     void             *on_menu_item_data;
+    sni_menu_opened_cb on_menu_opened;
+    void              *on_menu_opened_data;
+    int64_t            last_layout_updated_ms; /* suppress AboutToShow triggered by LayoutUpdated */
 
     /* Desktop environment */
     desktop_env  de;
@@ -309,6 +313,9 @@ static void emit_new_title(sni_tray *tray) {
 static void emit_layout_updated(sni_tray *tray) {
     if (!tray->bus) return;
     tray->menu_version++;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    tray->last_layout_updated_ms = (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
     sd_bus_emit_signal(tray->bus, MENU_PATH, MENU_IFACE, "LayoutUpdated",
                        "ui", tray->menu_version, (int32_t)0);
     /* Also emit properties changed for Version */
@@ -825,9 +832,21 @@ static int menu_event_group(sd_bus_message *msg, void *userdata, sd_bus_error *e
 }
 
 static int menu_about_to_show(sd_bus_message *msg, void *userdata, sd_bus_error *error) {
-    (void)userdata; (void)error;
+    (void)error;
+    sni_tray *tray = userdata;
     int32_t id;
     sd_bus_message_read(msg, "i", &id);
+
+    if (id == 0 && tray->on_menu_opened) {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        int64_t now_ms = (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+        /* Only fire on genuine user-initiated opens, not on AboutToShow
+           calls triggered by a recent LayoutUpdated from a menu rebuild. */
+        if (now_ms - tray->last_layout_updated_ms > 300) {
+            tray->on_menu_opened(tray->on_menu_opened_data);
+        }
+    }
     return sd_bus_reply_method_return(msg, "b", 0);
 }
 
@@ -920,6 +939,9 @@ sni_tray *sni_tray_create(const uint8_t *icon_data, size_t icon_len,
     pthread_mutex_init(&tray->click_lock, NULL);
     tray->next_id = 1;
     tray->menu_version = 1;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    tray->last_layout_updated_ms = (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
     tray->de = detect_desktop();
     tray->current_menu_path = no_menu_path(tray->de);
 
@@ -1098,6 +1120,12 @@ void sni_tray_set_menu_callback(sni_tray *tray, sni_menu_item_cb cb, void *userd
     if (!tray) return;
     tray->on_menu_item = cb;
     tray->on_menu_item_data = userdata;
+}
+
+void sni_tray_set_menu_opened_callback(sni_tray *tray, sni_menu_opened_cb cb, void *userdata) {
+    if (!tray) return;
+    tray->on_menu_opened = cb;
+    tray->on_menu_opened_data = userdata;
 }
 
 void sni_tray_get_last_click_xy(sni_tray *tray, int32_t *x, int32_t *y) {
