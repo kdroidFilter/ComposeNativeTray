@@ -20,11 +20,12 @@ object LinuxTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         lock.withLock {
             val existing = linuxTrayManagers[id]
             if (existing == null) {
-                val manager = LinuxTrayManager(id, iconPath, tooltip, onLeftClick)
+                val manager = LinuxTrayManager(id, iconPath, tooltip, onLeftClick, onMenuOpened)
                 linuxTrayManagers[id] = manager
 
                 val menuImpl =
@@ -43,7 +44,7 @@ object LinuxTrayInitializer {
 
                 manager.startTray()
             } else {
-                update(id, iconPath, tooltip, onLeftClick, menuContent)
+                update(id, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
             }
         }
     }
@@ -55,11 +56,12 @@ object LinuxTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         lock.withLock {
             val manager = linuxTrayManagers[id]
             if (manager == null) {
-                initialize(id, iconPath, tooltip, onLeftClick, menuContent)
+                initialize(id, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
                 return
             }
 
@@ -76,7 +78,7 @@ object LinuxTrayInitializer {
                     null
                 }
 
-            manager.update(iconPath, tooltip, onLeftClick, newMenuItems)
+            manager.update(iconPath, tooltip, onLeftClick, newMenuItems, onMenuOpened)
         }
     }
 
@@ -114,14 +116,16 @@ object LinuxTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+        onMenuOpened: (() -> Unit)? = null,
+    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
 
     fun update(
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+        onMenuOpened: (() -> Unit)? = null,
+    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
 
     fun dispose() = dispose(DEFAULT_ID)
 }

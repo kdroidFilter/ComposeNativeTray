@@ -56,16 +56,19 @@ fun main() = application {
 
     // Basic state for tray icon
     var currentTrayIcon by remember { mutableStateOf(Icons.Default.Notifications) }
-    
+
     // States for menu item icons
     var weatherIcon by remember { mutableStateOf(Icons.Default.WbSunny) }
     var musicIcon by remember { mutableStateOf(Icons.Default.MusicNote) }
     var settingsIcon by remember { mutableStateOf(Icons.Default.Settings) }
-    
+
     // States for theme and features
     var isDarkTheme by remember { mutableStateOf(false) }
     var isWeatherEnabled by remember { mutableStateOf(true) }
     var isMusicEnabled by remember { mutableStateOf(true) }
+
+    // Counter to demonstrate onMenuOpened callback
+    var menuOpenCount by remember { mutableIntStateOf(0) }
     
     // Always create the Tray composable, but make it conditional on visibility
     val showTray = alwaysShowTray || !isWindowVisible
@@ -77,7 +80,11 @@ fun main() = application {
             primaryAction = {
                 isWindowVisible = true
                 println("$logTag: Primary action clicked")
-            }
+            },
+            onMenuOpened = {
+                menuOpenCount++
+                println("$logTag: Menu opened (count: $menuOpenCount)")
+            },
         ) {
             // Weather submenu with dynamic icon
             SubMenu(label = "Weather", icon = weatherIcon) {
@@ -249,6 +256,12 @@ fun main() = application {
 
                     Text(
                         "This demo showcases dynamic icon changes in the system tray menu.",
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Text(
+                        "Tray menu opened $menuOpenCount times",
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
 

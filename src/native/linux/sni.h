@@ -20,6 +20,7 @@ typedef struct sni_tray sni_tray;
 /* Callback types */
 typedef void (*sni_click_cb)(int32_t x, int32_t y, void *userdata);
 typedef void (*sni_menu_item_cb)(uint32_t id, void *userdata);
+typedef void (*sni_menu_opened_cb)(void *userdata);
 
 /* ── Lifecycle ─────────────────────────────────────────────────────── */
 
@@ -51,6 +52,7 @@ void sni_tray_set_tooltip(sni_tray *tray, const char *tooltip);
 void sni_tray_set_click_callback(sni_tray *tray, sni_click_cb cb, void *userdata);
 void sni_tray_set_rclick_callback(sni_tray *tray, sni_click_cb cb, void *userdata);
 void sni_tray_set_menu_callback(sni_tray *tray, sni_menu_item_cb cb, void *userdata);
+void sni_tray_set_menu_opened_callback(sni_tray *tray, sni_menu_opened_cb cb, void *userdata);
 
 /* Get last click coordinates (from Activate/ContextMenu). */
 void sni_tray_get_last_click_xy(sni_tray *tray, int32_t *x, int32_t *y);

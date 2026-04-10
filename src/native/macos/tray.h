@@ -65,6 +65,7 @@ TRAY_API void tray_exit (void);                /* free everything and exit   */
 /*  Additional options / information                                          */
 /* -------------------------------------------------------------------------- */
 TRAY_API void tray_set_theme_callback(theme_callback cb);
+TRAY_API void tray_set_menu_opened_callback(struct tray *tray, tray_callback cb);
 TRAY_API int  tray_is_menu_dark(void);         /* 1 = dark mode              */
 
 /* Windows: corner and coordinates of notification area                       */
