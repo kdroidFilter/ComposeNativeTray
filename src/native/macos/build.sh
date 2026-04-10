@@ -68,4 +68,14 @@ build_arch() {
 build_arch "arm64"  "arm64-apple-macosx11.0"  "$OUTPUT_DIR/darwin-aarch64"
 build_arch "x86_64" "x86_64-apple-macosx11.0" "$OUTPUT_DIR/darwin-x86-64"
 
+# Invalidate runtime cache (NativeLibraryLoader validates by size only,
+# so a same-size rebuild would serve the stale cached copy)
+for PLATFORM_DIR in darwin-aarch64 darwin-x86-64; do
+    CACHE_FILE="$HOME/.cache/composetray/native/$PLATFORM_DIR/libMacTray.dylib"
+    if [ -f "$CACHE_FILE" ]; then
+        rm -f "$CACHE_FILE"
+        echo "Cleared cached library: $CACHE_FILE"
+    fi
+done
+
 echo "Build completed successfully."

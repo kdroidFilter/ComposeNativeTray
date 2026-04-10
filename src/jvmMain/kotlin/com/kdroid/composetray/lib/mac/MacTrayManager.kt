@@ -15,6 +15,7 @@ internal class MacTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
     onLeftClick: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
 ) {
     private var trayHandle: Long = 0L
     private var menuHandle: Long = 0L
@@ -33,6 +34,7 @@ internal class MacTrayManager(
     private val submenuHandles: MutableList<Pair<Long, Int>> = mutableListOf()
 
     private val onLeftClickCallback = mutableStateOf(onLeftClick)
+    private var onMenuOpenedCallback: (() -> Unit)? = onMenuOpened
 
     // Top level MenuItem class
     data class MenuItem(
@@ -72,6 +74,7 @@ internal class MacTrayManager(
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
         newMenuItems: List<MenuItem>? = null,
+        newOnMenuOpened: (() -> Unit)? = null,
     ) {
         lock.withLock {
             if (!running.get() || trayHandle == 0L) return
@@ -80,11 +83,13 @@ internal class MacTrayManager(
             val iconChanged = this.iconPath != newIconPath
             val tooltipChanged = this.tooltip != newTooltip
             val onLeftClickChanged = this.onLeftClickCallback.value != newOnLeftClick
+            val onMenuOpenedChanged = this.onMenuOpenedCallback != newOnMenuOpened
 
             // Update icon path and tooltip
             this.iconPath = newIconPath
             this.tooltip = newTooltip
             this.onLeftClickCallback.value = newOnLeftClick
+            this.onMenuOpenedCallback = newOnMenuOpened
 
             if (iconChanged) {
                 MacNativeBridge.nativeSetTrayIcon(trayHandle, newIconPath)
@@ -94,6 +99,9 @@ internal class MacTrayManager(
             }
             if (onLeftClickChanged) {
                 initializeOnLeftClickCallback()
+            }
+            if (onMenuOpenedChanged) {
+                initializeOnMenuOpenedCallback()
             }
 
             // Update menu items if provided
@@ -167,6 +175,9 @@ internal class MacTrayManager(
                             throw IllegalStateException("Failed to initialize tray: $initResult")
                         }
 
+                        // Set menu-opened callback after init (TrayContext must exist)
+                        initializeOnMenuOpenedCallback()
+
                         // Signal that initialization is complete
                         initLatch.countDown()
 
@@ -215,6 +226,26 @@ internal class MacTrayManager(
             )
         } else {
             MacNativeBridge.nativeSetTrayCallback(trayHandle, null)
+        }
+    }
+
+    private fun initializeOnMenuOpenedCallback() {
+        if (trayHandle == 0L) return
+
+        val callback = onMenuOpenedCallback
+        if (callback != null) {
+            MacNativeBridge.nativeSetMenuOpenedCallback(
+                trayHandle,
+                Runnable {
+                    mainScope?.launch {
+                        ioScope?.launch {
+                            callback()
+                        }
+                    }
+                },
+            )
+        } else {
+            MacNativeBridge.nativeSetMenuOpenedCallback(trayHandle, null)
         }
     }
 
