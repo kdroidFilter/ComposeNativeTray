@@ -4,7 +4,7 @@ kotlin = "2.3.10"
 kotlinx-coroutines = "1.10.2"
 compose = "1.10.0"
 platformtools = "0.7.5"
-detekt = "1.23.7"
+detekt = "1.23.8"
 ktlint = "12.1.2"
 nucleus = "1.9.1"
 
