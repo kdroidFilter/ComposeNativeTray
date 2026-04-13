@@ -17,6 +17,7 @@ object WindowsTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         val menuItems =
             WindowsTrayMenuBuilderImpl(iconPath, tooltip, onLeftClick).apply {
@@ -25,11 +26,11 @@ object WindowsTrayInitializer {
 
         val manager = trayManagers[id]
         if (manager == null) {
-            val windowsTrayManager = WindowsTrayManager(id, iconPath, tooltip, onLeftClick)
+            val windowsTrayManager = WindowsTrayManager(id, iconPath, tooltip, onLeftClick, onMenuOpened)
             trayManagers[id] = windowsTrayManager
             windowsTrayManager.initialize(menuItems)
         } else {
-            manager.update(iconPath, tooltip, onLeftClick, menuItems)
+            manager.update(iconPath, tooltip, onLeftClick, onMenuOpened, menuItems)
         }
     }
 
@@ -40,9 +41,10 @@ object WindowsTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         // Same as initialize - it will handle both cases per ID
-        initialize(id, iconPath, tooltip, onLeftClick, menuContent)
+        initialize(id, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
     }
 
     @Synchronized
@@ -65,14 +67,16 @@ object WindowsTrayInitializer {
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+        onMenuOpened: (() -> Unit)? = null,
+    ) = initialize(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
 
     fun update(
         iconPath: String,
         tooltip: String,
         onLeftClick: (() -> Unit)? = null,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
-    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent)
+        onMenuOpened: (() -> Unit)? = null,
+    ) = update(DEFAULT_ID, iconPath, tooltip, onLeftClick, menuContent, onMenuOpened)
 
     fun dispose() = dispose(DEFAULT_ID)
 }

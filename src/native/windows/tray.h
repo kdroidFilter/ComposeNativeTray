@@ -60,6 +60,9 @@ TRAY_EXPORT void tray_exit (void);               /* Free all resources          
 TRAY_EXPORT int tray_get_notification_icons_position(int *x, int *y);
 TRAY_EXPORT const char *tray_get_notification_icons_region(void);
 
+/* Menu-opened callback: invoked just before the popup menu is shown */
+TRAY_EXPORT void tray_set_menu_opened_callback(struct tray *tray, void (*cb)(struct tray *));
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

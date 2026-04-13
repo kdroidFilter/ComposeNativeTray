@@ -21,6 +21,7 @@ private class TrayContext {
     let appearanceObserver: MenuBarAppearanceObserver
     var lightImage: NSImage?
     var darkImage: NSImage?
+    var menuOpenedCallback: TrayCallback?
     init(statusItem: NSStatusItem, clickHandler: InstanceButtonClickHandler, appearanceObserver: MenuBarAppearanceObserver) {
         self.statusItem = statusItem
         self.clickHandler = clickHandler
@@ -51,6 +52,7 @@ private class MenuDelegate: NSObject, NSMenuDelegate {
 
         if event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
             if let menu = ctx.contextMenu {
+                ctx.menuOpenedCallback?(trayPtr)
                 let menuLocation = NSPoint(
                     x: sender.frame.minX,
                     y: sender.frame.minY - 5
@@ -382,6 +384,19 @@ public func tray_exit() {
 
     // Optionally release delegates
     menuDelegate = nil
+}
+
+@_cdecl("tray_set_menu_opened_callback")
+public func tray_set_menu_opened_callback(
+    _ tray: UnsafeMutableRawPointer?,
+    _ cb: TrayCallback?
+) {
+    let doWork = {
+        guard let tray = tray, let ctx = contexts[tray] else { return }
+        ctx.menuOpenedCallback = cb
+    }
+    if Thread.isMainThread { doWork() }
+    else { DispatchQueue.main.sync { doWork() } }
 }
 
 @_cdecl("tray_set_theme_callback")

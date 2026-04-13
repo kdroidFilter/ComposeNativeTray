@@ -23,6 +23,7 @@ internal class LinuxTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null,
+    private var onMenuOpened: (() -> Unit)? = null,
 ) {
     companion object {
         // Ensures only one systray runtime is active at a time
@@ -99,6 +100,7 @@ internal class LinuxTrayManager(
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
         newMenuItems: List<MenuItem>?,
+        newOnMenuOpened: (() -> Unit)? = null,
     ) {
         val iconChanged: Boolean
         val tooltipChanged: Boolean
@@ -109,6 +111,7 @@ internal class LinuxTrayManager(
             iconPath = newIconPath
             tooltip = newTooltip
             onLeftClick = newOnLeftClick
+            onMenuOpened = newOnMenuOpened
             if (newMenuItems != null) {
                 menuItems.clear()
                 menuItems.addAll(newMenuItems)
@@ -172,6 +175,12 @@ internal class LinuxTrayManager(
                     }
                     onLeftClick?.invoke()
                 },
+            )
+
+            // Set menu-opened callback
+            native.nativeSetMenuOpenedCallback(
+                trayHandle,
+                JniRunnable { onMenuOpened?.invoke() },
             )
 
             // Build menu before starting the loop

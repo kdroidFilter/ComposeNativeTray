@@ -65,6 +65,12 @@ internal object LinuxNativeBridge {
         callback: Runnable?,
     )
 
+    /** Register a callback invoked when the menu is about to be shown. */
+    @JvmStatic external fun nativeSetMenuOpenedCallback(
+        handle: Long,
+        callback: Runnable?,
+    )
+
     // -- Click position ----------------------------------------------------------
 
     /** Writes [x, y] into outXY. */

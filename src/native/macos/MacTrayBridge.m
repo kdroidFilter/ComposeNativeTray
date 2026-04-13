@@ -61,6 +61,7 @@ typedef struct CallbackEntry {
 
 static CallbackEntry *g_trayCallbacks = NULL;      /* tray left-click */
 static CallbackEntry *g_menuCallbacks = NULL;       /* menu item click */
+static CallbackEntry *g_menuOpenedCallbacks = NULL;  /* menu opened */
 static CallbackEntry *g_themeCallback = NULL;        /* theme change (single) */
 
 static void storeCallback(CallbackEntry **list, void *key, JNIEnv *env, jobject callback) {
@@ -177,6 +178,18 @@ static void menuItemCbTrampoline(struct tray_menu_item *item) {
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
 
+/* Called by the Swift click handler when the menu is about to open */
+static void menuOpenedCbTrampoline(struct tray *t) {
+    JNIEnv *env = getJNIEnv();
+    if (!env) return;
+    jobject runnable = findCallback(g_menuOpenedCallbacks, t);
+    if (!runnable) return;
+    jmethodID run = getRunnableRunMethod(env);
+    if (!run) return;
+    (*env)->CallVoidMethod(env, runnable, run);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+}
+
 /* Called by the Swift appearance observer when the theme changes */
 static void themeCbTrampoline(int isDark) {
     JNIEnv *env = getJNIEnv();
@@ -260,6 +273,16 @@ JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativ
     t->cb = (callback != NULL) ? trayCbTrampoline : NULL;
 }
 
+JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativeSetMenuOpenedCallback(
+    JNIEnv *env, jclass clazz, jlong handle, jobject callback)
+{
+    (void)clazz;
+    struct tray *t = (struct tray *)(uintptr_t)handle;
+    if (!t) return;
+    storeCallback(&g_menuOpenedCallbacks, t, env, callback);
+    tray_set_menu_opened_callback(t, (callback != NULL) ? menuOpenedCbTrampoline : NULL);
+}
+
 JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativeSetTrayMenu(
     JNIEnv *env, jclass clazz, jlong trayHandle, jlong menuHandle)
 {
@@ -312,6 +335,7 @@ JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativ
     tray_dispose(t);
     /* Clean up callback refs for this tray */
     removeCallback(&g_trayCallbacks, t);
+    removeCallback(&g_menuOpenedCallbacks, t);
     /* Free the struct and its strings */
     free((void *)t->icon_filepath);
     free((void *)t->tooltip);
@@ -325,6 +349,7 @@ JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativ
     tray_exit();
     clearAllCallbacks(&g_trayCallbacks);
     clearAllCallbacks(&g_menuCallbacks);
+    clearAllCallbacks(&g_menuOpenedCallbacks);
 }
 
 /* ========================================================================== */

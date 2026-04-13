@@ -53,6 +53,7 @@ typedef struct CallbackEntry {
 
 static CallbackEntry *g_trayCallbacks = NULL;
 static CallbackEntry *g_menuCallbacks = NULL;
+static CallbackEntry *g_menuOpenedCallbacks = NULL;
 
 static void storeCallback(CallbackEntry **list, uintptr_t key, JNIEnv *env, jobject callback) {
     CallbackEntry **pp = list;
@@ -137,6 +138,12 @@ static void menu_item_cb_trampoline(struct tray_menu_item *item) {
     if (runnable) invokeRunnable(runnable);
 }
 
+static void menu_opened_cb_trampoline(struct tray *t) {
+    uintptr_t key = (uintptr_t)t;
+    jobject runnable = findCallback(g_menuOpenedCallbacks, key);
+    if (runnable) invokeRunnable(runnable);
+}
+
 /* ========================================================================== */
 /*  Helper: duplicate UTF-8 string from JNI                                   */
 /* ========================================================================== */
@@ -176,8 +183,9 @@ Java_com_kdroid_composetray_lib_windows_WindowsNativeBridge_nativeFreeTray(
     struct tray *t = (struct tray *)(uintptr_t)handle;
     if (!t) return;
 
-    /* Remove tray callback */
+    /* Remove tray callbacks */
     storeCallback(&g_trayCallbacks, (uintptr_t)t, env, NULL);
+    storeCallback(&g_menuOpenedCallbacks, (uintptr_t)t, env, NULL);
 
     free((void *)t->icon_filepath);
     free((void *)t->tooltip);
@@ -216,6 +224,17 @@ Java_com_kdroid_composetray_lib_windows_WindowsNativeBridge_nativeSetTrayCallbac
     if (!t) return;
     storeCallback(&g_trayCallbacks, (uintptr_t)t, env, callback);
     t->cb = callback ? tray_cb_trampoline : NULL;
+}
+
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_windows_WindowsNativeBridge_nativeSetMenuOpenedCallback(
+    JNIEnv *env, jclass clazz, jlong handle, jobject callback)
+{
+    (void)clazz;
+    struct tray *t = (struct tray *)(uintptr_t)handle;
+    if (!t) return;
+    storeCallback(&g_menuOpenedCallbacks, (uintptr_t)t, env, callback);
+    tray_set_menu_opened_callback(t, callback ? menu_opened_cb_trampoline : NULL);
 }
 
 JNIEXPORT void JNICALL
@@ -271,6 +290,7 @@ Java_com_kdroid_composetray_lib_windows_WindowsNativeBridge_nativeExitTray(
     (void)env; (void)clazz;
     tray_exit();
     clearAllCallbacks(&g_menuCallbacks);
+    clearAllCallbacks(&g_menuOpenedCallbacks);
 }
 
 /* ========================================================================== */

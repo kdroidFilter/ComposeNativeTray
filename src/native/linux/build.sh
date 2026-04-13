@@ -82,5 +82,13 @@ strip --strip-unneeded "$OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so"
 # Clean up object files
 rm -f "$SCRIPT_DIR/sni.o" "$SCRIPT_DIR/jni_bridge.o"
 
+# Invalidate runtime cache (NativeLibraryLoader validates by size only,
+# so a same-size rebuild would serve the stale cached copy)
+CACHE_FILE="$HOME/.cache/composetray/native/$PLATFORM_DIR/libLinuxTray.so"
+if [ -f "$CACHE_FILE" ]; then
+    rm -f "$CACHE_FILE"
+    echo "Cleared cached library: $CACHE_FILE"
+fi
+
 echo "Build completed: $OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so"
 ls -lh "$OUTPUT_DIR/$PLATFORM_DIR/libLinuxTray.so"

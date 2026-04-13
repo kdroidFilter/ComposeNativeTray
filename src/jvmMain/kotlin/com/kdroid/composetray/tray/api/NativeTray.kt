@@ -56,6 +56,7 @@ internal class NativeTray {
         tooltip: String,
         primaryAction: (() -> Unit)?,
         menuContent: (TrayMenuBuilder.() -> Unit)?,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         if (!initialized) {
             initializeTray(iconPath, windowsIconPath, tooltip, primaryAction, menuContent)
@@ -65,7 +66,15 @@ internal class NativeTray {
 
         try {
             when (os) {
-                LINUX -> LinuxTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                LINUX ->
+                    LinuxTrayInitializer.update(
+                        instanceId,
+                        iconPath,
+                        tooltip,
+                        primaryAction,
+                        menuContent,
+                        onMenuOpened,
+                    )
                 WINDOWS ->
                     WindowsTrayInitializer.update(
                         instanceId,
@@ -73,8 +82,17 @@ internal class NativeTray {
                         tooltip,
                         primaryAction,
                         menuContent,
+                        onMenuOpened,
                     )
-                MACOS -> MacTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                MACOS ->
+                    MacTrayInitializer.update(
+                        instanceId,
+                        iconPath,
+                        tooltip,
+                        primaryAction,
+                        menuContent,
+                        onMenuOpened,
+                    )
                 UNKNOWN -> {
                     AwtTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                     awtTrayUsed.set(true)
@@ -103,6 +121,7 @@ internal class NativeTray {
         backoffMs: Long = 200,
         lightIconContent: (@Composable () -> Unit)? = null,
         darkIconContent: (@Composable () -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         trayScope.launch {
             val rendered = renderIconsWithRetry(iconContent, iconRenderProperties, maxAttempts, backoffMs)
@@ -117,7 +136,7 @@ internal class NativeTray {
             val (pngIconPath, windowsIconPath) = rendered
 
             if (!initialized) {
-                initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent)
+                initializeTray(pngIconPath, windowsIconPath, tooltip, primaryAction, menuContent, onMenuOpened)
                 initialized = true
             } else {
                 try {
@@ -129,6 +148,7 @@ internal class NativeTray {
                                 tooltip,
                                 primaryAction,
                                 menuContent,
+                                onMenuOpened,
                             )
                         WINDOWS ->
                             WindowsTrayInitializer.update(
@@ -137,8 +157,17 @@ internal class NativeTray {
                                 tooltip,
                                 primaryAction,
                                 menuContent,
+                                onMenuOpened,
                             )
-                        MACOS -> MacTrayInitializer.update(instanceId, pngIconPath, tooltip, primaryAction, menuContent)
+                        MACOS ->
+                            MacTrayInitializer.update(
+                                instanceId,
+                                pngIconPath,
+                                tooltip,
+                                primaryAction,
+                                menuContent,
+                                onMenuOpened,
+                            )
                         UNKNOWN -> {
                             AwtTrayInitializer.update(pngIconPath, tooltip, primaryAction, menuContent)
                             awtTrayUsed.set(true)
@@ -241,6 +270,7 @@ internal class NativeTray {
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         trayScope.launch {
             var trayInitialized = false
@@ -249,7 +279,14 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         debugln { "[NativeTray] Initializing Linux tray with icon path: $iconPath" }
-                        LinuxTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                        LinuxTrayInitializer.initialize(
+                            instanceId,
+                            iconPath,
+                            tooltip,
+                            primaryAction,
+                            menuContent,
+                            onMenuOpened,
+                        )
                         trayInitialized = true
                     }
                     WINDOWS -> {
@@ -260,12 +297,20 @@ internal class NativeTray {
                             tooltip,
                             primaryAction,
                             menuContent,
+                            onMenuOpened,
                         )
                         trayInitialized = true
                     }
                     MACOS -> {
                         debugln { "[NativeTray] Initializing macOS tray with icon path: $iconPath" }
-                        MacTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent)
+                        MacTrayInitializer.initialize(
+                            instanceId,
+                            iconPath,
+                            tooltip,
+                            primaryAction,
+                            menuContent,
+                            onMenuOpened,
+                        )
                         trayInitialized = true
                     }
                     else -> {}
@@ -301,6 +346,7 @@ internal class NativeTray {
         tooltip: String = "",
         primaryAction: (() -> Unit)?,
         menuContent: (TrayMenuBuilder.() -> Unit)? = null,
+        onMenuOpened: (() -> Unit)? = null,
     ) {
         updateComposable(
             iconContent = iconContent,
@@ -308,6 +354,7 @@ internal class NativeTray {
             tooltip = tooltip,
             primaryAction = primaryAction,
             menuContent = menuContent,
+            onMenuOpened = onMenuOpened,
         )
     }
 }
@@ -325,6 +372,7 @@ fun ApplicationScope.Tray(
     windowsIconPath: String = iconPath,
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val absoluteIconPath = remember(iconPath) { extractToTempIfDifferent(iconPath)?.absolutePath.orEmpty() }
@@ -344,7 +392,7 @@ fun ApplicationScope.Tray(
 
     // Update when params change, including menuHash
     LaunchedEffect(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, menuContent, menuHash) {
-        tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, menuContent)
+        tray.update(absoluteIconPath, absoluteWindowsIconPath, tooltip, primaryAction, menuContent, onMenuOpened)
     }
 
     // Dispose only when Tray is removed from composition
@@ -362,6 +410,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode() // Observe menu bar theme to trigger recomposition on changes
@@ -384,6 +433,7 @@ fun ApplicationScope.Tray(
             menuContent = menuContent,
             maxAttempts = 3,
             backoffMs = 200,
+            onMenuOpened = onMenuOpened,
         )
     }
 
@@ -402,6 +452,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode()
@@ -477,6 +528,7 @@ fun ApplicationScope.Tray(
             backoffMs = 200,
             lightIconContent = lightIconContent,
             darkIconContent = darkIconContent,
+            onMenuOpened = onMenuOpened,
         )
     }
 
@@ -494,6 +546,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val isDark = isMenuBarInDarkMode() // Included for consistency, even if not used in rendering
@@ -527,6 +580,7 @@ fun ApplicationScope.Tray(
             menuContent = menuContent,
             maxAttempts = 3,
             backoffMs = 200,
+            onMenuOpened = onMenuOpened,
         )
     }
 
@@ -549,6 +603,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val os = getOperatingSystem()
@@ -560,6 +615,7 @@ fun ApplicationScope.Tray(
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
+            onMenuOpened = onMenuOpened,
             menuContent = menuContent,
         )
     } else {
@@ -570,6 +626,7 @@ fun ApplicationScope.Tray(
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
+            onMenuOpened = onMenuOpened,
             menuContent = menuContent,
         )
     }
@@ -584,6 +641,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     // Convert DrawableResource to Painter and delegate to the Painter overload
@@ -593,6 +651,7 @@ fun ApplicationScope.Tray(
         iconRenderProperties = iconRenderProperties,
         tooltip = tooltip,
         primaryAction = primaryAction,
+        onMenuOpened = onMenuOpened,
         menuContent = menuContent,
     )
 }
@@ -605,6 +664,7 @@ fun ApplicationScope.Tray(
     iconRenderProperties: IconRenderProperties = IconRenderProperties.forCurrentOperatingSystem(),
     tooltip: String,
     primaryAction: (() -> Unit)? = null,
+    onMenuOpened: (() -> Unit)? = null,
     menuContent: (TrayMenuBuilder.() -> Unit)? = null,
 ) {
     val os = getOperatingSystem()
@@ -617,6 +677,7 @@ fun ApplicationScope.Tray(
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
+            onMenuOpened = onMenuOpened,
             menuContent = menuContent,
         )
     } else {
@@ -627,6 +688,7 @@ fun ApplicationScope.Tray(
             iconRenderProperties = iconRenderProperties,
             tooltip = tooltip,
             primaryAction = primaryAction,
+            onMenuOpened = onMenuOpened,
             menuContent = menuContent,
         )
     }
