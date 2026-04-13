@@ -126,7 +126,8 @@ object MenuContentHash {
             shortcut: KeyShortcut?,
         ) {
             operations.add(
-                "CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}:$shortcut",
+                "CheckableItemWithImageVectorIcon:$label:" +
+                    "${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}:$shortcut",
             )
         }
 

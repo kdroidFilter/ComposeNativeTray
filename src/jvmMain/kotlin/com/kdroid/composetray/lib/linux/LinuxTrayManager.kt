@@ -363,9 +363,13 @@ internal class LinuxTrayManager(
             item.shortcut?.let { shortcut ->
                 runCatching {
                     native.nativeItemSetShortcut(
-                        trayHandle, id,
+                        trayHandle,
+                        id,
                         shortcut.toLinuxKey(),
-                        shortcut.ctrl, shortcut.shift, shortcut.alt, shortcut.meta,
+                        shortcut.ctrl,
+                        shortcut.shift,
+                        shortcut.alt,
+                        shortcut.meta,
                     )
                 }.onFailure { e -> warnln { "[LinuxTrayManager] Failed to set shortcut: ${e.message}" } }
             }

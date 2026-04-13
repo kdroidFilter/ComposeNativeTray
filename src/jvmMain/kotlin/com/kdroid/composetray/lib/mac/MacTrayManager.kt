@@ -1,12 +1,12 @@
 package com.kdroid.composetray.lib.mac
 
 import androidx.compose.runtime.mutableStateOf
+import com.kdroid.composetray.menu.api.KeyShortcut
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import com.kdroid.composetray.menu.api.KeyShortcut
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock

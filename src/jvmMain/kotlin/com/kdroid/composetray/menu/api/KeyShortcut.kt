@@ -27,10 +27,10 @@ data class KeyShortcut(
      */
     internal fun toMacModifierMask(): Long {
         var mask = 0L
-        if (meta) mask = mask or (1L shl 20)   // NSEventModifierFlagCommand
-        if (shift) mask = mask or (1L shl 17)   // NSEventModifierFlagShift
-        if (alt) mask = mask or (1L shl 19)     // NSEventModifierFlagOption
-        if (ctrl) mask = mask or (1L shl 18)    // NSEventModifierFlagControl
+        if (meta) mask = mask or (1L shl 20) // NSEventModifierFlagCommand
+        if (shift) mask = mask or (1L shl 17) // NSEventModifierFlagShift
+        if (alt) mask = mask or (1L shl 19) // NSEventModifierFlagOption
+        if (ctrl) mask = mask or (1L shl 18) // NSEventModifierFlagControl
         return mask
     }
 
@@ -56,20 +56,57 @@ enum class Key(
     internal val macKeyEquivalent: String,
     internal val linuxKeyName: String,
 ) {
-    A("a", "a"), B("b", "b"), C("c", "c"), D("d", "d"), E("e", "e"),
-    F("f", "f"), G("g", "g"), H("h", "h"), I("i", "i"), J("j", "j"),
-    K("k", "k"), L("l", "l"), M("m", "m"), N("n", "n"), O("o", "o"),
-    P("p", "p"), Q("q", "q"), R("r", "r"), S("s", "s"), T("t", "t"),
-    U("u", "u"), V("v", "v"), W("w", "w"), X("x", "x"), Y("y", "y"),
+    A("a", "a"),
+    B("b", "b"),
+    C("c", "c"),
+    D("d", "d"),
+    E("e", "e"),
+    F("f", "f"),
+    G("g", "g"),
+    H("h", "h"),
+    I("i", "i"),
+    J("j", "j"),
+    K("k", "k"),
+    L("l", "l"),
+    M("m", "m"),
+    N("n", "n"),
+    O("o", "o"),
+    P("p", "p"),
+    Q("q", "q"),
+    R("r", "r"),
+    S("s", "s"),
+    T("t", "t"),
+    U("u", "u"),
+    V("v", "v"),
+    W("w", "w"),
+    X("x", "x"),
+    Y("y", "y"),
     Z("z", "z"),
 
-    Num0("0", "0"), Num1("1", "1"), Num2("2", "2"), Num3("3", "3"), Num4("4", "4"),
-    Num5("5", "5"), Num6("6", "6"), Num7("7", "7"), Num8("8", "8"), Num9("9", "9"),
+    Num0("0", "0"),
+    Num1("1", "1"),
+    Num2("2", "2"),
+    Num3("3", "3"),
+    Num4("4", "4"),
+    Num5("5", "5"),
+    Num6("6", "6"),
+    Num7("7", "7"),
+    Num8("8", "8"),
+    Num9("9", "9"),
 
     // Function keys (AppKit private-use Unicode)
-    F1("\uF704", "F1"), F2("\uF705", "F2"), F3("\uF706", "F3"), F4("\uF707", "F4"),
-    F5("\uF708", "F5"), F6("\uF709", "F6"), F7("\uF70A", "F7"), F8("\uF70B", "F8"),
-    F9("\uF70C", "F9"), F10("\uF70D", "F10"), F11("\uF70E", "F11"), F12("\uF70F", "F12"),
+    F1("\uF704", "F1"),
+    F2("\uF705", "F2"),
+    F3("\uF706", "F3"),
+    F4("\uF707", "F4"),
+    F5("\uF708", "F5"),
+    F6("\uF709", "F6"),
+    F7("\uF70A", "F7"),
+    F8("\uF70B", "F8"),
+    F9("\uF70C", "F9"),
+    F10("\uF70D", "F10"),
+    F11("\uF70E", "F11"),
+    F12("\uF70F", "F12"),
 
     // Special keys
     Return("\r", "Return"),
