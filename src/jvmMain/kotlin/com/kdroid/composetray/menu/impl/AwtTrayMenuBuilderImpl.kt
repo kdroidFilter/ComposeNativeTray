@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.kdroid.composetray.menu.api.KeyShortcut
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.IconRenderProperties
 import org.jetbrains.compose.resources.DrawableResource
@@ -19,6 +20,7 @@ internal class AwtTrayMenuBuilderImpl(
     override fun Item(
         label: String,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         val menuItem = MenuItem(label)
@@ -34,11 +36,10 @@ internal class AwtTrayMenuBuilderImpl(
         iconContent: @Composable () -> Unit,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        Item(label, isEnabled, onClick)
+        Item(label, isEnabled, shortcut, onClick)
     }
 
     override fun Item(
@@ -47,11 +48,10 @@ internal class AwtTrayMenuBuilderImpl(
         iconTint: Color?,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        Item(label, isEnabled, onClick)
+        Item(label, isEnabled, shortcut, onClick)
     }
 
     override fun Item(
@@ -59,11 +59,10 @@ internal class AwtTrayMenuBuilderImpl(
         icon: Painter,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        Item(label, isEnabled, onClick)
+        Item(label, isEnabled, shortcut, onClick)
     }
 
     override fun Item(
@@ -71,10 +70,10 @@ internal class AwtTrayMenuBuilderImpl(
         icon: DrawableResource,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Minimal implementation to make it compile
-        Item(label, isEnabled, onClick)
+        Item(label, isEnabled, shortcut, onClick)
     }
 
     override fun CheckableItem(
@@ -82,6 +81,7 @@ internal class AwtTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         var currentChecked = checked
         val checkableMenuItem = MenuItem(getCheckableLabel(label, currentChecked))
@@ -104,10 +104,9 @@ internal class AwtTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun CheckableItem(
@@ -118,10 +117,9 @@ internal class AwtTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun CheckableItem(
@@ -131,10 +129,9 @@ internal class AwtTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun CheckableItem(
@@ -144,9 +141,9 @@ internal class AwtTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Minimal implementation to make it compile
-        CheckableItem(label, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun SubMenu(
@@ -167,8 +164,6 @@ internal class AwtTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
         SubMenu(label, isEnabled, submenuContent)
     }
 
@@ -180,8 +175,6 @@ internal class AwtTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
         SubMenu(label, isEnabled, submenuContent)
     }
 
@@ -192,8 +185,6 @@ internal class AwtTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Minimal implementation to make it compile
-        // Actual icon integration will be handled by the issue creator
         SubMenu(label, isEnabled, submenuContent)
     }
 
@@ -204,7 +195,6 @@ internal class AwtTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Minimal implementation to make it compile
         SubMenu(label, isEnabled, submenuContent)
     }
 

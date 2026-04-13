@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.lib.windows.WindowsTrayManager
+import com.kdroid.composetray.menu.api.KeyShortcut
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
@@ -32,19 +33,19 @@ internal class WindowsTrayMenuBuilderImpl(
     override fun Item(
         label: String,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         lock.withLock {
             val menuItem =
                 WindowsTrayManager.MenuItem(
                     text = label,
-                    // No icon for basic item
                     iconPath = null,
                     isEnabled = isEnabled,
                     onClick = onClick,
                 )
             menuItems.add(menuItem)
-            persistentMenuItems.add(menuItem) // Store reference to prevent GC
+            persistentMenuItems.add(menuItem)
         }
     }
 
@@ -53,10 +54,10 @@ internal class WindowsTrayMenuBuilderImpl(
         iconContent: @Composable () -> Unit,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         lock.withLock {
-            // Render the composable icon to a PNG file (for future Windows icon support)
             val iconPath = ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent)
 
             val menuItem =
@@ -77,9 +78,9 @@ internal class WindowsTrayMenuBuilderImpl(
         iconTint: Color?,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Create composable content for the icon
         val iconContent: @Composable () -> Unit = {
             val isDark = isMenuBarInDarkMode()
 
@@ -97,8 +98,7 @@ internal class WindowsTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+        Item(label, iconContent, iconRenderProperties, isEnabled, shortcut, onClick)
     }
 
     override fun Item(
@@ -106,9 +106,9 @@ internal class WindowsTrayMenuBuilderImpl(
         icon: Painter,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Create composable content for the painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
@@ -117,8 +117,7 @@ internal class WindowsTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+        Item(label, iconContent, iconRenderProperties, isEnabled, shortcut, onClick)
     }
 
     override fun Item(
@@ -126,6 +125,7 @@ internal class WindowsTrayMenuBuilderImpl(
         icon: DrawableResource,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         val iconContent: @Composable () -> Unit = {
@@ -135,7 +135,7 @@ internal class WindowsTrayMenuBuilderImpl(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+        Item(label, iconContent, iconRenderProperties, isEnabled, shortcut, onClick)
     }
 
     override fun CheckableItem(
@@ -143,6 +143,7 @@ internal class WindowsTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         lock.withLock {
             val menuItem =
@@ -153,13 +154,12 @@ internal class WindowsTrayMenuBuilderImpl(
                     isCheckable = true,
                     isChecked = checked,
                     onClick = {
-                        // Toggle the checked state
                         val newChecked = !checked
                         onCheckedChange(newChecked)
                     },
                 )
             menuItems.add(menuItem)
-            persistentMenuItems.add(menuItem) // Store reference to prevent GC
+            persistentMenuItems.add(menuItem)
         }
     }
 
@@ -170,9 +170,9 @@ internal class WindowsTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         lock.withLock {
-            // Render the composable icon to a PNG file (for future Windows icon support)
             val iconPath = ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent)
 
             val menuItem =
@@ -183,7 +183,6 @@ internal class WindowsTrayMenuBuilderImpl(
                     isCheckable = true,
                     isChecked = checked,
                     onClick = {
-                        // Toggle the checked state
                         val newChecked = !checked
                         onCheckedChange(newChecked)
                     },
@@ -201,8 +200,8 @@ internal class WindowsTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Create composable content for the icon
         val iconContent: @Composable () -> Unit = {
             val isDark = isMenuBarInDarkMode()
 
@@ -220,8 +219,7 @@ internal class WindowsTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun CheckableItem(
@@ -231,8 +229,8 @@ internal class WindowsTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Create composable content for the painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
@@ -241,8 +239,7 @@ internal class WindowsTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun CheckableItem(
@@ -252,6 +249,7 @@ internal class WindowsTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         val iconContent: @Composable () -> Unit = {
             Image(
@@ -260,7 +258,7 @@ internal class WindowsTrayMenuBuilderImpl(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled, shortcut)
     }
 
     override fun SubMenu(
@@ -278,7 +276,6 @@ internal class WindowsTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Render the composable icon to a PNG file (for future Windows icon support)
         val iconPath = ComposableIconUtils.renderComposableToIcoFile(iconRenderProperties, iconContent)
         createSubMenu(label, iconPath, isEnabled, submenuContent)
     }
@@ -291,7 +288,6 @@ internal class WindowsTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Create composable content for the icon
         val iconContent: @Composable () -> Unit = {
             val isDark = isMenuBarInDarkMode()
 
@@ -309,7 +305,6 @@ internal class WindowsTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
@@ -320,7 +315,6 @@ internal class WindowsTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Create composable content for the painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
@@ -329,7 +323,6 @@ internal class WindowsTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
@@ -350,7 +343,6 @@ internal class WindowsTrayMenuBuilderImpl(
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
-    // Private helper method to create submenu
     private fun createSubMenu(
         label: String,
         iconPath: String?,
@@ -376,7 +368,7 @@ internal class WindowsTrayMenuBuilderImpl(
                     subMenuItems = subMenuItems,
                 )
             menuItems.add(subMenu)
-            persistentMenuItems.add(subMenu) // Store reference to prevent GC
+            persistentMenuItems.add(subMenu)
         }
     }
 
@@ -384,7 +376,7 @@ internal class WindowsTrayMenuBuilderImpl(
         lock.withLock {
             val divider = WindowsTrayManager.MenuItem(text = "-")
             menuItems.add(divider)
-            persistentMenuItems.add(divider) // Store reference to prevent GC
+            persistentMenuItems.add(divider)
         }
     }
 
@@ -396,7 +388,7 @@ internal class WindowsTrayMenuBuilderImpl(
                 tooltip = tooltip,
                 onLeftClick = onLeftClick,
             ).stopTray()
-            persistentMenuItems.clear() // Clear references when disposing
+            persistentMenuItems.clear()
         }
     }
 

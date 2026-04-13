@@ -41,6 +41,8 @@ struct tray_menu_item {
     int                      checked;      /* 1 = checked                     */
     tray_menu_item_callback  cb;          /* callback (NULL if none)         */
     struct tray_menu_item   *submenu;     /* submenu or NULL                 */
+    const char              *key_equivalent;        /* macOS key equivalent (e.g. "q") or NULL */
+    unsigned long            key_equivalent_mod_mask; /* macOS NSEventModifierFlags bitmask     */
 };
 
 struct tray {

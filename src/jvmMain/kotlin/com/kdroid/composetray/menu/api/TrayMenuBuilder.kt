@@ -19,11 +19,13 @@ interface TrayMenuBuilder {
      *
      * @param label The text label for the menu item.
      * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
      */
     fun Item(
         label: String,
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
         onClick: () -> Unit = {},
     )
 
@@ -34,6 +36,7 @@ interface TrayMenuBuilder {
      * @param iconContent A Composable function that defines the icon.
      * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
      * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
      */
     fun Item(
@@ -41,6 +44,7 @@ interface TrayMenuBuilder {
         iconContent: @Composable () -> Unit,
         iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
         onClick: () -> Unit = {},
     )
 
@@ -52,6 +56,7 @@ interface TrayMenuBuilder {
      * @param iconTint Optional tint color for the icon. If null, adapts to menu theme.
      * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
      * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
      */
     fun Item(
@@ -60,6 +65,7 @@ interface TrayMenuBuilder {
         iconTint: Color? = null,
         iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
         onClick: () -> Unit = {},
     )
 
@@ -70,6 +76,7 @@ interface TrayMenuBuilder {
      * @param icon The Painter to display as icon.
      * @param iconRenderProperties Properties for rendering the icon. Defaults to 16x16 for menu items.
      * @param isEnabled Indicates whether the menu item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      * @param onClick Lambda function to be invoked when the menu item is clicked. Defaults to an empty lambda.
      */
     fun Item(
@@ -77,6 +84,7 @@ interface TrayMenuBuilder {
         icon: Painter,
         iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
         onClick: () -> Unit = {},
     )
 
@@ -89,6 +97,7 @@ interface TrayMenuBuilder {
         icon: DrawableResource,
         iconRenderProperties: IconRenderProperties = IconRenderProperties.forMenuItem(),
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
         onClick: () -> Unit = {},
     )
 
@@ -100,12 +109,14 @@ interface TrayMenuBuilder {
      * @param checked The current checked state of the item.
      * @param onCheckedChange A lambda function called when the user toggles the item. The new checked state is passed as a parameter.
      * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      */
     fun CheckableItem(
         label: String,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
     )
 
     /**
@@ -117,6 +128,7 @@ interface TrayMenuBuilder {
      * @param checked The current checked state of the item.
      * @param onCheckedChange A lambda function called when the user toggles the item.
      * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      */
     fun CheckableItem(
         label: String,
@@ -125,6 +137,7 @@ interface TrayMenuBuilder {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
     )
 
     /**
@@ -137,6 +150,7 @@ interface TrayMenuBuilder {
      * @param checked The current checked state of the item.
      * @param onCheckedChange A lambda function called when the user toggles the item.
      * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      */
     fun CheckableItem(
         label: String,
@@ -146,6 +160,7 @@ interface TrayMenuBuilder {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
     )
 
     /**
@@ -157,6 +172,7 @@ interface TrayMenuBuilder {
      * @param checked The current checked state of the item.
      * @param onCheckedChange A lambda function called when the user toggles the item.
      * @param isEnabled Determines if the checkable item is enabled. Defaults to true.
+     * @param shortcut Optional keyboard shortcut hint displayed next to the item. Display-only, does not register a hotkey.
      */
     fun CheckableItem(
         label: String,
@@ -165,6 +181,7 @@ interface TrayMenuBuilder {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
     )
 
     /**
@@ -178,6 +195,7 @@ interface TrayMenuBuilder {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean = true,
+        shortcut: KeyShortcut? = null,
     )
 
     /**

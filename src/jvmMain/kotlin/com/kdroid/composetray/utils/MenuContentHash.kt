@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.kdroid.composetray.menu.api.KeyShortcut
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import org.jetbrains.compose.resources.DrawableResource
 import java.security.MessageDigest
@@ -41,9 +42,10 @@ object MenuContentHash {
         override fun Item(
             label: String,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
             onClick: () -> Unit,
         ) {
-            operations.add("Item:$label:$isEnabled")
+            operations.add("Item:$label:$isEnabled:$shortcut")
         }
 
         override fun Item(
@@ -51,9 +53,10 @@ object MenuContentHash {
             iconContent: @Composable () -> Unit,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
             onClick: () -> Unit,
         ) {
-            operations.add("ItemWithComposableIcon:$label:$isEnabled")
+            operations.add("ItemWithComposableIcon:$label:$isEnabled:$shortcut")
         }
 
         override fun Item(
@@ -62,9 +65,10 @@ object MenuContentHash {
             iconTint: Color?,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
             onClick: () -> Unit,
         ) {
-            operations.add("ItemWithImageVectorIcon:$label:${iconTint != null}:$isEnabled:${icon.hashCode()}")
+            operations.add("ItemWithImageVectorIcon:$label:${iconTint != null}:$isEnabled:${icon.hashCode()}:$shortcut")
         }
 
         override fun Item(
@@ -72,9 +76,10 @@ object MenuContentHash {
             icon: Painter,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
             onClick: () -> Unit,
         ) {
-            operations.add("ItemWithPainterIcon:$label:$isEnabled:${icon.hashCode()}")
+            operations.add("ItemWithPainterIcon:$label:$isEnabled:${icon.hashCode()}:$shortcut")
         }
 
         override fun Item(
@@ -82,9 +87,10 @@ object MenuContentHash {
             icon: DrawableResource,
             iconRenderProperties: IconRenderProperties,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
             onClick: () -> Unit,
         ) {
-            operations.add("ItemWithDrawableIcon:$label:$isEnabled:${icon.hashCode()}")
+            operations.add("ItemWithDrawableIcon:$label:$isEnabled:${icon.hashCode()}:$shortcut")
         }
 
         override fun CheckableItem(
@@ -92,8 +98,9 @@ object MenuContentHash {
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
         ) {
-            operations.add("CheckableItem:$label:$checked:$isEnabled")
+            operations.add("CheckableItem:$label:$checked:$isEnabled:$shortcut")
         }
 
         override fun CheckableItem(
@@ -103,8 +110,9 @@ object MenuContentHash {
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
         ) {
-            operations.add("CheckableItemWithComposableIcon:$label:$checked:$isEnabled")
+            operations.add("CheckableItemWithComposableIcon:$label:$checked:$isEnabled:$shortcut")
         }
 
         override fun CheckableItem(
@@ -115,9 +123,10 @@ object MenuContentHash {
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
         ) {
             operations.add(
-                "CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}",
+                "CheckableItemWithImageVectorIcon:$label:${iconTint != null}:$checked:$isEnabled:${icon.hashCode()}:$shortcut",
             )
         }
 
@@ -128,8 +137,9 @@ object MenuContentHash {
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
         ) {
-            operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
+            operations.add("CheckableItemWithPainterIcon:$label:$checked:$isEnabled:${icon.hashCode()}:$shortcut")
         }
 
         override fun CheckableItem(
@@ -139,8 +149,9 @@ object MenuContentHash {
             checked: Boolean,
             onCheckedChange: (Boolean) -> Unit,
             isEnabled: Boolean,
+            shortcut: KeyShortcut?,
         ) {
-            operations.add("CheckableItemWithDrawableIcon:$label:$checked:$isEnabled:${icon.hashCode()}")
+            operations.add("CheckableItemWithDrawableIcon:$label:$checked:$isEnabled:${icon.hashCode()}:$shortcut")
         }
 
         override fun SubMenu(

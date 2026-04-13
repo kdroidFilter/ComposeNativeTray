@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import com.kdroid.composetray.menu.api.KeyShortcut
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -43,6 +44,7 @@ internal class MacTrayManager(
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
+        val shortcut: KeyShortcut? = null,
         val onClick: (() -> Unit)? = null,
         val subMenuItems: List<MenuItem> = emptyList(),
     )
@@ -282,6 +284,15 @@ internal class MacTrayManager(
             if (menuItem.isEnabled) 0 else 1,
             if (menuItem.isChecked) 1 else 0,
         )
+
+        menuItem.shortcut?.let { shortcut ->
+            MacNativeBridge.nativeSetMenuItemShortcut(
+                parentHandle,
+                index,
+                shortcut.toMacKeyEquivalent(),
+                shortcut.toMacModifierMask(),
+            )
+        }
 
         menuItem.onClick?.let { onClick ->
             MacNativeBridge.nativeSetMenuItemCallback(

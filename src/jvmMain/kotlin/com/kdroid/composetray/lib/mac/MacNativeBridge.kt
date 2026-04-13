@@ -76,6 +76,13 @@ internal object MacNativeBridge {
         callback: Runnable?,
     )
 
+    @JvmStatic external fun nativeSetMenuItemShortcut(
+        menuHandle: Long,
+        index: Int,
+        keyEquivalent: String?,
+        modifierMask: Long,
+    )
+
     @JvmStatic external fun nativeSetMenuItemSubmenu(
         menuHandle: Long,
         index: Int,

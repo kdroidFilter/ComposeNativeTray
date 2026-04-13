@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.kdroid.composetray.lib.mac.MacTrayManager
+import com.kdroid.composetray.menu.api.KeyShortcut
 import com.kdroid.composetray.menu.api.TrayMenuBuilder
 import com.kdroid.composetray.utils.ComposableIconUtils
 import com.kdroid.composetray.utils.IconRenderProperties
@@ -30,10 +31,10 @@ internal class MacTrayMenuBuilderImpl(
     // Maintain persistent references to prevent GC
     private val persistentMenuItems = mutableListOf<MacTrayManager.MenuItem>()
 
-    // Item without icon (existing method)
     override fun Item(
         label: String,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         lock.withLock {
@@ -42,6 +43,7 @@ internal class MacTrayMenuBuilderImpl(
                     text = label,
                     icon = null,
                     isEnabled = isEnabled,
+                    shortcut = shortcut,
                     onClick = onClick,
                 )
             menuItems.add(menuItem)
@@ -49,16 +51,15 @@ internal class MacTrayMenuBuilderImpl(
         }
     }
 
-    // Item with Composable icon
     override fun Item(
         label: String,
         iconContent: @Composable () -> Unit,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         lock.withLock {
-            // Render the composable icon to a PNG file
             val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
 
             val menuItem =
@@ -66,6 +67,7 @@ internal class MacTrayMenuBuilderImpl(
                     text = label,
                     icon = iconPath,
                     isEnabled = isEnabled,
+                    shortcut = shortcut,
                     onClick = onClick,
                 )
             menuItems.add(menuItem)
@@ -73,18 +75,16 @@ internal class MacTrayMenuBuilderImpl(
         }
     }
 
-    // Item with ImageVector icon
     override fun Item(
         label: String,
         icon: ImageVector,
         iconTint: Color?,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
-            // Get the current menu bar theme
             val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
@@ -100,19 +100,17 @@ internal class MacTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+        Item(label, iconContent, iconRenderProperties, isEnabled, shortcut, onClick)
     }
 
-    // Item with Painter icon
     override fun Item(
         label: String,
         icon: Painter,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
-        // Create a composable that renders the Painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
@@ -121,16 +119,15 @@ internal class MacTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+        Item(label, iconContent, iconRenderProperties, isEnabled, shortcut, onClick)
     }
 
-    // Item with DrawableResource icon
     override fun Item(
         label: String,
         icon: DrawableResource,
         iconRenderProperties: IconRenderProperties,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
         onClick: () -> Unit,
     ) {
         val iconContent: @Composable () -> Unit = {
@@ -140,15 +137,15 @@ internal class MacTrayMenuBuilderImpl(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        Item(label, iconContent, iconRenderProperties, isEnabled, onClick)
+        Item(label, iconContent, iconRenderProperties, isEnabled, shortcut, onClick)
     }
 
-    // CheckableItem without icon (existing method)
     override fun CheckableItem(
         label: String,
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         lock.withLock {
             val menuItem =
@@ -158,14 +155,11 @@ internal class MacTrayMenuBuilderImpl(
                     isEnabled = isEnabled,
                     isCheckable = true,
                     isChecked = checked,
+                    shortcut = shortcut,
                     onClick = {
                         lock.withLock {
-                            // Toggle the checked state
                             val newChecked = !checked
                             onCheckedChange(newChecked)
-
-                            // Note: The actual visual update of the check mark
-                            // will happen when the menu is recreated after the state change
                         }
                     },
                 )
@@ -174,7 +168,6 @@ internal class MacTrayMenuBuilderImpl(
         }
     }
 
-    // CheckableItem with Composable icon
     override fun CheckableItem(
         label: String,
         iconContent: @Composable () -> Unit,
@@ -182,9 +175,9 @@ internal class MacTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         lock.withLock {
-            // Render the composable icon to a PNG file
             val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
 
             val menuItem =
@@ -194,6 +187,7 @@ internal class MacTrayMenuBuilderImpl(
                     isEnabled = isEnabled,
                     isCheckable = true,
                     isChecked = checked,
+                    shortcut = shortcut,
                     onClick = {
                         lock.withLock {
                             val newChecked = !checked
@@ -206,7 +200,6 @@ internal class MacTrayMenuBuilderImpl(
         }
     }
 
-    // CheckableItem with ImageVector icon
     override fun CheckableItem(
         label: String,
         icon: ImageVector,
@@ -215,10 +208,9 @@ internal class MacTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
-            // Get the current menu bar theme
             val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
@@ -234,11 +226,9 @@ internal class MacTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled, shortcut)
     }
 
-    // CheckableItem with Painter icon
     override fun CheckableItem(
         label: String,
         icon: Painter,
@@ -246,8 +236,8 @@ internal class MacTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
-        // Create a composable that renders the Painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
@@ -256,11 +246,9 @@ internal class MacTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
-        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled, shortcut)
     }
 
-    // CheckableItem with DrawableResource icon
     override fun CheckableItem(
         label: String,
         icon: DrawableResource,
@@ -268,6 +256,7 @@ internal class MacTrayMenuBuilderImpl(
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         isEnabled: Boolean,
+        shortcut: KeyShortcut?,
     ) {
         val iconContent: @Composable () -> Unit = {
             Image(
@@ -276,10 +265,9 @@ internal class MacTrayMenuBuilderImpl(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled)
+        CheckableItem(label, iconContent, iconRenderProperties, checked, onCheckedChange, isEnabled, shortcut)
     }
 
-    // SubMenu without icon (existing method)
     override fun SubMenu(
         label: String,
         isEnabled: Boolean,
@@ -288,7 +276,6 @@ internal class MacTrayMenuBuilderImpl(
         createSubMenu(label, null, isEnabled, submenuContent)
     }
 
-    // SubMenu with Composable icon
     override fun SubMenu(
         label: String,
         iconContent: @Composable () -> Unit,
@@ -296,12 +283,10 @@ internal class MacTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Render the composable icon to a PNG file
         val iconPath = ComposableIconUtils.renderComposableToPngFile(iconRenderProperties, iconContent)
         createSubMenu(label, iconPath, isEnabled, submenuContent)
     }
 
-    // SubMenu with ImageVector icon
     override fun SubMenu(
         label: String,
         icon: ImageVector,
@@ -310,9 +295,7 @@ internal class MacTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Create a composable that renders the ImageVector with appropriate tint
         val iconContent: @Composable () -> Unit = {
-            // Get the current menu bar theme
             val isDark = isSystemInDarkMode()
             Image(
                 imageVector = icon,
@@ -328,11 +311,9 @@ internal class MacTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
-    // SubMenu with Painter icon
     override fun SubMenu(
         label: String,
         icon: Painter,
@@ -340,7 +321,6 @@ internal class MacTrayMenuBuilderImpl(
         isEnabled: Boolean,
         submenuContent: (TrayMenuBuilder.() -> Unit)?,
     ) {
-        // Create a composable that renders the Painter
         val iconContent: @Composable () -> Unit = {
             Image(
                 painter = icon,
@@ -349,11 +329,9 @@ internal class MacTrayMenuBuilderImpl(
             )
         }
 
-        // Delegate to the composable version
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
-    // SubMenu with DrawableResource icon
     override fun SubMenu(
         label: String,
         icon: DrawableResource,
@@ -371,7 +349,6 @@ internal class MacTrayMenuBuilderImpl(
         SubMenu(label, iconContent, iconRenderProperties, isEnabled, submenuContent)
     }
 
-    // Private helper method to create submenu
     private fun createSubMenu(
         label: String,
         iconPath: String?,
@@ -412,8 +389,6 @@ internal class MacTrayMenuBuilderImpl(
 
     override fun dispose() {
         lock.withLock {
-            // Just clear references when disposing
-            // The actual MacTrayManager instance is managed by MacTrayInitializer
             persistentMenuItems.clear()
         }
     }

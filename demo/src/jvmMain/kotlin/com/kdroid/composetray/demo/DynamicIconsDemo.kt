@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import com.kdroid.composetray.menu.api.Key
+import com.kdroid.composetray.menu.api.KeyShortcut
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.ComposeNativeTrayLoggingLevel
 import com.kdroid.composetray.utils.SingleInstanceManager
@@ -88,12 +90,12 @@ fun main() = application {
         ) {
             // Weather submenu with dynamic icon
             SubMenu(label = "Weather", icon = weatherIcon) {
-                Item(label = "Sunny", icon = Icons.Default.WbSunny) {
+                Item(label = "Sunny", icon = Icons.Default.WbSunny, shortcut = KeyShortcut(Key.Num1, meta = true)) {
                     println("$logTag: Weather set to Sunny")
                     weatherIcon = Icons.Default.WbSunny
                 }
                 
-                Item(label = "Cloudy", icon = Icons.Default.Cloud) {
+                Item(label = "Cloudy", icon = Icons.Default.Cloud, shortcut = KeyShortcut(Key.Num2, meta = true)) {
                     println("$logTag: Weather set to Cloudy")
                     weatherIcon = Icons.Default.Cloud
                 }
@@ -113,12 +115,12 @@ fun main() = application {
             
             // Music submenu with dynamic icon
             SubMenu(label = "Music", icon = musicIcon) {
-                Item(label = "Play", icon = Icons.Default.PlayArrow) {
+                Item(label = "Play", icon = Icons.Default.PlayArrow, shortcut = KeyShortcut(Key.P, meta = true)) {
                     println("$logTag: Music playing")
                     musicIcon = Icons.Default.PlayArrow
                 }
                 
-                Item(label = "Pause", icon = Icons.Default.Pause) {
+                Item(label = "Pause", icon = Icons.Default.Pause, shortcut = KeyShortcut(Key.P, meta = true, shift = true)) {
                     println("$logTag: Music paused")
                     musicIcon = Icons.Default.Pause
                 }
@@ -130,15 +132,15 @@ fun main() = application {
                 
                 Divider()
                 
-                Item(label = "Volume Up", icon = Icons.Default.VolumeUp) {
+                Item(label = "Volume Up", icon = Icons.Default.VolumeUp, shortcut = KeyShortcut(Key.UpArrow, meta = true)) {
                     println("$logTag: Volume increased")
                 }
                 
-                Item(label = "Volume Down", icon = Icons.Default.VolumeDown) {
+                Item(label = "Volume Down", icon = Icons.Default.VolumeDown, shortcut = KeyShortcut(Key.DownArrow, meta = true)) {
                     println("$logTag: Volume decreased")
                 }
                 
-                Item(label = "Mute", icon = Icons.Default.VolumeMute) {
+                Item(label = "Mute", icon = Icons.Default.VolumeMute, shortcut = KeyShortcut(Key.M, meta = true, shift = true)) {
                     println("$logTag: Volume muted")
                 }
             }
@@ -211,12 +213,12 @@ fun main() = application {
             
             Divider()
             
-            Item(label = "Hide in tray", icon = Icons.Default.VisibilityOff) {
+            Item(label = "Hide in tray", icon = Icons.Default.VisibilityOff, shortcut = KeyShortcut(Key.H, meta = true)) {
                 isWindowVisible = false
                 println("$logTag: Application hidden in tray")
             }
             
-            Item(label = "Exit", icon = Icons.Default.ExitToApp) {
+            Item(label = "Exit", icon = Icons.Default.ExitToApp, shortcut = KeyShortcut(Key.Q, meta = true)) {
                 println("$logTag: Exiting application")
                 dispose()
                 exitApplication()
