@@ -42,6 +42,7 @@ internal class LinuxTrayMenuBuilderImpl(
                 LinuxTrayManager.MenuItem(
                     text = label,
                     isEnabled = isEnabled,
+                    shortcut = shortcut,
                     onClick = onClick,
                 )
             menuItems.add(menuItem)
@@ -65,6 +66,7 @@ internal class LinuxTrayMenuBuilderImpl(
                     text = label,
                     isEnabled = isEnabled,
                     iconPath = iconPath,
+                    shortcut = shortcut,
                     onClick = onClick,
                 )
             menuItems.add(menuItem)
@@ -154,6 +156,7 @@ internal class LinuxTrayMenuBuilderImpl(
                     isEnabled = isEnabled,
                     isCheckable = true,
                     isChecked = initialChecked,
+                    shortcut = shortcut,
                     onClick = {
                         lock.withLock {
                             val currentMenuItem = menuItems.find { it.text == label }
@@ -191,6 +194,7 @@ internal class LinuxTrayMenuBuilderImpl(
                     isCheckable = true,
                     isChecked = initialChecked,
                     iconPath = iconPath,
+                    shortcut = shortcut,
                     onClick = {
                         lock.withLock {
                             val currentMenuItem = menuItems.find { it.text == label }

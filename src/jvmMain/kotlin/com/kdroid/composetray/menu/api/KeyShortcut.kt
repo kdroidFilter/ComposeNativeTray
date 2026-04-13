@@ -5,7 +5,9 @@ package com.kdroid.composetray.menu.api
  * This is display-only — it does not register any global hotkey handler.
  *
  * On macOS, the shortcut renders as native key equivalent glyphs (e.g. ⌘S, ⇧⌘N).
- * On other platforms, this is currently a no-op.
+ * On Linux, the shortcut is serialized as a DBusMenu `shortcut` property
+ * and rendered by the desktop environment's indicator renderer (KDE, GNOME, etc.).
+ * On Windows, this is currently a no-op.
  *
  * Example:
  * ```
@@ -37,51 +39,62 @@ data class KeyShortcut(
      * Lowercase letter for regular key, special Unicode for function/special keys.
      */
     internal fun toMacKeyEquivalent(): String = key.macKeyEquivalent
+
+    /**
+     * Returns the DBusMenu key name for Linux shortcut hints.
+     */
+    internal fun toLinuxKey(): String = key.linuxKeyName
 }
 
 /**
  * Keyboard keys that can be used in [KeyShortcut].
  *
  * @property macKeyEquivalent The string value passed to NSMenuItem.setKeyEquivalent on macOS.
+ * @property linuxKeyName The DBusMenu key name string for Linux (follows XKB naming).
  */
-enum class Key(internal val macKeyEquivalent: String) {
-    A("a"), B("b"), C("c"), D("d"), E("e"), F("f"), G("g"), H("h"),
-    I("i"), J("j"), K("k"), L("l"), M("m"), N("n"), O("o"), P("p"),
-    Q("q"), R("r"), S("s"), T("t"), U("u"), V("v"), W("w"), X("x"),
-    Y("y"), Z("z"),
+enum class Key(
+    internal val macKeyEquivalent: String,
+    internal val linuxKeyName: String,
+) {
+    A("a", "a"), B("b", "b"), C("c", "c"), D("d", "d"), E("e", "e"),
+    F("f", "f"), G("g", "g"), H("h", "h"), I("i", "i"), J("j", "j"),
+    K("k", "k"), L("l", "l"), M("m", "m"), N("n", "n"), O("o", "o"),
+    P("p", "p"), Q("q", "q"), R("r", "r"), S("s", "s"), T("t", "t"),
+    U("u", "u"), V("v", "v"), W("w", "w"), X("x", "x"), Y("y", "y"),
+    Z("z", "z"),
 
-    Num0("0"), Num1("1"), Num2("2"), Num3("3"), Num4("4"),
-    Num5("5"), Num6("6"), Num7("7"), Num8("8"), Num9("9"),
+    Num0("0", "0"), Num1("1", "1"), Num2("2", "2"), Num3("3", "3"), Num4("4", "4"),
+    Num5("5", "5"), Num6("6", "6"), Num7("7", "7"), Num8("8", "8"), Num9("9", "9"),
 
     // Function keys (AppKit private-use Unicode)
-    F1("\uF704"), F2("\uF705"), F3("\uF706"), F4("\uF707"),
-    F5("\uF708"), F6("\uF709"), F7("\uF70A"), F8("\uF70B"),
-    F9("\uF70C"), F10("\uF70D"), F11("\uF70E"), F12("\uF70F"),
+    F1("\uF704", "F1"), F2("\uF705", "F2"), F3("\uF706", "F3"), F4("\uF707", "F4"),
+    F5("\uF708", "F5"), F6("\uF709", "F6"), F7("\uF70A", "F7"), F8("\uF70B", "F8"),
+    F9("\uF70C", "F9"), F10("\uF70D", "F10"), F11("\uF70E", "F11"), F12("\uF70F", "F12"),
 
     // Special keys
-    Return("\r"),
-    Tab("\t"),
-    Space(" "),
-    Escape("\u001B"),
-    Delete("\u007F"),
-    ForwardDelete("\uF728"),
-    UpArrow("\uF700"),
-    DownArrow("\uF701"),
-    LeftArrow("\uF702"),
-    RightArrow("\uF703"),
-    Home("\uF729"),
-    End("\uF72B"),
-    PageUp("\uF72C"),
-    PageDown("\uF72D"),
-    Minus("-"),
-    Equal("="),
-    LeftBracket("["),
-    RightBracket("]"),
-    Backslash("\\"),
-    Semicolon(";"),
-    Quote("'"),
-    Comma(","),
-    Period("."),
-    Slash("/"),
-    Backquote("`"),
+    Return("\r", "Return"),
+    Tab("\t", "Tab"),
+    Space(" ", "space"),
+    Escape("\u001B", "Escape"),
+    Delete("\u007F", "BackSpace"),
+    ForwardDelete("\uF728", "Delete"),
+    UpArrow("\uF700", "Up"),
+    DownArrow("\uF701", "Down"),
+    LeftArrow("\uF702", "Left"),
+    RightArrow("\uF703", "Right"),
+    Home("\uF729", "Home"),
+    End("\uF72B", "End"),
+    PageUp("\uF72C", "Page_Up"),
+    PageDown("\uF72D", "Page_Down"),
+    Minus("-", "minus"),
+    Equal("=", "equal"),
+    LeftBracket("[", "bracketleft"),
+    RightBracket("]", "bracketright"),
+    Backslash("\\", "backslash"),
+    Semicolon(";", "semicolon"),
+    Quote("'", "apostrophe"),
+    Comma(",", "comma"),
+    Period(".", "period"),
+    Slash("/", "slash"),
+    Backquote("`", "grave"),
 }

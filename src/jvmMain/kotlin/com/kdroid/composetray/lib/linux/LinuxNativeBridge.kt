@@ -162,6 +162,16 @@ internal object LinuxNativeBridge {
         iconBytes: ByteArray,
     )
 
+    @JvmStatic external fun nativeItemSetShortcut(
+        handle: Long,
+        id: Int,
+        key: String,
+        ctrl: Boolean,
+        shift: Boolean,
+        alt: Boolean,
+        superMod: Boolean,
+    )
+
     // -- X11 outside-click watcher -----------------------------------------------
 
     /** Open X11 display. Returns handle, or 0 if X11 is unavailable. */
