@@ -18,6 +18,7 @@ internal class WindowsTrayManager(
     private var iconPath: String,
     private var tooltip: String = "",
     private var onLeftClick: (() -> Unit)? = null,
+    private var onMenuOpened: (() -> Unit)? = null,
 ) {
     private var trayHandle: Long = 0L
     private val running = AtomicBoolean(false)
@@ -50,6 +51,7 @@ internal class WindowsTrayManager(
         val iconPath: String,
         val tooltip: String,
         val onLeftClick: (() -> Unit)?,
+        val onMenuOpened: (() -> Unit)?,
         val menuItems: List<MenuItem>,
     )
 
@@ -69,7 +71,7 @@ internal class WindowsTrayManager(
         updateLock.withLock {
             if (initialized.get()) {
                 log("Already initialized, delegating to update()")
-                update(iconPath, tooltip, onLeftClick, menuItems)
+                update(iconPath, tooltip, onLeftClick, onMenuOpened, menuItems)
                 return
             }
 
@@ -102,6 +104,9 @@ internal class WindowsTrayManager(
                         if (initResult != 0) {
                             throw RuntimeException("Failed to initialize tray: $initResult")
                         }
+
+                        // Set menu-opened callback after init (TrayContext must exist)
+                        setupMenuOpenedCallback(handle)
 
                         initialized.set(true)
 
@@ -141,6 +146,7 @@ internal class WindowsTrayManager(
         newIconPath: String,
         newTooltip: String,
         newOnLeftClick: (() -> Unit)?,
+        newOnMenuOpened: (() -> Unit)?,
         newMenuItems: List<MenuItem>,
     ) {
         log("update() called - icon: $newIconPath, tooltip: $newTooltip, menuItems: ${newMenuItems.size}")
@@ -150,13 +156,14 @@ internal class WindowsTrayManager(
             iconPath = newIconPath
             tooltip = newTooltip
             onLeftClick = newOnLeftClick
+            onMenuOpened = newOnMenuOpened
             initialize(newMenuItems)
             return
         }
 
         // Queue the update to be processed on the tray thread
         synchronized(updateQueueLock) {
-            updateQueue.add(UpdateRequest(newIconPath, newTooltip, newOnLeftClick, newMenuItems))
+            updateQueue.add(UpdateRequest(newIconPath, newTooltip, newOnLeftClick, newOnMenuOpened, newMenuItems))
             updateQueueLock.notify()
         }
     }
@@ -357,6 +364,7 @@ internal class WindowsTrayManager(
         iconPath = update.iconPath
         tooltip = update.tooltip
         onLeftClick = update.onLeftClick
+        onMenuOpened = update.onMenuOpened
 
         val handle = trayHandle
         if (handle == 0L) return
@@ -371,6 +379,7 @@ internal class WindowsTrayManager(
         // Set up new callbacks and menu
         setupLeftClickCallback(handle)
         setupMenu(handle, update.menuItems)
+        setupMenuOpenedCallback(handle)
 
         // Update the native tray
         log("Calling nativeUpdateTray()")
@@ -413,6 +422,32 @@ internal class WindowsTrayManager(
         } else {
             log("No left click callback set")
             WindowsNativeBridge.nativeSetTrayCallback(handle, null)
+        }
+    }
+
+    private fun setupMenuOpenedCallback(handle: Long) {
+        val callback = onMenuOpened
+        if (callback != null) {
+            log("Setting up menu opened callback")
+            WindowsNativeBridge.nativeSetMenuOpenedCallback(
+                handle,
+                Runnable {
+                    log("Menu opened callback invoked")
+                    try {
+                        mainScope?.launch {
+                            ioScope?.launch {
+                                callback()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        log("Error in menu opened callback: ${e.message}")
+                        e.printStackTrace()
+                    }
+                },
+            )
+        } else {
+            log("No menu opened callback set")
+            WindowsNativeBridge.nativeSetMenuOpenedCallback(handle, null)
         }
     }
 

@@ -36,6 +36,11 @@ internal object WindowsNativeBridge {
         callback: Runnable?,
     )
 
+    @JvmStatic external fun nativeSetMenuOpenedCallback(
+        handle: Long,
+        callback: Runnable?,
+    )
+
     @JvmStatic external fun nativeSetTrayMenu(
         trayHandle: Long,
         menuHandle: Long,

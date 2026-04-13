@@ -99,6 +99,7 @@ typedef struct TrayContext {
     UINT         uID;                 /* unique id for Shell_NotifyIcon   */
     DWORD        threadId;            /* thread that owns this context    */
     BOOL         exiting;             /* exit requested for this context  */
+    void       (*menu_opened_cb)(struct tray *); /* called before menu popup */
     struct TrayContext *next;         /* linked list                      */
 } TrayContext;
 
@@ -336,6 +337,12 @@ static LRESULT CALLBACK tray_wnd_proc(HWND h, UINT msg, WPARAM w, LPARAM l)
             POINT p;
             GetCursorPos(&p);
             SetForegroundWindow(h);
+
+            /* Invoke menu-opened callback outside the critical section
+             * to avoid deadlocks with JNI calls */
+            if (ctx && ctx->menu_opened_cb && ctx->tray) {
+                ctx->menu_opened_cb(ctx->tray);
+            }
 
             EnterCriticalSection(&tray_cs);
             if (ctx && ctx->hmenu) {
@@ -652,6 +659,20 @@ void tray_exit(void)
         return;
     }
 
+    LeaveCriticalSection(&tray_cs);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Set/clear the menu-opened callback for a given tray                       */
+/* -------------------------------------------------------------------------- */
+void tray_set_menu_opened_callback(struct tray *tray, void (*cb)(struct tray *))
+{
+    if (!tray) return;
+    ensure_critical_section();
+    EnterCriticalSection(&tray_cs);
+    TrayContext *ctx = find_ctx_by_tray(tray);
+    if (!ctx) ctx = find_ctx_by_thread(GetCurrentThreadId());
+    if (ctx) ctx->menu_opened_cb = cb;
     LeaveCriticalSection(&tray_cs);
 }
 
