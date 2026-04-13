@@ -66,7 +66,15 @@ internal class NativeTray {
 
         try {
             when (os) {
-                LINUX -> LinuxTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent, onMenuOpened)
+                LINUX ->
+                    LinuxTrayInitializer.update(
+                        instanceId,
+                        iconPath,
+                        tooltip,
+                        primaryAction,
+                        menuContent,
+                        onMenuOpened,
+                    )
                 WINDOWS ->
                     WindowsTrayInitializer.update(
                         instanceId,
@@ -76,7 +84,15 @@ internal class NativeTray {
                         menuContent,
                         onMenuOpened,
                     )
-                MACOS -> MacTrayInitializer.update(instanceId, iconPath, tooltip, primaryAction, menuContent, onMenuOpened)
+                MACOS ->
+                    MacTrayInitializer.update(
+                        instanceId,
+                        iconPath,
+                        tooltip,
+                        primaryAction,
+                        menuContent,
+                        onMenuOpened,
+                    )
                 UNKNOWN -> {
                     AwtTrayInitializer.update(iconPath, tooltip, primaryAction, menuContent)
                     awtTrayUsed.set(true)
@@ -143,7 +159,15 @@ internal class NativeTray {
                                 menuContent,
                                 onMenuOpened,
                             )
-                        MACOS -> MacTrayInitializer.update(instanceId, pngIconPath, tooltip, primaryAction, menuContent, onMenuOpened)
+                        MACOS ->
+                            MacTrayInitializer.update(
+                                instanceId,
+                                pngIconPath,
+                                tooltip,
+                                primaryAction,
+                                menuContent,
+                                onMenuOpened,
+                            )
                         UNKNOWN -> {
                             AwtTrayInitializer.update(pngIconPath, tooltip, primaryAction, menuContent)
                             awtTrayUsed.set(true)
@@ -255,7 +279,14 @@ internal class NativeTray {
                 when (os) {
                     LINUX -> {
                         debugln { "[NativeTray] Initializing Linux tray with icon path: $iconPath" }
-                        LinuxTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent, onMenuOpened)
+                        LinuxTrayInitializer.initialize(
+                            instanceId,
+                            iconPath,
+                            tooltip,
+                            primaryAction,
+                            menuContent,
+                            onMenuOpened,
+                        )
                         trayInitialized = true
                     }
                     WINDOWS -> {
@@ -272,7 +303,14 @@ internal class NativeTray {
                     }
                     MACOS -> {
                         debugln { "[NativeTray] Initializing macOS tray with icon path: $iconPath" }
-                        MacTrayInitializer.initialize(instanceId, iconPath, tooltip, primaryAction, menuContent, onMenuOpened)
+                        MacTrayInitializer.initialize(
+                            instanceId,
+                            iconPath,
+                            tooltip,
+                            primaryAction,
+                            menuContent,
+                            onMenuOpened,
+                        )
                         trayInitialized = true
                     }
                     else -> {}
