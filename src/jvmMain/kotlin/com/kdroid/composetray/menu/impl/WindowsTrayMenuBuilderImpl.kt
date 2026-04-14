@@ -39,7 +39,7 @@ internal class WindowsTrayMenuBuilderImpl(
         lock.withLock {
             val menuItem =
                 WindowsTrayManager.MenuItem(
-                    text = label,
+                    text = label.withShortcut(shortcut),
                     iconPath = null,
                     isEnabled = isEnabled,
                     onClick = onClick,
@@ -62,7 +62,7 @@ internal class WindowsTrayMenuBuilderImpl(
 
             val menuItem =
                 WindowsTrayManager.MenuItem(
-                    text = label,
+                    text = label.withShortcut(shortcut),
                     iconPath = iconPath,
                     isEnabled = isEnabled,
                     onClick = onClick,
@@ -148,7 +148,7 @@ internal class WindowsTrayMenuBuilderImpl(
         lock.withLock {
             val menuItem =
                 WindowsTrayManager.MenuItem(
-                    text = label,
+                    text = label.withShortcut(shortcut),
                     iconPath = null,
                     isEnabled = isEnabled,
                     isCheckable = true,
@@ -177,7 +177,7 @@ internal class WindowsTrayMenuBuilderImpl(
 
             val menuItem =
                 WindowsTrayManager.MenuItem(
-                    text = label,
+                    text = label.withShortcut(shortcut),
                     iconPath = iconPath,
                     isEnabled = isEnabled,
                     isCheckable = true,
@@ -393,4 +393,13 @@ internal class WindowsTrayMenuBuilderImpl(
     }
 
     fun build(): List<WindowsTrayManager.MenuItem> = lock.withLock { menuItems.toList() }
+
+    companion object {
+        /**
+         * Appends Win32 tab-separated accelerator text to a menu label.
+         * Windows natively right-aligns everything after `\t` in menu item strings.
+         */
+        private fun String.withShortcut(shortcut: KeyShortcut?): String =
+            if (shortcut != null) "$this\t${shortcut.toWindowsAcceleratorText()}" else this
+    }
 }
