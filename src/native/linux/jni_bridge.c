@@ -513,6 +513,21 @@ Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemSetIcon(
     (*env)->ReleaseByteArrayElements(env, iconBytes, buf, JNI_ABORT);
 }
 
+JNIEXPORT void JNICALL
+Java_com_kdroid_composetray_lib_linux_LinuxNativeBridge_nativeItemSetShortcut(
+    JNIEnv *env, jclass clazz, jlong handle, jint id,
+    jstring key, jboolean ctrl, jboolean shift, jboolean alt, jboolean superMod)
+{
+    (void)clazz;
+    sni_tray *tray = (sni_tray *)(uintptr_t)handle;
+    if (!tray) return;
+    const char *k = key ? (*env)->GetStringUTFChars(env, key, NULL) : NULL;
+    sni_tray_item_set_shortcut(tray, (uint32_t)id, k,
+                                ctrl ? 1 : 0, shift ? 1 : 0,
+                                alt ? 1 : 0, superMod ? 1 : 0);
+    if (k) (*env)->ReleaseStringUTFChars(env, key, k);
+}
+
 /* ========================================================================== */
 /*  X11 outside-click watcher (dynamically loaded to avoid hard dependency)   */
 /* ========================================================================== */

@@ -405,6 +405,27 @@ JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativ
     item->cb = (callback != NULL) ? menuItemCbTrampoline : NULL;
 }
 
+JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativeSetMenuItemShortcut(
+    JNIEnv *env, jclass clazz, jlong menuHandle, jint index,
+    jstring keyEquivalent, jlong modifierMask)
+{
+    (void)clazz;
+    struct tray_menu_item *items = (struct tray_menu_item *)(uintptr_t)menuHandle;
+    if (!items) return;
+    struct tray_menu_item *item = &items[index];
+
+    free((void *)item->key_equivalent);
+
+    if (keyEquivalent != NULL) {
+        const char *utf = (*env)->GetStringUTFChars(env, keyEquivalent, NULL);
+        item->key_equivalent = strdup(utf);
+        (*env)->ReleaseStringUTFChars(env, keyEquivalent, utf);
+    } else {
+        item->key_equivalent = NULL;
+    }
+    item->key_equivalent_mod_mask = (unsigned long)modifierMask;
+}
+
 JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativeSetMenuItemSubmenu(
     JNIEnv *env, jclass clazz, jlong menuHandle, jint index, jlong submenuHandle)
 {
@@ -424,6 +445,7 @@ JNIEXPORT void JNICALL Java_com_kdroid_composetray_lib_mac_MacNativeBridge_nativ
         removeCallback(&g_menuCallbacks, &items[i]);
         free((void *)items[i].text);
         free((void *)items[i].icon_filepath);
+        free((void *)items[i].key_equivalent);
         /* Note: submenus are freed by their own nativeFreeMenuItems call */
     }
     free(items);

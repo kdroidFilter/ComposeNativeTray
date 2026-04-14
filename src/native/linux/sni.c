@@ -67,6 +67,13 @@ typedef struct menu_item {
     uint8_t *icon_data;
     size_t   icon_len;
 
+    /* Keyboard shortcut hint (display-only, DBusMenu "shortcut" property) */
+    char    *shortcut_key;      /* e.g. "s", "F1", "Delete" */
+    int      shortcut_ctrl;
+    int      shortcut_shift;
+    int      shortcut_alt;
+    int      shortcut_super;    /* Meta key */
+
     /* Tree structure */
     int32_t  parent_id;  /* 0 = root */
     struct menu_item *children;
@@ -277,6 +284,7 @@ static void free_menu_items(sni_tray *tray) {
         free(tray->items[i].label);
         free(tray->items[i].tooltip);
         free(tray->items[i].icon_data);
+        free(tray->items[i].shortcut_key);
         free(tray->items[i].children);
     }
     free(tray->items);
@@ -626,6 +634,37 @@ static int append_menu_layout(sd_bus_message *reply, sni_tray *tray,
                     if (r < 0) return r;
                 }
 
+                /* Keyboard shortcut hint: DBusMenu "shortcut" property (type aas) */
+                if (item->shortcut_key) {
+                    r = sd_bus_message_open_container(reply, 'e', "sv");
+                    if (r < 0) return r;
+                    r = sd_bus_message_append(reply, "s", "shortcut");
+                    if (r < 0) return r;
+                    r = sd_bus_message_open_container(reply, 'v', "aas");
+                    if (r < 0) return r;
+                    r = sd_bus_message_open_container(reply, 'a', "as");
+                    if (r < 0) return r;
+                    r = sd_bus_message_open_container(reply, 'a', "s");
+                    if (r < 0) return r;
+                    if (item->shortcut_ctrl)
+                        sd_bus_message_append(reply, "s", "Control");
+                    if (item->shortcut_shift)
+                        sd_bus_message_append(reply, "s", "Shift");
+                    if (item->shortcut_alt)
+                        sd_bus_message_append(reply, "s", "Alt");
+                    if (item->shortcut_super)
+                        sd_bus_message_append(reply, "s", "Super");
+                    sd_bus_message_append(reply, "s", item->shortcut_key);
+                    r = sd_bus_message_close_container(reply); /* as (inner) */
+                    if (r < 0) return r;
+                    r = sd_bus_message_close_container(reply); /* a (outer) */
+                    if (r < 0) return r;
+                    r = sd_bus_message_close_container(reply); /* v */
+                    if (r < 0) return r;
+                    r = sd_bus_message_close_container(reply); /* e */
+                    if (r < 0) return r;
+                }
+
                 /* If this item has children, mark as submenu parent */
                 int32_t child_ids[MAX_MENU_ITEMS];
                 int child_count = get_children(tray, item_id, child_ids, MAX_MENU_ITEMS);
@@ -741,6 +780,26 @@ static int menu_get_group_properties(sd_bus_message *msg, void *userdata, sd_bus
                 if (item->checkable) {
                     sd_bus_message_append(reply, "{sv}", "toggle-type", "s", "checkmark");
                     sd_bus_message_append(reply, "{sv}", "toggle-state", "i", item->checked ? 1 : 0);
+                }
+                if (item->shortcut_key) {
+                    sd_bus_message_open_container(reply, 'e', "sv");
+                    sd_bus_message_append(reply, "s", "shortcut");
+                    sd_bus_message_open_container(reply, 'v', "aas");
+                    sd_bus_message_open_container(reply, 'a', "as");
+                    sd_bus_message_open_container(reply, 'a', "s");
+                    if (item->shortcut_ctrl)
+                        sd_bus_message_append(reply, "s", "Control");
+                    if (item->shortcut_shift)
+                        sd_bus_message_append(reply, "s", "Shift");
+                    if (item->shortcut_alt)
+                        sd_bus_message_append(reply, "s", "Alt");
+                    if (item->shortcut_super)
+                        sd_bus_message_append(reply, "s", "Super");
+                    sd_bus_message_append(reply, "s", item->shortcut_key);
+                    sd_bus_message_close_container(reply);
+                    sd_bus_message_close_container(reply);
+                    sd_bus_message_close_container(reply);
+                    sd_bus_message_close_container(reply);
                 }
             }
         }
@@ -1305,5 +1364,20 @@ void sni_tray_item_set_icon(sni_tray *tray, uint32_t id,
             item->icon_len = icon_len;
         }
     }
+    emit_layout_updated(tray);
+}
+
+void sni_tray_item_set_shortcut(sni_tray *tray, uint32_t id,
+                                 const char *key,
+                                 int ctrl, int shift, int alt, int super_mod) {
+    if (!tray) return;
+    menu_item *item = find_item(tray, (int32_t)id);
+    if (!item) return;
+    free(item->shortcut_key);
+    item->shortcut_key = key ? strdup(key) : NULL;
+    item->shortcut_ctrl = ctrl;
+    item->shortcut_shift = shift;
+    item->shortcut_alt = alt;
+    item->shortcut_super = super_mod;
     emit_layout_updated(tray);
 }

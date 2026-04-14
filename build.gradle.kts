@@ -22,9 +22,13 @@ val version =
     }
 
 repositories {
-    mavenCentral()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     google()
+    mavenCentral()
+    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev") {
+        content {
+            includeGroupByRegex("org\\.jetbrains.*")
+        }
+    }
 }
 
 tasks.withType<DokkaTask>().configureEach {

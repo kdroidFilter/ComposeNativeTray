@@ -1,6 +1,7 @@
 package com.kdroid.composetray.lib.mac
 
 import androidx.compose.runtime.mutableStateOf
+import com.kdroid.composetray.menu.api.KeyShortcut
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,6 +44,7 @@ internal class MacTrayManager(
         val isEnabled: Boolean = true,
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
+        val shortcut: KeyShortcut? = null,
         val onClick: (() -> Unit)? = null,
         val subMenuItems: List<MenuItem> = emptyList(),
     )
@@ -282,6 +284,15 @@ internal class MacTrayManager(
             if (menuItem.isEnabled) 0 else 1,
             if (menuItem.isChecked) 1 else 0,
         )
+
+        menuItem.shortcut?.let { shortcut ->
+            MacNativeBridge.nativeSetMenuItemShortcut(
+                parentHandle,
+                index,
+                shortcut.toMacKeyEquivalent(),
+                shortcut.toMacModifierMask(),
+            )
+        }
 
         menuItem.onClick?.let { onClick ->
             MacNativeBridge.nativeSetMenuItemCallback(

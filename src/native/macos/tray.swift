@@ -225,7 +225,14 @@ private func nativeMenu(from menuPtr: UnsafeMutableRawPointer, statusItem: NSSta
             let callback = currentPtr.advanced(by: 24).load(as: MenuItemCallback?.self)
             let submenu  = currentPtr.advanced(by: 32).load(as: UnsafeMutableRawPointer?.self)
 
-            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let keyEquivPtr = currentPtr.advanced(by: 40).load(as: UnsafePointer<CChar>?.self)
+            let keyEquivModMask = currentPtr.advanced(by: 48).load(as: UInt.self)
+
+            let keyEquiv = keyEquivPtr.flatMap({ String(cString: $0) }) ?? ""
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: keyEquiv)
+            if keyEquivPtr != nil {
+                item.keyEquivalentModifierMask = NSEvent.ModifierFlags(rawValue: keyEquivModMask)
+            }
             item.isEnabled = !disabled
             item.state = checked ? .on : .off
             item.representedObject = currentPtr
@@ -250,7 +257,7 @@ private func nativeMenu(from menuPtr: UnsafeMutableRawPointer, statusItem: NSSta
             }
         }
 
-        currentPtr = currentPtr.advanced(by: 40)  // Nouveau offset avec le champ icon_filepath
+        currentPtr = currentPtr.advanced(by: 56)  // Stride includes key_equivalent + mod_mask fields
     }
     return menu
 }

@@ -36,6 +36,7 @@ internal class LinuxTrayManager(
         val isCheckable: Boolean = false,
         val isChecked: Boolean = false,
         val iconPath: String? = null,
+        val shortcut: com.kdroid.composetray.menu.api.KeyShortcut? = null,
         val onClick: (() -> Unit)? = null,
         val subMenuItems: List<MenuItem> = emptyList(),
     )
@@ -356,6 +357,21 @@ internal class LinuxTrayManager(
                     val bytes = File(iconPath).takeIf { it.isFile }?.readBytes()
                     if (bytes != null) native.nativeItemSetIcon(trayHandle, id, bytes)
                 }.onFailure { e -> warnln { "[LinuxTrayManager] Failed to set menu item icon: ${e.message}" } }
+            }
+
+            // Keyboard shortcut hint
+            item.shortcut?.let { shortcut ->
+                runCatching {
+                    native.nativeItemSetShortcut(
+                        trayHandle,
+                        id,
+                        shortcut.toLinuxKey(),
+                        shortcut.ctrl,
+                        shortcut.shift,
+                        shortcut.alt,
+                        shortcut.meta,
+                    )
+                }.onFailure { e -> warnln { "[LinuxTrayManager] Failed to set shortcut: ${e.message}" } }
             }
 
             // Submenu

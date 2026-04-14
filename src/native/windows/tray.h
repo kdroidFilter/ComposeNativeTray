@@ -44,6 +44,8 @@ struct tray_menu_item {
     int checked;
     void (*cb)(struct tray_menu_item *);
     struct tray_menu_item *submenu;
+    const char *key_equivalent;          // Reserved for future use (macOS only for now)
+    unsigned long key_equivalent_mod_mask; // Reserved for future use (macOS only for now)
 };
 
 /* -------------------------------------------------------------------------- */

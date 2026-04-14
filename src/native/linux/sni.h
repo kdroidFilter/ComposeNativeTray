@@ -97,6 +97,13 @@ void sni_tray_item_uncheck(sni_tray *tray, uint32_t id);
 void sni_tray_item_set_icon(sni_tray *tray, uint32_t id,
                              const uint8_t *icon_data, size_t icon_len);
 
+/* Set a display-only keyboard shortcut hint on a menu item.
+ * key: DBusMenu key name (e.g. "s", "F1", "Delete").
+ * Modifier flags: 1 = active, 0 = inactive. */
+void sni_tray_item_set_shortcut(sni_tray *tray, uint32_t id,
+                                 const char *key,
+                                 int ctrl, int shift, int alt, int super_mod);
+
 #ifdef __cplusplus
 }
 #endif
