@@ -690,6 +690,7 @@ TrayApp(
 | App | Description |
 |-----|-------------|
 | [AB Download Manager](https://github.com/amir1376/ab-download-manager) | A desktop download manager |
+| [RIFT Intel Fusion Tool](https://riftforeve.online) | A tool for EVE Online |
 
 > If your app uses Compose Native Tray, feel free to open a PR to add it here!
 
